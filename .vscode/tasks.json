@@ -2,9 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Deploy to GitHub",
+      "label": "PopDog: Refresh",
       "type": "shell",
-      "command": "git add . && git commit -m \"auto deploy\" && git push",
+      "command": "git add . && git commit -m \"auto-refresh\" || echo \"(no changes)\" && git push",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": []
     }
   ]
