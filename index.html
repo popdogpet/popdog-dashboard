@@ -381,6 +381,10 @@
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI11v-3QKXxod7fK6ErFnegN-XBT277j0DDF8xBCO4tAfoUhQUD24UYOJBe1iC4OGS/exec';
+// === Hardcoded default CSV URLs (fallbacks if nothing set) ===
+const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1502,10 +1506,14 @@ async function boot(){
     } catch (e) { /* silent */ }
   }
 
-  sheetUrlInput.value  = localStorage.getItem('popdog_sheet_csv_url')   || sheetUrlInput.value || '';
-  invUrlInput.value    = localStorage.getItem('popdog_inv_csv_url')     || invUrlInput.value   || '';
-  salesUrlInput.value  = localStorage.getItem('popdog_sales_csv_url')   || salesUrlInput.value || '';
-  ordersUrlInput.value = localStorage.getItem('popdog_orders_csv_url')  || ordersUrlInput.value|| '';
+  sheetUrlInput.value  = localStorage.getItem('popdog_sheet_csv_url')   || sheetUrlInput.value  || (typeof DEFAULT_SHEET_CSV  !== 'undefined' ? DEFAULT_SHEET_CSV  : '');
+  invUrlInput.value    = localStorage.getItem('popdog_inv_csv_url')     || invUrlInput.value    || (typeof DEFAULT_INV_CSV    !== 'undefined' ? DEFAULT_INV_CSV    : '');
+  salesUrlInput.value  = localStorage.getItem('popdog_sales_csv_url')   || salesUrlInput.value  || '';
+  ordersUrlInput.value = localStorage.getItem('popdog_orders_csv_url')  || ordersUrlInput.value || (typeof DEFAULT_ORDERS_CSV !== 'undefined' ? DEFAULT_ORDERS_CSV : '');
+
+  if (!localStorage.getItem('popdog_sheet_csv_url')   && sheetUrlInput.value)  localStorage.setItem('popdog_sheet_csv_url',  sheetUrlInput.value);
+  if (!localStorage.getItem('popdog_inv_csv_url')     && invUrlInput.value)    localStorage.setItem('popdog_inv_csv_url',    invUrlInput.value);
+  if (!localStorage.getItem('popdog_orders_csv_url')  && ordersUrlInput.value) localStorage.setItem('popdog_orders_csv_url', ordersUrlInput.value);
 
   try { await fetchFX(); } catch(e){}
 
