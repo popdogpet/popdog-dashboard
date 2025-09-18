@@ -184,10 +184,6 @@
       <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
       <canvas id="barStack" height="220"></canvas>
     </div>
-    <div class="glass card-3d rounded-3xl p-5">
-      <div class="text-slate-700 dark:text-slate-200 mb-2">Haftalık Toplam + 4 Hafta Tahmin</div>
-      <canvas id="lineWeeklyForecast" height="180"></canvas>
-    </div>
 
     <!-- Satış / Devir Listeleri -->
     <div class="mt-6 sales-turnover">
@@ -1155,68 +1151,26 @@ const glassBars = {
 Chart.register(glassPie);
 Chart.register(glassBars);
 Chart.register(ChartDataLabels);
-let lineChart, pieChart, barChart, weekForecastChart;
+let lineChart, pieChart, barChart;
 function drawCharts(monthly){
   const labels = monthly.map(r=>r.month);
   const sum = k => monthly.reduce((a,r)=>a+(r[k]||0),0);
   function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
 
-  // ==== YoY overlay for monthly line chart ====
-  // Build YoY (previous year same months) aligned to labels
-  const thisYear = monthly.length ? monthly[0].year : (new Date()).getFullYear();
-  const prevYear = thisYear - 1;
-  const prevByMonth = {};
-  try {
-    // Use mergedRowsCache to aggregate previous year's monthly totals
-    const prevMonthlyMap = new Map();
-    (Array.isArray(mergedRowsCache) ? mergedRowsCache : []).forEach(r=>{
-      if(!r.Date) return;
-      const d = new Date(r.Date + 'T00:00:00Z');
-      if (d.getFullYear() !== prevYear) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-      const total = tpt+onl+ckm+trn+hb;
-      prevMonthlyMap.set(key, (prevMonthlyMap.get(key)||0) + total);
-    });
-    labels.forEach(lbl=>{
-      const mm = lbl.split('-')[1]; // "YYYY-MM"
-      const prevKey = `${prevYear}-${mm}`;
-      prevByMonth[prevKey] = prevMonthlyMap.get(prevKey) || null;
-    });
-  } catch(e){}
-  const prevSeries = labels.map(lbl => {
-    const mm = lbl.split('-')[1];
-    const key = `${prevYear}-${mm}`;
-    return (prevByMonth[key] != null) ? prevByMonth[key] : null;
-  });
-
   if(lineChart) lineChart.destroy();
   const lctx = document.getElementById('lineTotal').getContext('2d');
   lineChart = new Chart(lctx, {
     type:'line',
-    data:{
-      labels,
-      datasets:[
-        {
-          label:'Toplam (Bu Yıl)',
-          data: monthly.map(r=>r.Total),
-          tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
-          backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
-          pointRadius:4, pointHoverRadius:6
-        },
-        {
-          label:`Geçen Yıl`,
-          data: prevSeries,
-          tension:0.35, borderWidth:2, borderColor:'#94a3b8',
-          borderDash:[6,6],
-          pointRadius:0, pointHoverRadius:0,
-          fill:false
-        }
-      ]
-    },
+    data:{ labels, datasets:[{
+      label:'Toplam',
+      data: monthly.map(r=>r.Total),
+      tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
+      backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
+      pointRadius:4, pointHoverRadius:6
+    }]},
     options:{
       plugins:{
-        legend:{display:true, labels:{ boxWidth:10, padding:12 }},
+        legend:{display:false},
         datalabels:{ align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true }
       },
       scales:{ x:{ ticks:{ maxRotation:0 }}, y:{ ticks:{ callback:(v)=> numberTL(v) }} }
@@ -1329,82 +1283,6 @@ function drawCharts(monthly){
       barPercentage: 0.8
     }
   });
-
-  // ==== Weekly totals + 4-week forecast (with ±10% band) ====
-  try{
-    if (weekForecastChart) weekForecastChart.destroy();
-    const wctx = document.getElementById('lineWeeklyForecast')?.getContext('2d');
-    if (wctx && Array.isArray(weeklyAgg) && weeklyAgg.length){
-      // Use last 12 weeks for regression
-      const recent = weeklyAgg.slice(-12);
-      const x = recent.map((_,i)=> i);                // 0..n-1
-      const y = recent.map(w => w.Total || 0);
-
-      // Linear regression y = a*x + b
-      const n = x.length;
-      const sumX = x.reduce((a,b)=>a+b,0);
-      const sumY = y.reduce((a,b)=>a+b,0);
-      const sumXY = x.reduce((a,xi,i)=> a + xi*y[i], 0);
-      const sumXX = x.reduce((a,xi)=> a + xi*xi, 0);
-      const denom = (n*sumXX - sumX*sumX) || 1;
-      const a = (n*sumXY - sumX*sumY) / denom;
-      const b = (sumY*sumXX - sumX*sumXY) / denom;
-
-      // Build labels for recent + next 4 weeks
-      const lbls = recent.map(w=> w.monday);
-      const lastMon = new Date(recent[recent.length-1].monday + 'T00:00:00');
-      for(let i=1;i<=4;i++){
-        const d = new Date(lastMon); d.setDate(d.getDate()+7*i);
-        const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        lbls.push(iso);
-      }
-
-      // Actual series (recent)
-      const actual = [...y, ...Array(4).fill(null)];
-
-      // Forecast points for next 4 (continue x as n..n+3)
-      const forecast = [];
-      for(let k=0;k<4;k++){
-        const xi = n + k;
-        forecast.push(a*xi + b);
-      }
-      const forecastSeries = [...Array(n).fill(null), ...forecast];
-
-      // ±10% band on forecast
-      const upper = forecast.map(v => v*1.10);
-      const lower = forecast.map(v => v*0.90);
-      const upperSeries = [...Array(n).fill(null), ...upper];
-      const lowerSeries = [...Array(n).fill(null), ...lower];
-
-      weekForecastChart = new Chart(wctx, {
-        type:'line',
-        data:{
-          labels: lbls.map(s => {
-            const d=new Date(s+'T00:00:00'); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-          }),
-          datasets:[
-            { label:'Gerçekleşen (haftalık)', data: actual, tension:0.3, borderWidth:2, borderColor:'#22c55e', fill:false, pointRadius:2 },
-            { label:'Tahmin (4h)', data: forecastSeries, tension:0.3, borderWidth:2, borderColor:'#0ea5e9', borderDash:[6,6], pointRadius:0, fill:false },
-            // Band: lower then upper with fill:'-1'
-            { label:'Band (alt)', data: lowerSeries, tension:0.3, borderWidth:0, pointRadius:0, fill:false },
-            { label:'Tahmin Bandı', data: upperSeries, tension:0.3, borderWidth:0, pointRadius:0, fill:'-1',
-              backgroundColor:'rgba(14,165,233,0.15)' }
-          ]
-        },
-        options:{
-          responsive:true,
-          maintainAspectRatio:true,
-          aspectRatio: 1.8,
-          plugins:{
-            legend:{ display:true, labels:{ boxWidth:10, padding:12 } },
-            tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${numberTL(ctx.raw||0)}` } },
-            datalabels:{ display:false }
-          },
-          scales:{ x:{ grid:{ display:false }}, y:{ ticks:{ callback:(v)=> numberTL(v) }, grid:{ color:'rgba(148,163,184,0.15)' } } }
-        }
-      });
-    }
-  }catch(e){ console.warn('Weekly forecast draw error', e); }
 }
 
 /* ================== Weekly UI ================== */
