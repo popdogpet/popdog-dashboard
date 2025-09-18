@@ -327,6 +327,23 @@
           </table>
         </div>
       </div>
+
+      <!-- Largest Stock (Top 25) -->
+      <div class="mt-4">
+        <div class="glass rounded-2xl p-3 overflow-auto">
+          <div class="hint text-sm mb-1">Stoğu En Fazla Olan (Top 25)</div>
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left  py-2 pr-4">SKU</th>
+                <th class="text-left  py-2 pr-4">Title</th>
+                <th class="text-right py-2 pr-4">On-hand</th>
+              </tr>
+            </thead>
+            <tbody id="tblLargestStock" class="text-slate-800 dark:text-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Günlük Rapor Yapıştır -->
@@ -685,6 +702,37 @@ function renderStockBlock(){
     // silent
   }
 
+  // 1.b) Toplam Ürün Adedi + depo bazında dağılım (Thrones / Caddebostan)
+  try {
+    // toplam on-hand (SKU bazında TotalUnits)
+    const totalUnitsAll = (invRows || []).reduce((acc, r) => acc + parseTL(r['TotalUnits'] || 0), 0);
+
+    // location sütunlarını tahmin et: Title ile TotalUnits arasındaki başlıklar
+    let thronesUnits = 0, caddeUnits = 0;
+    if (Array.isArray(invRows) && invRows.length) {
+      const hdrs = Object.keys(invRows[0] || {});
+      const iTitle = hdrs.indexOf('Title');
+      const iTotal = hdrs.indexOf('TotalUnits');
+      const locCols = (iTitle >= 0 && iTotal > iTitle) ? hdrs.slice(iTitle + 1, iTotal) : [];
+
+      invRows.forEach(row => {
+        locCols.forEach(col => {
+          const v = parseTL(row[col] || 0);
+          const key = (col || '').toLowerCase();
+          if (key.includes('thrones')) thronesUnits += v;
+          if (key.includes('caddebostan') || key.includes('ckm') || key.includes('cadde')) caddeUnits += v;
+        });
+      });
+    }
+
+    const totalEl = document.getElementById('kpiTotalUnits');
+    const noteEl  = document.getElementById('kpiTotalUnitsNote');
+    if (totalEl) totalEl.textContent = `${totalUnitsAll} adet`;
+    if (noteEl)  noteEl.textContent  = `Thrones: ${thronesUnits} • Caddebostan: ${caddeUnits}`;
+  } catch (e) {
+    console.warn('Total units KPI calc error', e);
+  }
+
   // 2) Top 10 ₺ stok tablosu
   const top10 = topStockSKUs(invRows, 10);
   const topTbody = document.getElementById('tblTopStock');
@@ -913,6 +961,33 @@ function renderStockBlock(){
       if (riskLbl) riskLbl.textContent = `${days} gün`;
     } catch (e) {
       console.warn('Stockout risk render error', e);
+    }
+
+    // 6.f Stoğu En Fazla Olan (Top 25)
+    try {
+      const largest = (invRows || []).map(r => ({
+        sku: String(r['SKU'] || '').trim(),
+        title: r['Title'] || '',
+        on: parseTL(r['TotalUnits'] || r['On hand total'] || r['On hand (current)'] || 0)
+      }))
+      .filter(x => x.sku && x.on > 0)
+      .sort((a,b) => b.on - a.on)
+      .slice(0, 25);
+
+      const largestTbody = document.getElementById('tblLargestStock');
+      if (largestTbody) {
+        largestTbody.innerHTML = largest.length
+          ? largest.map(x => `
+              <tr>
+                <td class="py-2 pr-4">${x.sku}</td>
+                <td class="py-2 pr-4">${x.title}</td>
+                <td class="py-2 pr-4 text-right">${x.on}</td>
+              </tr>
+            `).join('')
+          : '<tr><td class="hint py-2 pr-4" colspan="3">Veri yok.</td></tr>';
+      }
+    } catch (e) {
+      console.warn('Largest stock render error', e);
     }
   } catch(err) {
     console.warn('Sales/Turnover lists error', err);
