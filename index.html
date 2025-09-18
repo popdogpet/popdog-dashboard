@@ -248,7 +248,7 @@
       </div>
 
       <!-- Ek KPI'lar -->
-      <div class="grid md:grid-cols-3 gap-4 mt-3">
+      <div class="grid md:grid-cols-4 gap-4 mt-3">
         <div class="glass rounded-2xl p-3">
           <div class="hint text-xs">90+ gün elde <span class="ml-1 opacity-70 text-[10px]">(son satış ≥90g olan stok toplamı)</span></div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAged90Value">–</div>
@@ -262,6 +262,11 @@
           <div class="hint text-xs">DIO (60g) <span class="ml-1 opacity-70 text-[10px]">(son 60g ort. satış hızına göre stokun yeteceği gün)</span></div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiDIO60">– gün</div>
           <div class="hint text-[11px]" id="kpiDIOx">30g: – • 90g: –</div>
+        </div>
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">Toplam Ürün Adedi <span class="ml-1 opacity-70 text-[10px]">(depo bazında dağılım)</span></div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiTotalUnits">– adet</div>
+          <div class="hint text-xs" id="kpiTotalUnitsNote">Thrones: – • Caddebostan: –</div>
         </div>
       </div>
 
@@ -866,8 +871,12 @@ function renderStockBlock(){
         }
       });
       // on-hand and titles already computed above: onHandMap, titleMap
+      // Only include SKUs where title includes "zee" (case-insensitive)
       const riskArr = [];
       onHandMap.forEach((on, sku)=>{
+        const title = titleMap.get(sku) || '';
+        if (!title.toLowerCase().includes('zee')) return;
+        if (on <= 0) return;
         const sold = soldMapWin.get(sku)||0;
         const daily = sold / (days||1);
         if (daily > 0){
@@ -875,7 +884,7 @@ function renderStockBlock(){
           if (remain <= riskDays){
             riskArr.push({
               sku,
-              title: titleMap.get(sku) || '',
+              title: title,
               onHand: on,
               daily: daily,
               remain: remain
@@ -883,12 +892,13 @@ function renderStockBlock(){
           }
         }
       });
-      // En yüksek risk (en az kalan gün) en üstte
+      // Sort and slice to max 25 entries
       riskArr.sort((a,b)=> a.remain - b.remain);
+      const riskArrSliced = riskArr.slice(0, 25);
       const riskTbody = document.getElementById('tblStockoutRisk');
       if (riskTbody){
-        riskTbody.innerHTML = riskArr.length
-          ? riskArr.map(x => `
+        riskTbody.innerHTML = riskArrSliced.length
+          ? riskArrSliced.map(x => `
               <tr>
                 <td class="py-2 pr-4">${x.sku}</td>
                 <td class="py-2 pr-4">${x.title}</td>
