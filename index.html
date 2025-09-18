@@ -100,30 +100,6 @@
       </div>
     </header>
 
-    <!-- Data Source -->
-    <section class="glass card-3d rounded-3xl p-5 space-y-3">
-      <div class="flex items-center justify-between gap-4 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Veri Kaynağı: Google Sheet CSV URL</div>
-        <span class="badge">CKM Nakit total’e eklenmez</span>
-      </div>
-
-      <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv"
-        class="w-full rounded-2xl border p-3 focus:outline-none bg-white/70 dark:bg-slate-800 dark:text-slate-100">
-
-      <div class="grid md:grid-cols-2 gap-2">
-        <input id="invUrl"   type="url" placeholder="inventory_value (Published CSV) URL"
-               class="w-full rounded-2xl border p-3 bg-white/70 dark:bg-slate-800 dark:text-slate-100">
-        <input id="salesUrl" type="url" placeholder="sales_ytd (opsiyonel) CSV URL"
-               class="w-full rounded-2xl border p-3 bg-white/70 dark:bg-slate-800 dark:text-slate-100">
-        <input id="ordersUrl" type="url" placeholder="orders_raw (Published CSV) URL"
-               class="w-full rounded-2xl border p-3 mt-2 bg-white/70 dark:bg-slate-800 dark:text-slate-100">
-      </div>
-
-      <div class="flex items-center gap-3 flex-wrap">
-        <button id="saveUrlBtn" class="glass card-3d px-4 py-2 rounded-2xl">Kaydet ve Yenile</button>
-        <span id="sourceInfo" class="hint text-sm"></span>
-      </div>
-    </section>
 
       <!-- Satış / Devir Listeleri -->
       <div class="mt-6 sales-turnover">
@@ -1474,129 +1450,84 @@ function renderLast7(){
 }
 
 /* ================== BOOT & SAVE ================== */
-const sheetUrlInput  = document.getElementById('sheetUrl');
-const invUrlInput    = document.getElementById('invUrl');
-const salesUrlInput  = document.getElementById('salesUrl');
-const ordersUrlInput = document.getElementById('ordersUrl');
-const saveUrlBtn     = document.getElementById('saveUrlBtn');
-const sourceInfo     = document.getElementById('sourceInfo');
+// No longer binding Data Source DOM elements
 
 async function boot(){
-  // 0) URL query param override (sheet, inv, orders)
+  // 0) URL query param override (sheet, inv, orders) → directly persist
   const qpSheet  = getParam('sheet');
   const qpInv    = getParam('inv');
   const qpOrders = getParam('orders');
-  if (qpSheet || qpInv || qpOrders) {
-    if(qpSheet){ sheetUrlInput.value = qpSheet; localStorage.setItem('popdog_sheet_csv_url', qpSheet); }
-    if(qpInv){   invUrlInput.value   = qpInv;   localStorage.setItem('popdog_inv_csv_url',   qpInv); }
-    if(qpOrders){ordersUrlInput.value= qpOrders;localStorage.setItem('popdog_orders_csv_url',qpOrders);}
-  }
+  if (qpSheet)  localStorage.setItem('popdog_sheet_csv_url',  qpSheet);
+  if (qpInv)    localStorage.setItem('popdog_inv_csv_url',    qpInv);
+  if (qpOrders) localStorage.setItem('popdog_orders_csv_url', qpOrders);
 
   // 1) config.json (same folder) fallback if nothing set yet
-  const noInputsPreset = !sheetUrlInput.value && !invUrlInput.value && !ordersUrlInput.value;
-  if (noInputsPreset) {
+  const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url') ||
+                          localStorage.getItem('popdog_inv_csv_url')   ||
+                          localStorage.getItem('popdog_orders_csv_url'));
+  if (!hasAnyStored) {
     try {
       const r = await fetch('config.json', { cache: 'no-store' });
       if (r.ok) {
         const cfg = await r.json();
-        if (cfg.sheetCsv)  { sheetUrlInput.value  = cfg.sheetCsv;  localStorage.setItem('popdog_sheet_csv_url',  cfg.sheetCsv); }
-        if (cfg.inventoryCsv){ invUrlInput.value = cfg.inventoryCsv; localStorage.setItem('popdog_inv_csv_url', cfg.inventoryCsv); }
-        if (cfg.ordersCsv) { ordersUrlInput.value = cfg.ordersCsv; localStorage.setItem('popdog_orders_csv_url', cfg.ordersCsv); }
+        if (cfg.sheetCsv)     localStorage.setItem('popdog_sheet_csv_url',  cfg.sheetCsv);
+        if (cfg.inventoryCsv) localStorage.setItem('popdog_inv_csv_url',    cfg.inventoryCsv);
+        if (cfg.ordersCsv)    localStorage.setItem('popdog_orders_csv_url', cfg.ordersCsv);
       }
     } catch (e) { /* silent */ }
   }
 
-  sheetUrlInput.value  = localStorage.getItem('popdog_sheet_csv_url')   || sheetUrlInput.value  || (typeof DEFAULT_SHEET_CSV  !== 'undefined' ? DEFAULT_SHEET_CSV  : '');
-  invUrlInput.value    = localStorage.getItem('popdog_inv_csv_url')     || invUrlInput.value    || (typeof DEFAULT_INV_CSV    !== 'undefined' ? DEFAULT_INV_CSV    : '');
-  salesUrlInput.value  = localStorage.getItem('popdog_sales_csv_url')   || salesUrlInput.value  || '';
-  ordersUrlInput.value = localStorage.getItem('popdog_orders_csv_url')  || ordersUrlInput.value || (typeof DEFAULT_ORDERS_CSV !== 'undefined' ? DEFAULT_ORDERS_CSV : '');
+  // 2) Resolve URLs: localStorage → defaults
+  const sheetUrl  = localStorage.getItem('popdog_sheet_csv_url')  || (typeof DEFAULT_SHEET_CSV  !== 'undefined' ? DEFAULT_SHEET_CSV  : '');
+  const invUrl    = localStorage.getItem('popdog_inv_csv_url')    || (typeof DEFAULT_INV_CSV    !== 'undefined' ? DEFAULT_INV_CSV    : '');
+  const ordersUrl = localStorage.getItem('popdog_orders_csv_url') || (typeof DEFAULT_ORDERS_CSV !== 'undefined' ? DEFAULT_ORDERS_CSV : '');
 
-  if (!localStorage.getItem('popdog_sheet_csv_url')   && sheetUrlInput.value)  localStorage.setItem('popdog_sheet_csv_url',  sheetUrlInput.value);
-  if (!localStorage.getItem('popdog_inv_csv_url')     && invUrlInput.value)    localStorage.setItem('popdog_inv_csv_url',    invUrlInput.value);
-  if (!localStorage.getItem('popdog_orders_csv_url')  && ordersUrlInput.value) localStorage.setItem('popdog_orders_csv_url', ordersUrlInput.value);
-
+  // 3) FX
   try { await fetchFX(); } catch(e){}
 
+  // 4) Cached revenue rows (from previous session)
   const cached = localStorage.getItem('popdog_loaded_rows');
-  if(cached){ try{ loadedRows = JSON.parse(cached)||[]; }catch(e){} }
+  if (cached) { try { loadedRows = JSON.parse(cached) || []; } catch(e) {} }
 
-  // revenue
-  if(sheetUrlInput.value){
-    sourceInfo.textContent = 'Sheet’ten veri çekiliyor...';
-    try{
-      const data = await loadFromSheet(sheetUrlInput.value);
-      if(!data.length) throw new Error('Sheet boş döndü');
-      loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
+  // 5) Load revenue (sheet)
+  if (sheetUrl) {
+    console.log('Sheet’ten veri çekiliyor...');
+    try {
+      const data = await loadFromSheet(sheetUrl);
+      if (!data.length) throw new Error('Sheet boş döndü');
+      loadedRows = data;
+      localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
       const first = loadedRows[0]?.Date || '—';
       const last  = loadedRows.at(-1)?.Date || '—';
-      sourceInfo.textContent = `Sheet yüklendi (${loadedRows.length} satır) • ${first} → ${last}`;
-    }catch(e){
-      sourceInfo.textContent = 'Sheet yüklenemedi. URL ve yayınlama ayarlarını kontrol et.';
+      console.log(`Sheet yüklendi (${loadedRows.length} satır) • ${first} → ${last}`);
+    } catch (e) {
+      console.warn('Sheet yüklenemedi. URL ve yayınlama ayarlarını kontrol et.', e);
     }
-  }else{
-    sourceInfo.textContent = 'CSV URL girilmemiş. Üstten CSV de yükleyebilirsin.';
+  } else {
+    console.warn('CSV URL yok: Sheet verisi yüklenemedi.');
   }
 
-  // inventory_value
-  try{
-    const invUrl = invUrlInput.value.trim();
-    if(invUrl){
+  // 6) inventory_value
+  try {
+    if (invUrl) {
       const invRows = await loadCSV(invUrl);
       localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
     }
-  }catch(e){ console.warn('INV CSV error', e); }
+  } catch (e) { console.warn('INV CSV error', e); }
 
-  // orders_raw (Shopify)
-  try{
-    const ordersUrl = ordersUrlInput.value.trim();
-    if(ordersUrl){
+  // 7) orders_raw (Shopify)
+  try {
+    if (ordersUrl) {
       const rawRows = await loadCSV(ordersUrl);
       const mapped = rawRows.map(mapOrderRow)
-                            .filter(o => o.sku && o.qty>0 && o.date && !isNaN(+o.date));
+                            .filter(o => o.sku && o.qty > 0 && o.date && !isNaN(+o.date));
       localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
     }
-  }catch(e){ console.warn('ORDERS CSV error', e); }
+  } catch (e) { console.warn('ORDERS CSV error', e); }
 
   initSalesWindowSelector();
-  refreshAll(); // içinde stok bloğunu da çağırıyoruz
-}
-
-saveUrlBtn.onclick = async ()=>{
-  const sheetUrl  = sheetUrlInput.value.trim();
-  const invUrl    = invUrlInput.value.trim();
-  const salesUrl  = salesUrlInput.value.trim();
-  const ordersUrl = ordersUrlInput.value.trim();
-
-  if(sheetUrl)  localStorage.setItem('popdog_sheet_csv_url',  sheetUrl);
-  if(invUrl)    localStorage.setItem('popdog_inv_csv_url',    invUrl);
-  if(salesUrl)  localStorage.setItem('popdog_sales_csv_url',  salesUrl);
-  if(ordersUrl) localStorage.setItem('popdog_orders_csv_url', ordersUrl);
-
-  sourceInfo.textContent='Kaydedildi. Yenileniyor...';
-
-  try{
-    if(sheetUrl){
-      const data = await loadFromSheet(sheetUrl);
-      if(!data.length) throw new Error('Sheet boş döndü');
-      loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
-    }
-  }catch(e){ console.warn(e); }
-
-  try{
-    const invRows = invUrl ? await loadCSV(invUrl) : [];
-    localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
-  }catch(e){ console.warn(e); }
-
-  try{
-    const rawOrders = ordersUrl ? await loadCSV(ordersUrl) : [];
-    const mapped = rawOrders.map(mapOrderRow)
-                            .filter(o => o.sku && o.qty>0 && o.date && !isNaN(+o.date));
-    localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
-  }catch(e){ console.warn(e); }
-
   refreshAll();
-  sourceInfo.textContent='Yenilendi.';
-};
+}
 
 /* ================== WRITE TO SHEET ================== */
 async function writeStagedToSheet(){
