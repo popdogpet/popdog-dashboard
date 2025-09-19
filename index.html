@@ -125,11 +125,17 @@
             <div class="hint text-sm">Stok Değeri (Maliyet)</div>
             <div id="kpiInvCost" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvCost_USD" class="text-xs hint mt-0.5">≈ – USD</div>
+            <div class="hint text-xs mt-2">Vergi + Navlun dahil (+%65)</div>
+            <div id="kpiInvCost_65" class="text-sm font-medium text-slate-800 dark:text-slate-100">–</div>
+            <div id="kpiInvCost_65_USD" class="text-xs hint mt-0.5">≈ – USD</div>
           </div>
           <div class="glass rounded-2xl p-4">
             <div class="hint text-sm">Stok Değeri (Satış)</div>
             <div id="kpiInvPrice" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvPrice_USD" class="text-xs hint mt-0.5">≈ – USD</div>
+            <div class="hint text-xs mt-2">KDV Hariç (−%20)</div>
+            <div id="kpiInvPrice_exVAT" class="text-sm font-medium text-slate-800 dark:text-slate-100">–</div>
+            <div id="kpiInvPrice_exVAT_USD" class="text-xs hint mt-0.5">≈ – USD</div>
           </div>
         </div>
 
@@ -701,6 +707,27 @@ function renderStockBlock(){
   } catch (e) {
     // silent
   }
+
+  // 1.c) Türetilmiş tutarlar: Maliyet +%65 (Vergi+Navlun) ve Satış KDV Hariç (−%20)
+  try {
+    const costPlus = inv.valCost * 1.65;           // +%65 eklendi
+    const priceEx  = inv.valPrice / 1.20;          // %20 KDV çıkartıldı
+
+    const c65El      = document.getElementById('kpiInvCost_65');
+    const c65UsdEl   = document.getElementById('kpiInvCost_65_USD');
+    const exVatEl    = document.getElementById('kpiInvPrice_exVAT');
+    const exVatUsdEl = document.getElementById('kpiInvPrice_exVAT_USD');
+
+    if (c65El)    c65El.textContent    = numberTL(costPlus);
+    if (exVatEl)  exVatEl.textContent  = numberTL(priceEx);
+
+    if (c65UsdEl) {
+      c65UsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(costPlus * fxRateUSDPerTRY)} USD` : '≈ – USD';
+    }
+    if (exVatUsdEl) {
+      exVatUsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(priceEx * fxRateUSDPerTRY)} USD` : '≈ – USD';
+    }
+  } catch (e) { /* silent */ }
 
   // 1.b) Toplam Ürün Adedi + depo bazında dağılım (Thrones / Caddebostan)
   try {
