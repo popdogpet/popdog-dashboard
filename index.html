@@ -473,6 +473,19 @@ function getParam(name){
   try { return new URLSearchParams(location.search).get(name) || ''; } catch(e){ return ''; }
 }
 
+/* Clean-on-load flag: URL ?clean=1/0 overrides; falls back to localStorage; default = true */
+function isCleanOnLoad(){
+  try{
+    const p = getParam('clean');
+    if (p === '1') return true;
+    if (p === '0') return false;
+    const s = localStorage.getItem('popdog_clean_on_load');
+    if (s === '1') return true;
+    if (s === '0') return false;
+  }catch(e){}
+  return true; // default: clean enabled
+}
+
 /* ================== STATE ================== */
 let loadedRows = [];     // revenue rows (sheet csv)
 let stagedRows = [];     // whatsapp pasted rows
@@ -504,7 +517,11 @@ async function loadFromSheet(url){
             row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
             return row;
           }).filter(r=>r.Date);
-          resolve(data);
+          // Optional cleaning while loading from Sheet:
+          // - dedupe same-day rows (keeps the row with higher Total or more non-zero fields)
+          // - sort by Date ascending
+          const cleaned = isCleanOnLoad() ? dedupeDailyRows(data) : data;
+          resolve(cleaned);
         }catch(e){ reject(e); }
       },
       error: reject
@@ -1529,16 +1546,25 @@ document.getElementById('fileInput').addEventListener('change', e=>{
   }});
 });
 document.getElementById('downloadBtn').onclick = ()=>{
-  const merged=[...loadedRows, ...stagedRows].sort((a,b)=> (a.Date||'').localeCompare(b.Date||''));
+  // loaded + staged → tekilleştir ve tarihe göre sırala
+  const mergedRaw = [...loadedRows, ...stagedRows];
+  const merged = dedupeDailyRows(mergedRaw); // aynı güne ait en anlamlı satırı seçer
+
   const headers = ["Date","Toptan","Online","CKM","CKM Nakit","Trendyol","Hepsiburada","Total"];
   const lines = [headers.join(",")].concat(merged.map(r=>[
     r.Date, r.Toptan, r.Online, r.CKM, r["CKM Nakit"]||0, r.Trendyol, r.Hepsiburada, r.Total
   ].join(",")));
-  const csv=lines.join("\n");
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='revenue_2025_YTD.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'revenue_2025_YTD.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 /* ================== FX (TRY→USD) ================== */
@@ -1570,22 +1596,52 @@ async function fetchFX(){
   document.getElementById('fxNote').textContent = `Kur alınamadı`;
 }
 
+/* ================== DEDUPE HELPERS (daily revenue rows) ================== */
+function dedupeDailyRows(rows){
+  if (!Array.isArray(rows)) return [];
+  const byDate = new Map();
+  for (const r of rows){
+    if (!r || !r.Date) continue;
+    const key = String(r.Date).slice(0,10);
+    const cur = byDate.get(key);
+    // Daha büyük Total'ı seç. Eşitse dolu sütunu fazla olanı al.
+    if (!cur) { byDate.set(key, r); continue; }
+    const tNew = (+r.Total||0);
+    const tOld = (+cur.Total||0);
+    if (tNew > tOld) { byDate.set(key, r); continue; }
+    if (tNew === tOld) {
+      const nzNew = ((+r.Toptan||0)>0) + ((+r.Online||0)>0) + ((+r.CKM||0)>0) + ((+r.Trendyol||0)>0) + ((+r.Hepsiburada||0)>0);
+      const nzOld = ((+cur.Toptan||0)>0) + ((+cur.Online||0)>0) + ((+cur.CKM||0)>0) + ((+cur.Trendyol||0)>0) + ((+cur.Hepsiburada||0)>0);
+      if (nzNew > nzOld) byDate.set(key, r);
+    }
+  }
+  // Tarihe göre sırala
+  return Array.from(byDate.values()).sort((a,b)=> (a.Date||'').localeCompare(b.Date||''));
+}
 /* ================== PIPELINE (Revenue) ================== */
 function refreshAll(){
-  const merged = [...loadedRows, ...stagedRows].sort((a,b)=> (a.Date||'').localeCompare(b.Date||''));
+  // 1) loaded + staged → tekilleştir (aynı güne ait satırlarda en anlamlı olanı seç)
+  const mergedRaw = [...loadedRows, ...stagedRows];
+  const merged = dedupeDailyRows(mergedRaw); // zaten tarihe göre sıralı döner
+
+  // 2) cache
   mergedRowsCache = merged;
+
+  // 3) agregasyonlar
   const monthly = buildMonthly(merged);
   const weekly  = buildWeekly(merged); weeklyAgg = weekly;
-  // Seçili haftayı güncel son haftaya it
+
+  // 4) Haftalık seçimi güncel son haftaya sabitle (varsa)
   const lastMonday = weeklyAgg.length ? weeklyAgg[weeklyAgg.length - 1].monday : null;
   if (
-    !selectedMondayISO ||                                    // ilk açılış
-    !weeklyAgg.some(w => w.monday === selectedMondayISO) ||  // eski seçim artık yok
-    (lastMonday && selectedMondayISO < lastMonday)           // yeni veri ile daha ileri hafta geldiyse
+    !selectedMondayISO ||
+    !weeklyAgg.some(w => w.monday === selectedMondayISO) ||
+    (lastMonday && selectedMondayISO < lastMonday)
   ) {
     selectedMondayISO = lastMonday;
   }
 
+  // 5) KPI + UI
   setKPIs(monthly);
   buildAlerts(monthly);
   drawCharts(monthly);
@@ -1594,7 +1650,7 @@ function refreshAll(){
   renderWeek();
   renderLast7();
 
-  // stok bloğunu her refresh’te güncelle
+  // 6) Stok bloğu
   renderStockBlock();
 }
 /* ================== Last 7 Days Summary ================== */
@@ -1670,6 +1726,14 @@ async function boot(){
   if (qpSheet)  localStorage.setItem('popdog_sheet_csv_url',  qpSheet);
   if (qpInv)    localStorage.setItem('popdog_inv_csv_url',    qpInv);
   if (qpOrders) localStorage.setItem('popdog_orders_csv_url', qpOrders);
+
+  // Optional: persist clean flag from URL (?clean=1/0)
+  (function(){
+    const p = getParam('clean');
+    if (p === '1' || p === '0') {
+      try { localStorage.setItem('popdog_clean_on_load', p); } catch(e){}
+    }
+  })();
 
   // 1) config.json (same folder) fallback if nothing set yet
   const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url') ||
