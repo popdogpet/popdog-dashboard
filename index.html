@@ -1090,71 +1090,117 @@ function buildWeekly(rows){
 
 /* ================== KPIs (Revenue) ================== */
 function setKPIs(monthly){
-  const sum = k => monthly.reduce((a,r)=>a+(r[k]||0),0);
-  const ytd = sum('Total'); 
-  document.getElementById('kpiYTD').textContent = numberTL(ytd);
-  if(fxRateUSDPerTRY){ document.getElementById('kpiYTD_USD').textContent = `≈ ${numberUSD(ytd*fxRateUSDPerTRY)} USD`; }
+  // === KPIs sadece bu yıl (YTD) üzerinden hesaplansın ===
+  const now = new Date();
+  const currentYearReal = now.getFullYear();
 
-  // YTD YoY (aynı ay adedine kadar geçen yıl toplamı ile)
+  // Bu yılki aylar
+  const ytdRowsReal = (monthly || []).filter(m => m.year === currentYearReal);
+
+  // Eğer bu yıl yoksa: eldeki son yıl
+  const fallbackYear = ytdRowsReal.length
+    ? currentYearReal
+    : ((monthly || []).length ? monthly[(monthly.length - 1)].year : currentYearReal);
+
+  const thisYear = ytdRowsReal.length ? currentYearReal : fallbackYear;
+  const rowsThisYear = (monthly || []).filter(m => m.year === thisYear);
+
+  // Toplam yardımcı sadece seçilen yıl için
+  const sumTY = k => rowsThisYear.reduce((a, r) => a + (r[k] || 0), 0);
+
+  // === YTD Toplam (sadece bu yıl) ===
+  const ytdTotal = sumTY('Total');
+  const elYTD = document.getElementById('kpiYTD');
+  if (elYTD) elYTD.textContent = numberTL(ytdTotal);
+
+  const elYTD_USD = document.getElementById('kpiYTD_USD');
+  if (elYTD_USD) {
+    if (fxRateUSDPerTRY) elYTD_USD.textContent = `≈ ${numberUSD(ytdTotal * fxRateUSDPerTRY)} USD`;
+    else elYTD_USD.textContent = '≈ – USD';
+  }
+
+  // === YTD YoY: geçen yılın aynı ay sayısı ile hizalanmış toplam ===
   try {
-    // Bu yılın yılını al (monthly dizisinden ya da bugünden)
-    const thisYear = (monthly[0] && monthly[0].year) ? monthly[0].year : new Date().getFullYear();
     const prevYear = thisYear - 1;
-    // Bu yıl kaç aylık veri varsa, geçen yılın aynı sayıda ayını topla
-    const monthsCount = monthly.length;
-    const prevYtd = (mergedRowsCache||[]).reduce((acc, r)=>{
-      if(!r.Date) return acc;
-      const d = new Date(r.Date + 'T00:00:00Z');
-      if (d.getFullYear() !== prevYear) return acc;
-      // getMonth() 0-11 olduğu için monthsCount ile karşılaştırıyoruz
-      if (d.getMonth() < monthsCount) {
-        acc += (+r.Toptan||0)+(+r.Online||0)+(+r.CKM||0)+(+r.Trendyol||0)+(+r.Hepsiburada||0);
-      }
+    // Bu yıl var olan ayların MM listesini çıkar
+    const monthsThisYear = rowsThisYear.map(r => r.month.slice(5, 7));
+    const mmSet = new Set(monthsThisYear);
+
+    // Geçen yıl aynı ayların toplamı
+    const prevYtd = (monthly || []).reduce((acc, r) => {
+      if (r.year !== prevYear) return acc;
+      const mm = r.month.slice(5, 7);
+      if (mmSet.has(mm)) acc += (r.Total || 0);
       return acc;
     }, 0);
-    const yoy = prevYtd ? ((ytd - prevYtd) / prevYtd) : 0;
+
+    const yoy = prevYtd ? ((ytdTotal - prevYtd) / prevYtd) : 0;
     const elYoY = document.getElementById('kpiYTD_YoY');
-    if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy*100).toFixed(1)}%`;
+    if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy * 100).toFixed(1)}%`;
   } catch (e) {
     // sessiz geç
   }
 
+  // === En büyük kanal + paylar (yalnızca bu yıl) ===
   const channels = [
-    {k:'Toptan', v: sum('Toptan')},
-    {k:'Online', v: sum('Online')},
-    {k:'CKM', v: sum('CKM')},
-    {k:'Trendyol', v: sum('Trendyol')},
-    {k:'Hepsiburada', v: sum('Hepsiburada')},
-  ].sort((a,b)=>b.v-a.v);
-  const totalCh = channels.reduce((a,b)=>a+b.v,0)||1;
-  const top = channels[0];
-  document.getElementById('kpiTop').textContent = `${top.k}: ${numberTL(top.v)}  •  ${fxRateUSDPerTRY?numberUSD(top.v*fxRateUSDPerTRY):'– USD'}`;
-  const ul = document.getElementById('kpiOthers'); ul.innerHTML='';
-  channels.slice(1).forEach(c=>{
-    const li = document.createElement('li');
-    li.textContent = `${c.k}: ${numberTL(c.v)}  •  ${fxRateUSDPerTRY?numberUSD(c.v*fxRateUSDPerTRY):'– USD'}`;
-    ul.appendChild(li);
-  });
-  // Percent-only compact table (no duplication in main list)
+    { k: 'Toptan',      v: sumTY('Toptan') },
+    { k: 'Online',      v: sumTY('Online') },
+    { k: 'CKM',         v: sumTY('CKM') },
+    { k: 'Trendyol',    v: sumTY('Trendyol') },
+    { k: 'Hepsiburada', v: sumTY('Hepsiburada') },
+  ].sort((a, b) => b.v - a.v);
+
+  const totalCh = channels.reduce((a, b) => a + b.v, 0) || 1;
+  const top = channels[0] || { k: '—', v: 0 };
+
+  const kpiTopEl = document.getElementById('kpiTop');
+  if (kpiTopEl) {
+    kpiTopEl.textContent =
+      `${top.k}: ${numberTL(top.v)}  •  ${fxRateUSDPerTRY ? numberUSD(top.v * fxRateUSDPerTRY) : '– USD'}`;
+  }
+
+  const ul = document.getElementById('kpiOthers');
+  if (ul) {
+    ul.innerHTML = '';
+    channels.slice(1).forEach(c => {
+      const li = document.createElement('li');
+      li.textContent = `${c.k}: ${numberTL(c.v)}  •  ${fxRateUSDPerTRY ? numberUSD(c.v * fxRateUSDPerTRY) : '– USD'}`;
+      ul.appendChild(li);
+    });
+  }
+
   const shareTbl = document.getElementById('kpiShareTbl');
   if (shareTbl) {
-    const totalCh = channels.reduce((a,b)=>a+b.v,0) || 1;
     shareTbl.innerHTML = channels
       .map(c => {
-        const pct = (c.v/totalCh)*100;
+        const pct = (c.v / totalCh) * 100;
         return `<tr><td>${c.k}</td><td class="text-right">${pct.toFixed(1)}%</td></tr>`;
       })
       .join('');
   }
 
-  let last=null, prev=null;
-  if(monthly.length>=2){ last=monthly.at(-1).Total; prev=monthly.at(-2).Total; }
-  else if(monthly.length===1){ last=monthly[0].Total; prev=0; }
-  const mom = prev ? (last-prev)/prev : 0;
-  const el = document.getElementById('kpiMoM'); el.textContent = `${(mom*100).toFixed(1)}%`;
-  el.classList.remove('kpi-up','kpi-down'); el.classList.add(mom>=0?'kpi-up':'kpi-down');
-  const mLabels = monthly.map(m=>m.month);
-  document.getElementById('momNote').textContent = mLabels.length>=2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
+  // === MoM (bu yıl içindeki son iki ay) ===
+  const rowsSorted = rowsThisYear.slice().sort((a, b) => a.month.localeCompare(b.month));
+  let last = null, prev = null;
+  if (rowsSorted.length >= 2) {
+    last = rowsSorted.at(-1).Total;
+    prev = rowsSorted.at(-2).Total;
+  } else if (rowsSorted.length === 1) {
+    last = rowsSorted[0].Total;
+    prev = 0;
+  }
+
+  const mom = prev ? (last - prev) / prev : 0;
+  const elMoM = document.getElementById('kpiMoM');
+  if (elMoM) {
+    elMoM.textContent = `${(mom * 100).toFixed(1)}%`;
+    elMoM.classList.remove('kpi-up', 'kpi-down');
+    elMoM.classList.add(mom >= 0 ? 'kpi-up' : 'kpi-down');
+  }
+
+  const mLabels = rowsSorted.map(m => m.month);
+  const momNote = document.getElementById('momNote');
+  if (momNote) momNote.textContent = mLabels.length >= 2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
 }
 
 /* ================== Alerts ================== */
