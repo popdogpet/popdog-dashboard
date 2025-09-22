@@ -177,7 +177,13 @@
     <!-- Charts -->
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="glass card-3d rounded-3xl p-5 lg:col-span-2">
-        <div class="text-slate-700 dark:text-slate-200 mb-2">Aylık Toplam Ciro</div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
+            <span class="label">YoY</span>
+            <span id="yoyState" class="val">Açık</span>
+          </button>
+        </div>
         <canvas id="lineTotal" height="220"></canvas>
       </div>
       <div class="glass card-3d rounded-3xl p-5">
@@ -1281,41 +1287,88 @@ Chart.register(glassPie);
 Chart.register(glassBars);
 Chart.register(ChartDataLabels);
 let lineChart, pieChart, barChart;
+let monthlyCache = [];
+let yoyEnabled = true;
 function drawCharts(monthly){
-  const labels = monthly.map(r=>r.month);
-  const sum = k => monthly.reduce((a,r)=>a+(r[k]||0),0);
-  function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+  // Cache incoming monthly for later re-draws (toggle)
+  monthlyCache = Array.isArray(monthly) ? monthly : [];
 
+  // ==== Build label set for the current year & an aligned prev-year series ====
+  const now = new Date();
+  const currentYear = monthlyCache.length ? monthlyCache[monthlyCache.length - 1].year : now.getFullYear();
+  const prevYear = currentYear - 1;
+
+  const curArr = monthlyCache.filter(r => r.year === currentYear);
+  const labels = curArr.map(r => r.month); // e.g. "2025-01", "2025-02", ...
+
+  // Map prev-year by MM for alignment to current labels
+  const prevMap = {};
+  monthlyCache.forEach(r => {
+    if (r.year === prevYear) {
+      const mm = r.month.slice(5, 7); // "MM"
+      prevMap[mm] = (prevMap[mm] || 0) + (r.Total || 0);
+    }
+  });
+  const dataCur = curArr.map(r => r.Total || 0);
+  const dataPrev = labels.map(m => {
+    const mm = m.slice(5, 7);
+    return prevMap[mm] || 0;
+  });
+
+  // ========== Line: Aylık Toplam Ciro ==========
   if(lineChart) lineChart.destroy();
   const lctx = document.getElementById('lineTotal').getContext('2d');
+  function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+
+  const datasets = [{
+    label:'Bu Yıl',
+    data: dataCur,
+    tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
+    backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
+    pointRadius:3, pointHoverRadius:5
+  }];
+
+  // add prev year overlay if toggled on and we have any values
+  const hasPrevAny = dataPrev.some(v => v > 0);
+  if (yoyEnabled && hasPrevAny) {
+    datasets.push({
+      label:'Geçen Yıl',
+      data: dataPrev,
+      tension:0.35,
+      borderWidth:2,
+      borderDash:[6,4],
+      borderColor:'#94a3b8',     // slate-400
+      pointRadius:0,
+      fill:false
+    });
+  }
+
   lineChart = new Chart(lctx, {
     type:'line',
-    data:{ labels, datasets:[{
-      label:'Toplam',
-      data: monthly.map(r=>r.Total),
-      tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
-      backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
-      pointRadius:4, pointHoverRadius:6
-    }]},
+    data:{ labels: labels.map(m => m), datasets },
     options:{
       plugins:{
-        legend:{display:false},
+        legend:{display:true, position:'bottom'},
         datalabels:{ align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true }
       },
-      scales:{ x:{ ticks:{ maxRotation:0 }}, y:{ ticks:{ callback:(v)=> numberTL(v) }} }
+      scales:{
+        x:{ ticks:{ maxRotation:0 } },
+        y:{ ticks:{ callback:(v)=> numberTL(v) } }
+      }
     }
   });
 
+  // ========== Pie: Kanal Payları (YTD) ==========
+  const sum = k => monthlyCache.reduce((a,r)=>a+(r[k]||0),0);
   if(pieChart) pieChart.destroy();
   const pctx = document.getElementById('pieShare').getContext('2d');
 
-  // translucent glassy colors (alpha ~0.65) + hover accent
   const pieColors = [
-    'rgba(129,140,248,0.65)', // indigo-400
-    'rgba(52,211,153,0.65)',  // emerald-400
-    'rgba(96,165,250,0.65)',  // blue-400
-    'rgba(251,191,36,0.65)',  // amber-400
-    'rgba(244,114,182,0.65)'  // pink-400
+    'rgba(129,140,248,0.65)',
+    'rgba(52,211,153,0.65)',
+    'rgba(96,165,250,0.65)',
+    'rgba(251,191,36,0.65)',
+    'rgba(244,114,182,0.65)'
   ];
   const pieHover = [
     'rgba(129,140,248,0.85)',
@@ -1341,8 +1394,8 @@ function drawCharts(monthly){
       responsive: true,
       maintainAspectRatio: true,
       aspectRatio: 1,
-      layout: { padding: 0 },              // ~%30 daha kompakt
-      radius: '65%',                       // daha küçük halka
+      layout: { padding: 0 },
+      radius: '65%',
       plugins: {
         legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
         datalabels: {
@@ -1362,15 +1415,15 @@ function drawCharts(monthly){
     }
   });
 
-  // ==== Kanal Bazlı Aylık Ciro (Stacked Bar) ====
+  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro (bu yıl aylar) ==========
   if (barChart) barChart.destroy();
   const bctx = document.getElementById('barStack').getContext('2d');
   const barColors = [
-    'rgba(165,180,252,0.70)', // indigo-300
-    'rgba(52,211,153,0.70)',  // emerald-400
-    'rgba(96,165,250,0.70)',  // sky-400
-    'rgba(251,191,36,0.70)',  // amber-400
-    'rgba(244,114,182,0.70)'  // fuchsia/pink-400
+    'rgba(165,180,252,0.70)',
+    'rgba(52,211,153,0.70)',
+    'rgba(96,165,250,0.70)',
+    'rgba(251,191,36,0.70)',
+    'rgba(244,114,182,0.70)'
   ];
   const barBorder = 'rgba(255,255,255,0.55)';
 
@@ -1379,20 +1432,20 @@ function drawCharts(monthly){
     data: {
       labels,
       datasets: [
-        { label: 'Toptan',      data: monthly.map(r=>r.Toptan),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Online',      data: monthly.map(r=>r.Online),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'CKM',         data: monthly.map(r=>r.CKM),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Trendyol',    data: monthly.map(r=>r.Trendyol),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Hepsiburada', data: monthly.map(r=>r.Hepsiburada), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        { label: 'Toptan',      data: curArr.map(r=>r.Toptan),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        { label: 'Online',      data: curArr.map(r=>r.Online),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        { label: 'CKM',         data: curArr.map(r=>r.CKM),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        { label: 'Trendyol',    data: curArr.map(r=>r.Trendyol),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        { label: 'Hepsiburada', data: curArr.map(r=>r.Hepsiburada), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      aspectRatio: 1.6,                // ~%30 daha küçük görünüm
+      aspectRatio: 1.6,
       layout: { padding: 0 },
       scales: {
-        x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false }, },
+        x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
         y: { stacked:true, ticks:{ callback:(v)=> numberTL(v) }, grid:{ color:'rgba(148,163,184,0.15)' } }
       },
       plugins: {
@@ -1629,6 +1682,7 @@ function refreshAll(){
 
   // 3) agregasyonlar
   const monthly = buildMonthly(merged);
+  monthlyCache = monthly;
   const weekly  = buildWeekly(merged); weeklyAgg = weekly;
 
   // 4) Haftalık seçimi güncel son haftaya sabitle (varsa)
@@ -1801,6 +1855,20 @@ async function boot(){
 
   initSalesWindowSelector();
   refreshAll();
+  (function(){
+    const t = document.getElementById('yoyToggle');
+    if (!t) return;
+    const syncLabel = () => {
+      const s = document.getElementById('yoyState');
+      if (s) s.textContent = yoyEnabled ? 'Açık' : 'Kapalı';
+    };
+    t.onclick = () => {
+      yoyEnabled = !yoyEnabled;
+      syncLabel();
+      drawCharts(monthlyCache || []);
+    };
+    syncLabel();
+  })();
 }
 
 /* ================== WRITE TO SHEET ================== */
