@@ -1588,8 +1588,17 @@ let expYoyEnabled = true;
 
 function parseExpenseRow(r){
   const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
-  const amt = parseTL(r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0);
-  const cat = (r.Category || r.Kategori || r.FinalCategory || r.Final || '').toString().trim() || 'Diğer';
+  // Amount sütunundaki negatif değerleri pozitife çevir (giderler için mutlak değer)
+  const amt = Math.abs(
+    parseTL(
+      r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
+    )
+  );
+  // Kategori: FinalSubcategory öncelikli; yoksa diğer varyasyonlara bak
+  const cat = (
+    r.FinalSubcategory || r.FinalCategory || r.Category || r.Kategori || ''
+  ).toString().trim() || 'Diğer';
+
   return { Date: iso, Amount: amt, Category: cat };
 }
 
