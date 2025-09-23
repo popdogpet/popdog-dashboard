@@ -1589,14 +1589,27 @@ let expYoyEnabled = true;
 function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
   if (!s0) return '';
-  // Strip common decorations like "Diğer - ", "Diger:", etc. but keep inner keywords for regex tests
-  const s1 = s0.replace(/^diğer\s*[-:–—]\s*/i, '').replace(/^diger\s*[-:–—]\s*/i, '');
-  const s = s1.trim().replace(/\s+/g, ' ');
-  // Map any "zee dog" variants (zee.dog, zee dog, ZEEDOG, etc.) to a single label
+
+  // Baştaki "Diğer -", "Diger:" vb. süsleri temizle
+  const s1 = s0.replace(/^diğer\s*[-:–—]\s*/i, '').replace(/^diger\s*[-:–—]\s*/i, '').trim();
+
+  // " | " veya "/" ile ayrılmış parçaları al
+  const rawTokens = s1.split(/[|/]+/).map(t => t.trim()).filter(Boolean);
+
+  // "other/diğer/misc" sayılacak kelimeler
+  const isOther = (t) => /^(other|others|misc|miscellaneous|çeşitli|various|diverse|diğer|diger)$/i.test(t);
+
+  // Varsa ilk "Diğer" olmayan etiketi seç
+  const primaryToken = rawTokens.find(t => !isOther(t)) || (rawTokens[0] || '');
+
+  // Özel normalizasyonlar
+  let s = primaryToken;
   if (/(zee)[\s\.-]*(dog)/i.test(s)) return 'Zee.Dog';
-  // Common "other" aliases → Diğer (only if the whole thing is essentially "other")
-  if (/^(other|others|misc|miscellaneous|çeşitli|various|diverse|diğer|diger)$/i.test(s)) return 'Diğer';
-  return s;
+  if (/^(facebook|fb|meta\s*ads?)$/i.test(s)) return 'Facebook';
+  if (/^(google\s*ads?|adwords)$/i.test(s)) return 'Google Ads';
+
+  if (!s || isOther(s)) return 'Diğer';
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 function parseExpenseRow(r){
