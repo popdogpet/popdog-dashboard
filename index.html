@@ -1726,9 +1726,12 @@ function buildExpensesMonthly(rows){
 }
 
 function setExpensesKPIs(expMonthly){
-  const now = new Date(), curYear = now.getFullYear();
-  const rowsThisYear = expMonthly.filter(m=> m.year===curYear);
-  const expYTD = rowsThisYear.reduce((a,r)=> a + (r.Total||0), 0);
+  const now = new Date();
+const curYear = now.getFullYear();
+// Yıl seçimi: Bu yıl veriniz yoksa, eldeki son yılı kullan
+const yearsExp = Array.from(new Set((expMonthly||[]).map(m=>m.year))).sort((a,b)=>a-b);
+const expYear = yearsExp.includes(curYear) ? curYear : (yearsExp.length ? yearsExp[yearsExp.length-1] : curYear);
+const rowsThisYear = (expMonthly||[]).filter(m=> m.year===expYear);
 
   // YTD gider
   const elExp = document.getElementById('kpiExpYTD'); if (elExp) elExp.textContent = numberTL(expYTD);
@@ -1737,8 +1740,7 @@ function setExpensesKPIs(expMonthly){
   // YoY (aynı ay sayısı hizalı)
   try{
     const monthsThis = rowsThisYear.map(r=> r.month.slice(5,7));
-    const prevSum = expMonthly.reduce((acc,r)=> (r.year===curYear-1 && monthsThis.includes(r.month.slice(5,7))) ? acc+(r.Total||0) : acc, 0);
-    const yoy = prevSum ? (expYTD - prevSum) / prevSum : 0;
+const prevSum = (expMonthly||[]).reduce((acc,r)=> (r.year===expYear-1 && monthsThis.includes(r.month.slice(5,7))) ? acc+(r.Total||0) : acc, 0);    const yoy = prevSum ? (expYTD - prevSum) / prevSum : 0;
     const elYoY = document.getElementById('kpiExpYoY'); if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy*100).toFixed(1)}%`;
   }catch(e){}
 
@@ -1751,7 +1753,7 @@ function setExpensesKPIs(expMonthly){
 
   // Net (Gelir YTD - Gider YTD)
   try{
-    const revThisYear = (monthlyCache||[]).filter(m=> m.year===curYear).reduce((a,r)=> a+(r.Total||0), 0);
+    const revThisYear = (monthlyCache||[]).filter(m=> m.year===expYear).reduce((a,r)=> a+(r.Total||0), 0);
     const net = revThisYear - expYTD;
     const elNet = document.getElementById('kpiNetYTD'); if (elNet) elNet.textContent = numberTL(net);
     const elNetUSD = document.getElementById('kpiNetYTD_USD'); if (elNetUSD) elNetUSD.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(net*fxRateUSDPerTRY)} USD` : '≈ – USD';
@@ -1761,12 +1763,17 @@ function setExpensesKPIs(expMonthly){
 
 function renderMainExpenseTable(){
   try{
-    const now = new Date(), curYear = now.getFullYear();
+    // === EXPENSES TABLE FILTER LOGIC (patched) ===
+    const now = new Date();
+    const curYear = now.getFullYear();
+    // Bu yıl veri yoksa, expensesMonthlyCache içinden son yılı kullan
+    const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
+    const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
 
-    // YTD satırlar (ham satırlardan; MainCategory satır bazında mevcut)
+    // YTD satırlar (seçili yılda)
     const rows = (expensesRowsCache || []).filter(r => {
       const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
-      return d && !isNaN(+d) && d.getFullYear() === curYear;
+      return d && !isNaN(+d) && d.getFullYear() === expYear;
     });
 
     const sumByMain = {};
@@ -1799,17 +1806,20 @@ function renderMainExpenseTable(){
 }
 let expLineChart, expPieChart;
 function drawExpensesCharts(expMonthly){
-  const now = new Date(), curYear = now.getFullYear();
-  const arr = expMonthly.filter(r=> r.year===curYear);
+  const now = new Date();
+  const curYear = now.getFullYear();
+  // Bu yıl veri yoksa, eldeki son yılı kullan
+  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
+  const expYear = yearsWithData.includes(curYear) ? curYear : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
+  const arr = (expMonthly||[]).filter(r=> r.year===expYear);
   const labels = arr.map(r=> r.month);
   const dataCur = arr.map(r=> r.Total||0);
 
-  // === Choose a previous year that actually has data (< current year) ===
-  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
-  let prevYear = curYear - 1;
+  // yearsWithData yukarıda hesaplandı
+  let prevYear = expYear - 1;
   if (!yearsWithData.includes(prevYear)){
     for (let i = yearsWithData.length - 1; i >= 0; i--) {
-      if (yearsWithData[i] < curYear) { prevYear = yearsWithData[i]; break; }
+      if (yearsWithData[i] < expYear) { prevYear = yearsWithData[i]; break; }
     }
   }
   // Build prev-year map aligned to current labels' months (MM)
