@@ -1777,8 +1777,23 @@ function drawExpensesCharts(expMonthly){
   const arr = expMonthly.filter(r=> r.year===curYear);
   const labels = arr.map(r=> r.month);
   const dataCur = arr.map(r=> r.Total||0);
-  // prev-year aligned
-  const prevMap = {}; expMonthly.forEach(r=>{ if(r.year===curYear-1){ const mm=r.month.slice(5,7); prevMap[mm]=(prevMap[mm]||0)+(r.Total||0); }});
+
+  // === Choose a previous year that actually has data (< current year) ===
+  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
+  let prevYear = curYear - 1;
+  if (!yearsWithData.includes(prevYear)){
+    for (let i = yearsWithData.length - 1; i >= 0; i--) {
+      if (yearsWithData[i] < curYear) { prevYear = yearsWithData[i]; break; }
+    }
+  }
+  // Build prev-year map aligned to current labels' months (MM)
+  const prevMap = {};
+  (expMonthly||[]).forEach(r=>{
+    if(r.year===prevYear){
+      const mm=r.month.slice(5,7);
+      prevMap[mm]=(prevMap[mm]||0)+(r.Total||0);
+    }
+  });
   const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
 
   if (expLineChart) expLineChart.destroy();
@@ -1799,7 +1814,7 @@ function drawExpensesCharts(expMonthly){
   ];
   if (expYoyEnabled && dataPrev.some(v => v > 0)) {
     ds.push({
-      label: 'Geçen Yıl',
+      label: `Geçen Yıl (${prevYear})`,
       data: dataPrev,
       tension: 0.35,
       borderWidth: 2,
