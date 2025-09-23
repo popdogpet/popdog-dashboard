@@ -1770,7 +1770,7 @@ const EXPENSES_CSV_URL =
 (async function initExpenses(){
   try{
     if (!EXPENSES_CSV_URL) {
-      console.warn('No eevxpenses CSV URL configured');
+      console.warn('No expenses CSV URL configured');
       return;
     }
     expensesRowsCache = await loadExpensesCsv(EXPENSES_CSV_URL);
@@ -1792,6 +1792,17 @@ const EXPENSES_CSV_URL =
       drawExpensesCharts(expensesMonthlyCache);
     }
   });
+})();
+
+/* ================== Hook expenses into global refreshAll ================== */
+(function patchRefreshAll(){
+  const prev = window.refreshAll;
+  window.refreshAll = function(...args){
+    if (typeof prev === 'function') {
+      try { prev.apply(this, args); } catch(e){ console.warn('refreshAll (prev) error', e); }
+    }
+    try { refreshExpenses(); } catch(e){ console.warn('refreshAll→refreshExpenses error', e); }
+  };
 })();
 
 async function loadExpensesCsv(url){
