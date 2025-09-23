@@ -1612,6 +1612,48 @@ function normalizeExpenseCategory(cat){
   return s.replace(/\s+/g, ' ').trim();
 }
 
+function mapMainExpenseCategory(cat){
+  // cat: normalizeExpenseCategory çıktısı
+  if (!cat) return 'Diğer';
+
+  // Dijital Reklam
+  if (/(facebook|google\s*ads?|adwords|instagram|tiktok|youtube)/i.test(cat)) return 'Dijital Reklam';
+
+  // Mağaza Giderleri
+  if (/(mağaza|magaza|pos|temizlik|kira|elektrik|su|doğalgaz|dogalgaz|aidat|güvenlik|guvenlik|personel|maaş|maas|yemek|ssk|sgk)/i.test(cat))
+    return 'Mağaza Giderleri';
+
+  // Ev Giderleri
+  if (/(ev\s*gider|ev\s*kira|konut|internet|elektrik|su|doğalgaz|dogalgaz|aidat)/i.test(cat))
+    return 'Ev Giderleri';
+
+  // Danışmanlık Giderleri
+  if (/(danışman|danisman|consult|freelance|ajans|agency|hukuk|legal|muhasebe|yeminli|denetim)/i.test(cat))
+    return 'Danışmanlık Giderleri';
+
+  // Yazılım / Abonelik
+  if (/(shopify|yazılım|yazilim|abonelik|subscription|google\s*workspace|office\s*365|slack|notion|figma|saas)/i.test(cat))
+    return 'Yazılım / Abonelik';
+
+  // Lojistik
+  if (/(kargo|lojistik|shipping|nakliye|kurye)/i.test(cat))
+    return 'Lojistik';
+
+  // Banka / Komisyon
+  if (/(banka|komisyon|pos\s*kesintisi|havale|eft|chargeback|kart\s*ücreti|kart\s*ucreti|iban\s*ücreti|iban\s*ucreti)/i.test(cat))
+    return 'Banka / Komisyon';
+
+  // Vergiler
+  if (/(vergi|kdv|stopaj|damga|gecikme|ceza)/i.test(cat))
+    return 'Vergiler';
+
+  // Stok / Mal Alımı
+  if (/(mal alımı|mal alimi|stok|tedarik|satın alma|satin alma)/i.test(cat))
+    return 'Stok / Mal Alımı';
+
+  return 'Diğer';
+}
+
 function parseExpenseRow(r){
   const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
   // Amount: force positive number for expenses (treat negatives as absolute)
