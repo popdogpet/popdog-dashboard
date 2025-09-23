@@ -1656,19 +1656,17 @@ function mapMainExpenseCategory(cat){
 
 function parseExpenseRow(r){
   const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
-  // Amount: force positive number for expenses (treat negatives as absolute)
   const amt = Math.abs(
     parseTL(
       r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
     )
   );
-  // Build a combined category string from the likely columns
-  const catParts = [
-    r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori
-  ].filter(Boolean).map(x => x.toString().trim());
+  const catParts = [ r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori ]
+    .filter(Boolean).map(x => x.toString().trim());
   const combined = catParts.join(' | ');
   const cat = normalizeExpenseCategory(combined) || 'Diğer';
-  return { Date: iso, Amount: amt, Category: cat };
+  const main = mapMainExpenseCategory(cat);
+  return { Date: iso, Amount: amt, Category: cat, MainCategory: main };
 }
 
 function buildExpensesMonthly(rows){
