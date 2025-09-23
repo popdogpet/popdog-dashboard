@@ -1727,11 +1727,12 @@ function buildExpensesMonthly(rows){
 
 function setExpensesKPIs(expMonthly){
   const now = new Date();
-const curYear = now.getFullYear();
-// Yıl seçimi: Bu yıl veriniz yoksa, eldeki son yılı kullan
-const yearsExp = Array.from(new Set((expMonthly||[]).map(m=>m.year))).sort((a,b)=>a-b);
-const expYear = yearsExp.includes(curYear) ? curYear : (yearsExp.length ? yearsExp[yearsExp.length-1] : curYear);
-const rowsThisYear = (expMonthly||[]).filter(m=> m.year===expYear);
+  const curYear = now.getFullYear();
+  // Yıl seçimi: Bu yıl veriniz yoksa, eldeki son yılı kullan
+  const yearsExp = Array.from(new Set((expMonthly||[]).map(m=>m.year))).sort((a,b)=>a-b);
+  const expYear = yearsExp.includes(curYear) ? curYear : (yearsExp.length ? yearsExp[yearsExp.length-1] : curYear);
+  const rowsThisYear = (expMonthly||[]).filter(m=> m.year===expYear);
+  const expYTD = rowsThisYear.reduce((a, r) => a + (r.Total || 0), 0);
 
   // YTD gider
   const elExp = document.getElementById('kpiExpYTD'); if (elExp) elExp.textContent = numberTL(expYTD);
