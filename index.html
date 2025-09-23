@@ -982,12 +982,12 @@ function renderStockBlock(){
     }
 
     // 6.c Stoğu en hızlı giden 5 (satış hızı: adet/gün, sadece Zee)
-    const days = salesWindowDays || 1;
+    const winDays = salesWindowDays || 1;
     const speedArr = Array.from(new Set([...Array.from(soldMap.keys()), ...Array.from(onHandMap.keys())]))
       .map(sku=>{
         const sold = soldMap.get(sku)||0;
         const on   = onHandMap.get(sku)||0;
-        const spd  = sold / days; // adet/gün
+        const spd  = sold / winDays; // adet/gün
         return { sku, title:titleMap.get(sku)||'', speed: spd, onHand:on };
       })
       .filter(x=> x.speed>0 && isZee(x.sku))
@@ -1654,18 +1654,98 @@ function drawExpensesCharts(expMonthly){
 
   if (expLineChart) expLineChart.destroy();
   const lctx = document.getElementById('lineExpenses').getContext('2d');
-  const grad = (c1,c2)=>{ const g=lctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
-  const ds=[{ label:'Bu Yıl', data:dataCur, tension:0.35, borderWidth:3, borderColor:'#22d3ee', fill:true, backgroundColor:grad('rgba(34,211,238,0.25)','rgba(99,102,241,0.05)'), pointRadius:3, pointHoverRadius:5 }];
-  if (expYoyEnabled && dataPrev.some(v=>v>0)){ ds.push({ label:'Geçen Yıl', data:dataPrev, tension:0.35, borderWidth:2, borderDash:[6,4], borderColor:'#94a3b8', pointRadius:0, fill:false }); }
-  expLineChart = new Chart(lctx, { type:'line', data:{ labels, datasets:ds }, options:{ plugins:{ legend:{position:'bottom'}, datalabels:{ align:'top', anchor:'end', formatter:v=> numberTL(v), color:'#64748b', clip:true }}, scales:{ x:{ ticks:{maxRotation:0}}, y:{ ticks:{ callback:v=> numberTL(v) } } } });
+  const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
+  const ds = [
+    {
+      label: 'Bu Yıl',
+      data: dataCur,
+      tension: 0.35,
+      borderWidth: 3,
+      borderColor: '#22d3ee',
+      fill: true,
+      backgroundColor: grad('rgba(34,211,238,0.25)', 'rgba(99,102,241,0.05)'),
+      pointRadius: 3,
+      pointHoverRadius: 5
+    }
+  ];
+  if (expYoyEnabled && dataPrev.some(v => v > 0)) {
+    ds.push({
+      label: 'Geçen Yıl',
+      data: dataPrev,
+      tension: 0.35,
+      borderWidth: 2,
+      borderDash: [6, 4],
+      borderColor: '#94a3b8',
+      pointRadius: 0,
+      fill: false
+    });
+  }
+  expLineChart = new Chart(lctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: ds
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: {
+          align: 'top',
+          anchor: 'end',
+          formatter: v => numberTL(v),
+          color: '#64748b',
+          clip: true
+        }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 0 } },
+        y: { ticks: { callback: v => numberTL(v) } }
+      }
+    }
+  });
 
   // YTD category pie
   if (expPieChart) expPieChart.destroy();
   const pctx = document.getElementById('pieExpenses').getContext('2d');
-  const catSum = {}; arr.forEach(m=> Object.entries(m.byCat||{}).forEach(([k,v])=> catSum[k]=(catSum[k]||0)+v ));
+  const catSum = {}; arr.forEach(m => Object.entries(m.byCat || {}).forEach(([k, v]) => catSum[k] = (catSum[k] || 0) + v));
   const labelsCat = Object.keys(catSum);
-  const valsCat = labelsCat.map(k=> catSum[k]);
-  expPieChart = new Chart(pctx, { type:'doughnut', data:{ labels:labelsCat, datasets:[{ data:valsCat, backgroundColor: labelsCat.map((_,i)=> `hsla(${(i*57)%360},70%,70%,0.65)`), borderColor:'rgba(255,255,255,0.55)', borderWidth:1.5 }] }, options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:12 }}, datalabels:{ color:'#0f172a', formatter:(v,ctx)=>{ const total=ctx.dataset.data.reduce((a,b)=>a+b,0)||1; return `${(v/total*100).toFixed(1)}%`; }, backgroundColor:'rgba(255,255,255,0.40)', borderColor:'rgba(255,255,255,0.85)', borderWidth:1, borderRadius:12, padding:5, clip:true } } });
+  const valsCat = labelsCat.map(k => catSum[k]);
+  expPieChart = new Chart(pctx, {
+    type: 'doughnut',
+    data: {
+      labels: labelsCat,
+      datasets: [{
+        data: valsCat,
+        backgroundColor: labelsCat.map((_, i) => `hsla(${(i * 57) % 360},70%,70%,0.65)`),
+        borderColor: 'rgba(255,255,255,0.55)',
+        borderWidth: 1.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 10, padding: 12 }
+        },
+        datalabels: {
+          color: '#0f172a',
+          formatter: (v, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
+            return `${(v / total * 100).toFixed(1)}%`;
+          },
+          backgroundColor: 'rgba(255,255,255,0.40)',
+          borderColor: 'rgba(255,255,255,0.85)',
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 5,
+          clip: true
+        }
+      }
+    }
+  });
 }
 
 async function loadExpensesCsv(url){
