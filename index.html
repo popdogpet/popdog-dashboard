@@ -54,10 +54,21 @@
     }
     .chip-ios .label{ font-size:.75rem; color:#0f172a; }
     .dark .chip-ios .label{ color:#e2e8f0; }
-    .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
-    .dark .chip-ios .val{ color:#cbd5e1; }
-    th, td { white-space: nowrap; }
-    /* === Compact tables (stock + sales/turnover) — ultra compact === */
+.chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
+.dark .chip-ios .val{ color:#cbd5e1; }
+th, td { white-space: nowrap; }
+/* === Frosted (iOS-like) for main charts === */
+#lineTotal,
+#barStack,
+#pieShare{
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  padding: 8px;
+}
+/* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
 .sales-turnover table td,
 #stockBlock table th,
@@ -184,18 +195,74 @@
             <span id="yoyState" class="val">Açık</span>
           </button>
         </div>
-        <canvas id="lineTotal" height="220"></canvas>
+        <canvas id="lineTotal" height="160"></canvas>
       </div>
       <div class="glass card-3d rounded-3xl p-5">
         <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Payları (YTD)</div>
-        <canvas id="pieShare" style="height: 220px; width: 100%;"></canvas>
+        <canvas id="pieShare" style="height: 160px; width: 100%;"></canvas>
       </div>
     </div>
 
     <div class="glass card-3d rounded-3xl p-5">
       <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-      <canvas id="barStack" height="220"></canvas>
+      <canvas id="barStack" height="160"></canvas>
     </div>
+
+    <!-- === Expenses (CFO) === -->
+    <section class="glass card-3d rounded-3xl p-5 mt-6">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Giderler (YTD) & Net Kâr</div>
+        <div class="flex items-center gap-3">
+          <span class="chip-ios text-xs" title="Giderler YoY geçişi" id="expYoyToggle">
+            <span class="label">YoY</span>
+            <span id="expYoyState" class="val">Açık</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-4 items-stretch">
+        <div class="glass rounded-2xl p-4">
+          <div class="hint text-sm">Toplam Gider (YTD)</div>
+          <div id="kpiExpYTD" class="text-xl md:text-2xl font-semibold">–</div>
+          <div id="kpiExpYTD_USD" class="text-xs hint mt-0.5">≈ – USD</div>
+          <div id="kpiExpYoY" class="text-xs hint mt-1"></div>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <div class="hint text-sm">Net Kâr (YTD)</div>
+          <div id="kpiNetYTD" class="text-xl md:text-2xl font-semibold">–</div>
+          <div id="kpiNetYTD_USD" class="text-xs hint mt-0.5">≈ – USD</div>
+          <div id="kpiNetNote" class="text-xs hint mt-1"></div>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <div class="hint text-sm">Gider MoM</div>
+          <div id="kpiExpMoM" class="text-xl md:text-2xl font-semibold">–</div>
+          <div id="kpiExpMoMNote" class="text-xs hint mt-1"></div>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6 mt-4">
+        <div class="glass card-3d rounded-2xl p-4 lg:col-span-2">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
+          </div>
+          <canvas id="lineExpenses" height="220"></canvas>
+          <style>
+            #lineExpenses {
+              background: rgba(255,255,255,0.25);
+              backdrop-filter: blur(12px) saturate(180%);
+              -webkit-backdrop-filter: blur(12px) saturate(180%);
+              border-radius: 12px;
+              box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+              padding: 8px;
+            }
+          </style>
+        </div>
+        <div class="glass card-3d rounded-2xl p-4">
+          <div class="text-slate-700 dark:text-slate-200 mb-2">Gider Dağılımı (YTD)</div>
+          <canvas id="pieExpenses" style="height: 220px; width: 100%;"></canvas>
+        </div>
+      </div>
+    </section>
 
     <!-- Satış / Devir Listeleri -->
     <div class="mt-6 sales-turnover">
@@ -415,6 +482,7 @@ const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI11v-3QKXxod
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
 const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?output=csv';
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1836,25 +1904,30 @@ async function boot(){
   })();
 
   // 1) config.json (same folder) fallback if nothing set yet
-  const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url') ||
-                          localStorage.getItem('popdog_inv_csv_url')   ||
-                          localStorage.getItem('popdog_orders_csv_url'));
+  const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url')   ||
+                          localStorage.getItem('popdog_inv_csv_url')     ||
+                          localStorage.getItem('popdog_orders_csv_url')  ||
+                          localStorage.getItem('popdog_expenses_csv_url'));
   if (!hasAnyStored) {
     try {
       const r = await fetch('config.json', { cache: 'no-store' });
       if (r.ok) {
         const cfg = await r.json();
-        if (cfg.sheetCsv)     localStorage.setItem('popdog_sheet_csv_url',  cfg.sheetCsv);
-        if (cfg.inventoryCsv) localStorage.setItem('popdog_inv_csv_url',    cfg.inventoryCsv);
-        if (cfg.ordersCsv)    localStorage.setItem('popdog_orders_csv_url', cfg.ordersCsv);
+        if (cfg.sheetCsv)     localStorage.setItem('popdog_sheet_csv_url',     cfg.sheetCsv);
+        if (cfg.inventoryCsv) localStorage.setItem('popdog_inv_csv_url',       cfg.inventoryCsv);
+        if (cfg.ordersCsv)    localStorage.setItem('popdog_orders_csv_url',    cfg.ordersCsv);
+        if (cfg.expensesCsv)  localStorage.setItem('popdog_expenses_csv_url',  cfg.expensesCsv);
       }
     } catch (e) { /* silent */ }
   }
 
   // 2) Resolve URLs: localStorage → defaults
-  const sheetUrl  = localStorage.getItem('popdog_sheet_csv_url')  || (typeof DEFAULT_SHEET_CSV  !== 'undefined' ? DEFAULT_SHEET_CSV  : '');
-  const invUrl    = localStorage.getItem('popdog_inv_csv_url')    || (typeof DEFAULT_INV_CSV    !== 'undefined' ? DEFAULT_INV_CSV    : '');
-  const ordersUrl = localStorage.getItem('popdog_orders_csv_url') || (typeof DEFAULT_ORDERS_CSV !== 'undefined' ? DEFAULT_ORDERS_CSV : '');
+  const sheetUrl    = localStorage.getItem('popdog_sheet_csv_url')     || (typeof DEFAULT_SHEET_CSV     !== 'undefined' ? DEFAULT_SHEET_CSV     : '');
+  const invUrl      = localStorage.getItem('popdog_inv_csv_url')       || (typeof DEFAULT_INV_CSV       !== 'undefined' ? DEFAULT_INV_CSV       : '');
+  const ordersUrl   = localStorage.getItem('popdog_orders_csv_url')    || (typeof DEFAULT_ORDERS_CSV    !== 'undefined' ? DEFAULT_ORDERS_CSV    : '');
+  const expensesUrl = localStorage.getItem('popdog_expenses_csv_url')  || (typeof DEFAULT_EXPENSES_CSV  !== 'undefined' ? DEFAULT_EXPENSES_CSV  : '');
+
+  console.log('Data URLs →', { sheetUrl, invUrl, ordersUrl, expensesUrl });
 
   // 3) FX
   try { await fetchFX(); } catch(e){}
