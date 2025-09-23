@@ -1586,34 +1586,33 @@ let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
 
-// Normalize expense categories to avoid "Zee.Dog" falling into "Diğer" due to variants
 function normalizeExpenseCategory(cat){
-  const s = (cat || '').toString().trim().replace(/\s+/g, ' ');
-  if (!s) return '';
+  const s0 = (cat || '').toString();
+  if (!s0) return '';
+  // Strip common decorations like "Diğer - ", "Diger:", etc. but keep inner keywords for regex tests
+  const s1 = s0.replace(/^diğer\s*[-:–—]\s*/i, '').replace(/^diger\s*[-:–—]\s*/i, '');
+  const s = s1.trim().replace(/\s+/g, ' ');
   // Map any "zee dog" variants (zee.dog, zee dog, ZEEDOG, etc.) to a single label
   if (/(zee)[\s\.-]*(dog)/i.test(s)) return 'Zee.Dog';
-  // Common "other" aliases → Diğer
-  if (/^(other|others|misc|miscellaneous|çeşitli|various|diverse)$/i.test(s)) return 'Diğer';
+  // Common "other" aliases → Diğer (only if the whole thing is essentially "other")
+  if (/^(other|others|misc|miscellaneous|çeşitli|various|diverse|diğer|diger)$/i.test(s)) return 'Diğer';
   return s;
 }
 
 function parseExpenseRow(r){
   const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
-  // Amount sütunundaki negatif değerleri pozitife çevir (giderler için mutlak değer)
+  // Amount: force positive number for expenses (treat negatives as absolute)
   const amt = Math.abs(
     parseTL(
       r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
     )
   );
-  // Kategori: FinalSubcategory öncelikli; yoksa alt/üst varyasyonlarına bak
-  const catRaw =
-    r.FinalSubcategory ||
-    r.FinalCategory ||
-    r.Subcategory ||
-    r.Category ||
-    r.Kategori ||
-    '';
-  const cat = normalizeExpenseCategory(catRaw) || 'Diğer';
+  // Build a combined category string from the likely columns
+  const catParts = [
+    r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori
+  ].filter(Boolean).map(x => x.toString().trim());
+  const combined = catParts.join(' | ');
+  const cat = normalizeExpenseCategory(combined) || 'Diğer';
   return { Date: iso, Amount: amt, Category: cat };
 }
 
