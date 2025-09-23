@@ -1733,8 +1733,6 @@ function setExpensesKPIs(expMonthly){
   }catch(e){}
 }
 
-let expLineChart, expPieChart;
-function drawExpensesCharts(expMonthly){
 function renderMainExpenseTable(){
   try{
     const now = new Date(), curYear = now.getFullYear();
@@ -1773,6 +1771,8 @@ function renderMainExpenseTable(){
     console.warn('renderMainExpenseTable error', e);
   }
 }
+let expLineChart, expPieChart;
+function drawExpensesCharts(expMonthly){
   const now = new Date(), curYear = now.getFullYear();
   const arr = expMonthly.filter(r=> r.year===curYear);
   const labels = arr.map(r=> r.month);
