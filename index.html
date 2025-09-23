@@ -1581,6 +1581,106 @@ function drawCharts(monthly){
   });
 }
 
+/* ================== Expenses (CFO) ================== */
+let expensesRowsCache = [];
+let expensesMonthlyCache = [];
+let expYoyEnabled = true;
+
+function parseExpenseRow(r){
+  const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
+  const amt = parseTL(r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0);
+  const cat = (r.Category || r.Kategori || r.FinalCategory || r.Final || '').toString().trim() || 'Diğer';
+  return { Date: iso, Amount: amt, Category: cat };
+}
+
+function buildExpensesMonthly(rows){
+  const map = new Map();
+  rows.forEach(r=>{
+    if(!r.Date) return;
+    const d = new Date(r.Date+'T00:00:00Z'); if(isNaN(+d)) return;
+    const key = monthKey(d);
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{} };
+    const a = +r.Amount || 0; prev.Total += a;
+    const c = r.Category || 'Diğer';
+    prev.byCat[c] = (prev.byCat[c]||0) + a;
+    map.set(key, prev);
+  });
+  return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
+}
+
+function setExpensesKPIs(expMonthly){
+  const now = new Date(), curYear = now.getFullYear();
+  const rowsThisYear = expMonthly.filter(m=> m.year===curYear);
+  const expYTD = rowsThisYear.reduce((a,r)=> a + (r.Total||0), 0);
+
+  // YTD gider
+  const elExp = document.getElementById('kpiExpYTD'); if (elExp) elExp.textContent = numberTL(expYTD);
+  const elExpUSD = document.getElementById('kpiExpYTD_USD'); if (elExpUSD) elExpUSD.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(expYTD*fxRateUSDPerTRY)} USD` : '≈ – USD';
+
+  // YoY (aynı ay sayısı hizalı)
+  try{
+    const monthsThis = rowsThisYear.map(r=> r.month.slice(5,7));
+    const prevSum = expMonthly.reduce((acc,r)=> (r.year===curYear-1 && monthsThis.includes(r.month.slice(5,7))) ? acc+(r.Total||0) : acc, 0);
+    const yoy = prevSum ? (expYTD - prevSum) / prevSum : 0;
+    const elYoY = document.getElementById('kpiExpYoY'); if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy*100).toFixed(1)}%`;
+  }catch(e){}
+
+  // MoM
+  const sorted = rowsThisYear.slice().sort((a,b)=> a.month.localeCompare(b.month));
+  const last = sorted.at(-1)?.Total || 0; const prev = sorted.at(-2)?.Total || 0;
+  const mom = prev ? (last - prev) / prev : 0;
+  const elMoM = document.getElementById('kpiExpMoM'); if (elMoM){ elMoM.textContent = `${(mom*100).toFixed(1)}%`; elMoM.classList.remove('kpi-up','kpi-down'); elMoM.classList.add(mom<=0?'kpi-up':'kpi-down'); }
+  const elMoMNote = document.getElementById('kpiExpMoMNote'); if (elMoMNote){ const labs = sorted.map(m=>m.month); elMoMNote.textContent = labs.length>=2 ? `(${labs.at(-2)} → ${labs.at(-1)})` : ''; }
+
+  // Net (Gelir YTD - Gider YTD)
+  try{
+    const revThisYear = (monthlyCache||[]).filter(m=> m.year===curYear).reduce((a,r)=> a+(r.Total||0), 0);
+    const net = revThisYear - expYTD;
+    const elNet = document.getElementById('kpiNetYTD'); if (elNet) elNet.textContent = numberTL(net);
+    const elNetUSD = document.getElementById('kpiNetYTD_USD'); if (elNetUSD) elNetUSD.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(net*fxRateUSDPerTRY)} USD` : '≈ – USD';
+    const elNetNote = document.getElementById('kpiNetNote'); if (elNetNote) elNetNote.textContent = `Gelir (YTD): ${numberTL(revThisYear)} • Gider (YTD): ${numberTL(expYTD)}`;
+  }catch(e){}
+}
+
+let expLineChart, expPieChart;
+function drawExpensesCharts(expMonthly){
+  const now = new Date(), curYear = now.getFullYear();
+  const arr = expMonthly.filter(r=> r.year===curYear);
+  const labels = arr.map(r=> r.month);
+  const dataCur = arr.map(r=> r.Total||0);
+  // prev-year aligned
+  const prevMap = {}; expMonthly.forEach(r=>{ if(r.year===curYear-1){ const mm=r.month.slice(5,7); prevMap[mm]=(prevMap[mm]||0)+(r.Total||0); }});
+  const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
+
+  if (expLineChart) expLineChart.destroy();
+  const lctx = document.getElementById('lineExpenses').getContext('2d');
+  const grad = (c1,c2)=>{ const g=lctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
+  const ds=[{ label:'Bu Yıl', data:dataCur, tension:0.35, borderWidth:3, borderColor:'#22d3ee', fill:true, backgroundColor:grad('rgba(34,211,238,0.25)','rgba(99,102,241,0.05)'), pointRadius:3, pointHoverRadius:5 }];
+  if (expYoyEnabled && dataPrev.some(v=>v>0)){ ds.push({ label:'Geçen Yıl', data:dataPrev, tension:0.35, borderWidth:2, borderDash:[6,4], borderColor:'#94a3b8', pointRadius:0, fill:false }); }
+  expLineChart = new Chart(lctx, { type:'line', data:{ labels, datasets:ds }, options:{ plugins:{ legend:{position:'bottom'}, datalabels:{ align:'top', anchor:'end', formatter:v=> numberTL(v), color:'#64748b', clip:true }}, scales:{ x:{ ticks:{maxRotation:0}}, y:{ ticks:{ callback:v=> numberTL(v) } } } });
+
+  // YTD category pie
+  if (expPieChart) expPieChart.destroy();
+  const pctx = document.getElementById('pieExpenses').getContext('2d');
+  const catSum = {}; arr.forEach(m=> Object.entries(m.byCat||{}).forEach(([k,v])=> catSum[k]=(catSum[k]||0)+v ));
+  const labelsCat = Object.keys(catSum);
+  const valsCat = labelsCat.map(k=> catSum[k]);
+  expPieChart = new Chart(pctx, { type:'doughnut', data:{ labels:labelsCat, datasets:[{ data:valsCat, backgroundColor: labelsCat.map((_,i)=> `hsla(${(i*57)%360},70%,70%,0.65)`), borderColor:'rgba(255,255,255,0.55)', borderWidth:1.5 }] }, options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:12 }}, datalabels:{ color:'#0f172a', formatter:(v,ctx)=>{ const total=ctx.dataset.data.reduce((a,b)=>a+b,0)||1; return `${(v/total*100).toFixed(1)}%`; }, backgroundColor:'rgba(255,255,255,0.40)', borderColor:'rgba(255,255,255,0.85)', borderWidth:1, borderRadius:12, padding:5, clip:true } } });
+}
+
+async function loadExpensesCsv(url){
+  if(!url) return [];
+  const resp = await fetch(withCacheBust(url), { cache:'no-store' });
+  if(!resp.ok) return [];
+  const text = await resp.text();
+  return new Promise((resolve)=> {
+    Papa.parse(text, { header:true, skipEmptyLines:true,
+      complete:(res)=>{ const rows=(res.data||[]).map(parseExpenseRow).filter(r=> r.Date && r.Amount!==0); resolve(rows); },
+      error:()=> resolve([])
+    });
+  });
+}
+
 /* ================== Weekly UI ================== */
 let weeklyAgg = [];
 let selectedMondayISO = null;
@@ -1820,6 +1920,15 @@ function refreshAll(){
 
   // 6) Stok bloğu
   renderStockBlock();
+  // === Expenses (CFO) render ===
+try {
+  if (Array.isArray(expensesMonthlyCache) && expensesMonthlyCache.length) {
+    setExpensesKPIs(expensesMonthlyCache);
+    drawExpensesCharts(expensesMonthlyCache);
+  }
+} catch (e) {
+  console.warn('Expenses render error', e);
+}
 }
 /* ================== Last 7 Days Summary ================== */
 function startOfDayLocal(d){
@@ -1929,6 +2038,14 @@ async function boot(){
 
   console.log('Data URLs →', { sheetUrl, invUrl, ordersUrl, expensesUrl });
 
+// Expenses load (CSV)
+try {
+  expensesRowsCache = await loadExpensesCsv(expensesUrl);
+  expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
+} catch(e) {
+  expensesRowsCache = [];
+  expensesMonthlyCache = [];
+}
   // 3) FX
   try { await fetchFX(); } catch(e){}
 
