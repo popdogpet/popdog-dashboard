@@ -1714,10 +1714,12 @@ function buildExpensesMonthly(rows){
     if(!r.Date) return;
     const d = new Date(r.Date+'T00:00:00Z'); if(isNaN(+d)) return;
     const key = monthKey(d);
-    const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{} };
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{}, byMain:{} };
     const a = +r.Amount || 0; prev.Total += a;
     const c = r.Category || 'Diğer';
     prev.byCat[c] = (prev.byCat[c]||0) + a;
+    const main = r.MainCategory || mapMainExpenseCategory(c);
+    prev.byMain[main] = (prev.byMain[main]||0) + a;
     map.set(key, prev);
   });
   return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
@@ -1872,10 +1874,16 @@ function drawExpensesCharts(expMonthly){
     }
   });
 
-  // YTD category pie
+  // YTD category pie (by main if available, else byCat)
   if (expPieChart) expPieChart.destroy();
   const pctx = document.getElementById('pieExpenses').getContext('2d');
-  const catSum = {}; arr.forEach(m => Object.entries(m.byCat || {}).forEach(([k, v]) => catSum[k] = (catSum[k] || 0) + v));
+  const catSum = {};
+  arr.forEach(m=>{
+    const src = (m.byMain && Object.keys(m.byMain).length) ? m.byMain : (m.byCat || {});
+    Object.entries(src).forEach(([k,v])=>{
+      catSum[k] = (catSum[k]||0)+v;
+    });
+  });
   const labelsCat = Object.keys(catSum);
   const valsCat = labelsCat.map(k => catSum[k]);
   expPieChart = new Chart(pctx, {
