@@ -1586,6 +1586,17 @@ let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
 
+// Normalize expense categories to avoid "Zee.Dog" falling into "Diğer" due to variants
+function normalizeExpenseCategory(cat){
+  const s = (cat || '').toString().trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  // Map any "zee dog" variants (zee.dog, zee dog, ZEEDOG, etc.) to a single label
+  if (/(zee)[\s\.-]*(dog)/i.test(s)) return 'Zee.Dog';
+  // Common "other" aliases → Diğer
+  if (/^(other|others|misc|miscellaneous|çeşitli|various|diverse)$/i.test(s)) return 'Diğer';
+  return s;
+}
+
 function parseExpenseRow(r){
   const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
   // Amount sütunundaki negatif değerleri pozitife çevir (giderler için mutlak değer)
@@ -1594,11 +1605,15 @@ function parseExpenseRow(r){
       r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
     )
   );
-  // Kategori: FinalSubcategory öncelikli; yoksa diğer varyasyonlara bak
-  const cat = (
-    r.FinalSubcategory || r.FinalCategory || r.Category || r.Kategori || ''
-  ).toString().trim() || 'Diğer';
-
+  // Kategori: FinalSubcategory öncelikli; yoksa alt/üst varyasyonlarına bak
+  const catRaw =
+    r.FinalSubcategory ||
+    r.FinalCategory ||
+    r.Subcategory ||
+    r.Category ||
+    r.Kategori ||
+    '';
+  const cat = normalizeExpenseCategory(catRaw) || 'Diğer';
   return { Date: iso, Amount: amt, Category: cat };
 }
 
