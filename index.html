@@ -1670,17 +1670,41 @@ function mapMainExpenseCategory(cat){
 }
 
 function parseExpenseRow(r){
-  const iso = (r.Date || r.date || r.DATE || '').toString().slice(0,10);
+  // 1) Tarih: ISO ya da TR formatını destekle
+  const rawDate = (r.Date || r.date || r.DATE || '').toString().trim();
+  let iso = rawDate.slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){
+    if(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(rawDate)){
+      iso = parseTRDateString(rawDate) || '';
+    } else {
+      iso = '';
+    }
+  }
+
+  // 2) Tutar (mutlak değer)
   const amt = Math.abs(
     parseTL(
       r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
     )
   );
-  const catParts = [ r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori ]
+
+  // 3) Kategori sinyalleri — Source da dahil edildi
+  const catParts = [ r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori, r.Source ]
     .filter(Boolean).map(x => x.toString().trim());
   const combined = catParts.join(' | ');
+
+  // 4) Normalize edilmiş alt kategori adı
   const cat = normalizeExpenseCategory(combined) || 'Diğer';
-  const main = mapMainExpenseCategory(cat);
+
+  // 5) Ana kategori — metinden türet, gerektiğinde "Mal Alımı" sinyalini zorla
+  let main = mapMainExpenseCategory(cat);
+  try{
+    if(main === 'Diğer'){
+      const hasPurchaseHint = /(mal alımı|mal alimi|stok|tedarik|satın alma|satin alma)/i.test(combined);
+      if(hasPurchaseHint) main = 'Stok / Mal Alımı';
+    }
+  }catch(e){ /* silent */ }
+
   return { Date: iso, Amount: amt, Category: cat, MainCategory: main };
 }
 
