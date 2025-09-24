@@ -1954,20 +1954,6 @@ const EXPENSES_CSV_URL =
   localStorage.getItem('popdog_expenses_csv_url') ||
   DEFAULT_EXPENSES_CSV;
 
-// Initial load for expenses
-(async function initExpenses(){
-  try{
-    if (!EXPENSES_CSV_URL) {
-      console.warn('No expenses CSV URL configured');
-      return;
-    }
-    expensesRowsCache = await loadExpensesCsv(EXPENSES_CSV_URL);
-    refreshExpenses();
-  }catch(e){
-    console.warn('Expenses load error', e);
-  }
-})();
-
 // YoY toggle for expenses chart
 (function initExpYoyToggle(){
   const tgl = document.getElementById('expYoyToggle');
