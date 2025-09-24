@@ -1815,9 +1815,10 @@ function renderMainExpenseTable(){
     const sumByMain = {};
     let total = 0;
     for(const r of rows){
-      // FinalCategory varsa onu kullan; yoksa türetilmiş MainCategory / fallback
+      // FinalCategory ve FinalSubcategory öncelikli; yoksa türetilmiş MainCategory / fallback
       const main =
         (r.FinalCategory && r.FinalCategory.trim()) ||
+        (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
         r.MainCategory ||
         mapMainExpenseCategory(r.Category || 'Diğer');
 
@@ -1931,12 +1932,16 @@ function drawExpensesCharts(expMonthly){
     // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
     // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
     const catSum = {};
-    arr.forEach(m => {
-      const src = (m.byMain && Object.keys(m.byMain).length) ? m.byMain : (m.byCat || {});
-      Object.entries(src).forEach(([k, v]) => {
-        catSum[k] = (catSum[k] || 0) + (v || 0);
-      });
-    });
+arr.forEach(m=>{
+  (m.rows || []).forEach(r=>{
+    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
+                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
+                r.MainCategory ||
+                r.Category || 'Diğer';
+    const a = +r.Amount || 0;
+    catSum[key] = (catSum[key]||0) + a;
+  });
+});
 
     const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
 
