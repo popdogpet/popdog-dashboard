@@ -1605,67 +1605,85 @@ function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
   if (!s0) return '';
 
-  // Baştaki "Diğer -", "Diger:" vb. süsleri temizle
+  // 1) Başta "Diğer -" gibi süsleri temizle
   const s1 = s0.replace(/^diğer\s*[-:–—]\s*/i, '').replace(/^diger\s*[-:–—]\s*/i, '').trim();
 
-  // " | " veya "/" ile ayrılmış parçaları al
-  const rawTokens = s1.split(/[|/]+/).map(t => t.trim()).filter(Boolean);
+  // 2) Küçük harfe indir, diakritikleri normalize et
+  const toAscii = (str) => str
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // mağaza -> magaza
 
-  // "other/diğer/misc" sayılacak kelimeler
-  const isOther = (t) => /^(other|others|misc|miscellaneous|çeşitli|various|diverse|diğer|diger)$/i.test(t);
+  const s = toAscii(s1);
 
-  // Varsa ilk "Diğer" olmayan etiketi seç
-  const primaryToken = rawTokens.find(t => !isOther(t)) || (rawTokens[0] || '');
+  // 3) Ayırıcılarla böl: " | " , "/" , " - "
+  const tokens = s.split(/[|/]+/).flatMap(t => t.split(/\s+-\s+/)).map(t => t.trim()).filter(Boolean);
 
-  // Özel normalizasyonlar
-  let s = primaryToken;
-  if (/(zee)[\s\.-]*(dog)/i.test(s)) return 'Zee.Dog';
-  if (/^(facebook|fb|meta\s*ads?)$/i.test(s)) return 'Facebook';
-  if (/^(google\s*ads?|adwords)$/i.test(s)) return 'Google Ads';
+  // 4) "other/diğer/misc" sayılacak kelimeler
+  const isOther = (t) => /^(other|others|misc|miscellaneous|cesitli|various|diverse|diger|digerleri)$/i.test(t);
 
-  if (!s || isOther(s)) return 'Diğer';
-  return s.replace(/\s+/g, ' ').trim();
+  // 5) İlk "diğer" olmayan etiket
+  const primary = tokens.find(t => !isOther(t)) || (tokens[0] || '');
+
+  // 6) Sık görülen ad düzeltmeleri
+  if (/^meta\s*ads?$/.test(primary) || /^facebook(\s*ads?)?$/.test(primary) || /^instagram(\s*ads?)?$/.test(primary)) return 'Facebook';
+  if (/^google(\s*ads?|adwords)$/.test(primary)) return 'Google Ads';
+  if (/^tik(tok| tok)(\s*ads?)?$/.test(primary)) return 'TikTok Ads';
+  if (/(yurtici|aras|mng|surat|ptt|ups|dhl|fedex|trendyol\s*express|hepsijet)/.test(primary)) return 'Kargo';
+  if (/(garanti|isbank|is\s*bankasi|qnb|enpara|akbank|ziraat|yapi\s*kredi|iyzico|iyzi|iyzi-co|payu|iyzico|iyzi\s*co|stripe|iyzico)/.test(primary)) return 'Banka/Ödeme';
+
+  // 7) Özel ürün/marka örnekleri
+  if (/(zee)[\s\.-]*(dog)/.test(primary)) return 'Zee.Dog';
+
+  // 8) Boşsa Diğer
+  if (!primary || isOther(primary)) return 'Diğer';
+
+  // 9) Standart boşluk temizliği
+  return primary.replace(/\s+/g, ' ').trim();
 }
 
 function mapMainExpenseCategory(cat){
-  // cat: normalizeExpenseCategory çıktısı
-  if (!cat) return 'Diğer';
+  // `cat` = normalizeExpenseCategory çıktısı veya özgün metin
+  const s = (cat || '').toString().toLowerCase();
 
-  // Dijital Reklam
-  if (/(facebook|google\s*ads?|adwords|instagram|tiktok|youtube)/i.test(cat)) return 'Dijital Reklam';
+  // 1) Dijital Reklam
+  if (/(facebook|google\s*ads?|adwords|instagram|tiktok|youtube|meta\s*ads?)/.test(s))
+    return 'Dijital Reklam';
 
-  // Mağaza Giderleri
-  if (/(mağaza|magaza|pos|temizlik|kira|elektrik|su|doğalgaz|dogalgaz|aidat|güvenlik|guvenlik|personel|maaş|maas|yemek|ssk|sgk)/i.test(cat))
-    return 'Mağaza Giderleri';
-
-  // Ev Giderleri
-  if (/(ev\s*gider|ev\s*kira|konut|internet|elektrik|su|doğalgaz|dogalgaz|aidat)/i.test(cat))
-    return 'Ev Giderleri';
-
-  // Danışmanlık Giderleri
-  if (/(danışman|danisman|consult|freelance|ajans|agency|hukuk|legal|muhasebe|yeminli|denetim)/i.test(cat))
-    return 'Danışmanlık Giderleri';
-
-  // Yazılım / Abonelik
-  if (/(shopify|yazılım|yazilim|abonelik|subscription|google\s*workspace|office\s*365|slack|notion|figma|saas)/i.test(cat))
-    return 'Yazılım / Abonelik';
-
-  // Lojistik
-  if (/(kargo|lojistik|shipping|nakliye|kurye)/i.test(cat))
+  // 2) Lojistik
+  if (/(kargo|lojistik|shipping|nakliye|kurye|yurtici|aras|mng|surat|ptt|ups|dhl|fedex|trendyol\s*express|hepsijet)/.test(s))
     return 'Lojistik';
 
-  // Banka / Komisyon
-  if (/(banka|komisyon|pos\s*kesintisi|havale|eft|chargeback|kart\s*ücreti|kart\s*ucreti|iban\s*ücreti|iban\s*ucreti)/i.test(cat))
+  // 3) Banka / Komisyon / Ödeme Kuruluşları
+  if (/(banka|komisyon|pos\s*kesintisi|pos\s*ucreti|havale|eft|chargeback|kart\s*ucreti|iban\s*ucreti|iyzico|payu|stripe|paytr|papara|wise|paycell)/.test(s))
     return 'Banka / Komisyon';
 
-  // Vergiler
-  if (/(vergi|kdv|stopaj|damga|gecikme|ceza)/i.test(cat))
+  // 4) Vergiler
+  if (/(vergi|kdv|stopaj|damga|gecikme|ceza|beyanname|muhasebe\s*damga)/.test(s))
     return 'Vergiler';
 
-  // Stok / Mal Alımı
-  if (/(mal alımı|mal alimi|stok|tedarik|satın alma|satin alma)/i.test(cat))
+  // 5) Yazılım / Abonelik
+  if (/(shopify|yazilim|abonelik|subscription|google\s*workspace|office\s*365|microsoft\s*365|slack|notion|figma|zoom|canva|trello|asana|jira|aws|gcp|azure|cloudflare)/.test(s))
+    return 'Yazılım / Abonelik';
+
+  // 6) Danışmanlık / Hizmet
+  if (/(danisman|consult|freelance|ajans|agency|hukuk|legal|avukat|muhasebe\s*hizmet|ymm|denetim|tasarim|design|fotograf|video|prodüksiyon|prodüksiyon)/.test(s))
+    return 'Danışmanlık Giderleri';
+
+  // 7) Stok / Mal Alımı
+  if (/(mal\s*al(imi|ımı)|stok|tedarik|sat(in|ın)\s*alma|purchase|supplier|tedarikci)/.test(s))
     return 'Stok / Mal Alımı';
 
+  // 8) Mağaza Giderleri (yalnız mağaza/şube anahtarlarıyla eşle)
+  if (/(magaza|mağaza|saha|sube|ckm|caddebostan|cadde|depo|thrones)/.test(s) &&
+      /(kira|elektrik|su|dogalgaz|doğalgaz|aidat|guvenlik|güvenlik|temizlik|personel|maas|maaş|yemek|ssk|sgk|pos)/.test(s))
+    return 'Mağaza Giderleri';
+
+  // 9) Ev Giderleri (ev/konut anahtarı şart)
+  if (/(ev|konut|daire|home|house)/.test(s) &&
+      /(kira|elektrik|su|dogalgaz|doğalgaz|aidat|internet)/.test(s))
+    return 'Ev Giderleri';
+
+  // 10) Varsayılan
   return 'Diğer';
 }
 
@@ -1688,33 +1706,35 @@ function parseExpenseRow(r){
     )
   );
 
-  // 3) CSV'den Final* alanlarını açıkça çek ve sakla
+  // 3) CSV'den Final* alanlarını açıkça çek ve sakla (kullanıcı override)
   const finalSub = (r.FinalSubcategory || '').toString().trim();
   const finalCat = (r.FinalCategory     || '').toString().trim();
 
-  // 4) Kategori sinyalleri — Source da dahil edildi (normalize için)
-  const catParts = [ r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori, r.Source ]
-    .filter(Boolean).map(x => x.toString().trim());
-  const combined = catParts.join(' | ');
+  // 4) Kategori sinyalleri — geniş alan seti (varsa ekle)
+  const parts = [
+    r.FinalSubcategory, r.FinalCategory,
+    r.Subcategory, r.Category, r.Kategori,
+    r.Source, r.Aciklama, r.Açıklama, r.Description, r.Details, r.Note, r.Notes, r.Memo,
+    r.Merchant, r.Payee, r.Supplier, r.Vendor, r.Bank, r.Banka, r.Account
+  ].filter(Boolean).map(x => x.toString().trim());
+
+  const combined = parts.join(' | ');
 
   // 5) Normalize edilmiş alt kategori adı
-  const cat = normalizeExpenseCategory(combined) || 'Diğer';
+  //    Eğer FinalSubcategory varsa onu öncelikle normalize et, yoksa combined'dan üret
+  const cat = finalSub ? normalizeExpenseCategory(finalSub) : (normalizeExpenseCategory(combined) || 'Diğer');
 
-  // 6) Ana kategori — metinden türet, gerektiğinde "Mal Alımı" sinyalini zorla
-  let main = mapMainExpenseCategory(cat);
-  try{
-    if(main === 'Diğer'){
-      const hasPurchaseHint = /(mal alımı|mal alimi|stok|tedarik|satın alma|satin alma)/i.test(combined);
-      if(hasPurchaseHint) main = 'Stok / Mal Alımı';
-    }
-  }catch(e){ /* silent */ }
+  // 6) Ana kategori — FinalCategory > mapper(cat) > mapper(combined)
+  let main = finalCat || mapMainExpenseCategory(cat);
+  if (!finalCat && (!main || main === 'Diğer')) {
+    main = mapMainExpenseCategory(combined);
+  }
 
-  // 7) Objeye Final* alanlarını da ekle (null olarak da gelebilir)
   return {
     Date: iso,
     Amount: amt,
     Category: cat,            // normalize edilmiş alt kategori
-    MainCategory: main,       // türetilmiş ana kategori (fallback)
+    MainCategory: main,       // ana kategori (FinalCategory öncelikli)
     FinalSubcategory: finalSub || null,
     FinalCategory: finalCat || null
   };
