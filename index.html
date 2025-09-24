@@ -1850,53 +1850,55 @@ let expLineChart, expPieChart;
 function drawExpensesCharts(expMonthly){
   const now = new Date();
   const curYear = now.getFullYear();
-  // Bu yıl veri yoksa, eldeki son yılı kullan
-  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
-  const expYear = yearsWithData.includes(curYear) ? curYear : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
-  const arr = (expMonthly||[]).filter(r=> r.year===expYear);
-  const labels = arr.map(r=> r.month);
-  const dataCur = arr.map(r=> r.Total||0);
 
-  // yearsWithData yukarıda hesaplandı
+  // Yıl seçimi: Bu yıl yoksa, eldeki son yıl
+  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r => r.year))).sort((a,b)=>a-b);
+  const expYear = yearsWithData.includes(curYear)
+    ? curYear
+    : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
+
+  // Bu yılın ayları
+  const arr = (expMonthly||[]).filter(r => r.year === expYear);
+  const labels = arr.map(r => r.month);
+  const dataCur = arr.map(r => r.Total || 0);
+
+  // === Prev-year serisi (label MM hizalı) ===
   let prevYear = expYear - 1;
-  if (!yearsWithData.includes(prevYear)){
+  if (!yearsWithData.includes(prevYear)) {
     for (let i = yearsWithData.length - 1; i >= 0; i--) {
       if (yearsWithData[i] < expYear) { prevYear = yearsWithData[i]; break; }
     }
   }
-  // Build prev-year map aligned to current labels' months (MM)
   const prevMap = {};
-  (expMonthly||[]).forEach(r=>{
-    if(r.year===prevYear){
-      const mm=r.month.slice(5,7);
-      prevMap[mm]=(prevMap[mm]||0)+(r.Total||0);
+  (expMonthly||[]).forEach(r => {
+    if (r.year === prevYear) {
+      const mm = r.month.slice(5,7);
+      prevMap[mm] = (prevMap[mm] || 0) + (r.Total || 0);
     }
   });
-  const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
+  const dataPrev = labels.map(m => prevMap[m.slice(5,7)] || 0);
 
-  if (expLineChart) expLineChart.destroy();
+  // ========== Line: Aylık Giderler ==========
+  if (typeof expLineChart !== 'undefined' && expLineChart) expLineChart.destroy();
   const lctx = document.getElementById('lineExpenses').getContext('2d');
-  const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
-  const ds = [
-    {
-      label: 'Bu Yıl',
-      data: dataCur,
-      tension: 0.35,
-      borderWidth: 3,
-      borderColor: '#22d3ee',
-      fill: true,
-      backgroundColor: grad('rgba(34,211,238,0.25)', 'rgba(99,102,241,0.05)'),
-      pointRadius: 3,
-      pointHoverRadius: 5
-    }
-  ];
-  if (expYoyEnabled && dataPrev.some(v => v > 0)) {
-    ds.push({
-      label: `Geçen Yıl (${prevYear})`,
+  const lineDatasets = [{
+    label: 'Bu Yıl',
+    data: dataCur,
+    tension: 0.35,
+    borderWidth: 3,
+    borderColor: '#ef4444',
+    fill: false,
+    pointRadius: 3,
+    pointHoverRadius: 5
+  }];
+  const hasPrevAny = dataPrev.some(v => v > 0);
+  if (expYoyEnabled && hasPrevAny) {
+    lineDatasets.push({
+      label: 'Geçen Yıl',
       data: dataPrev,
       tension: 0.35,
       borderWidth: 2,
-      borderDash: [6, 4],
+      borderDash: [6,4],
       borderColor: '#94a3b8',
       pointRadius: 0,
       fill: false
@@ -1904,626 +1906,88 @@ function drawExpensesCharts(expMonthly){
   }
   expLineChart = new Chart(lctx, {
     type: 'line',
-    data: {
-      labels: labels,
-      datasets: ds
-    },
+    data: { labels, datasets: lineDatasets },
     options: {
       plugins: {
-        legend: { position: 'bottom' },
-        datalabels: {
-          align: 'top',
-          anchor: 'end',
-          formatter: v => numberTL(v),
-          color: '#64748b',
-          clip: true
-        }
+        legend: { display: true, position: 'bottom' },
+        datalabels: { align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true }
       },
       scales: {
         x: { ticks: { maxRotation: 0 } },
-        y: { ticks: { callback: v => numberTL(v) } }
+        y: { ticks: { callback: (v)=> numberTL(v) } }
       }
     }
   });
 
-   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
+  // ========== Pie: Gider Dağılımı (YTD) ==========
+  // YTD aynı yıl içindeki tüm gider satırlarından kategori toplamlarını üret
+  const catSum = {};
   try {
-    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
-    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
-    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
-    const catSum = {};
-arr.forEach(m=>{
-  (m.rows || []).forEach(r=>{
-    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
-                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-                r.MainCategory ||
-                r.Category || 'Diğer';
-    const a = +r.Amount || 0;
-    catSum[key] = (catSum[key]||0) + a;
-  });
-});
+    const expRowsThisYear = (expensesRowsCache || []).filter(r => {
+      if (!r || !r.Date) return false;
+      const d = new Date(r.Date + 'T00:00:00Z');
+      return d && !isNaN(+d) && d.getFullYear() === expYear;
+    });
+    expRowsThisYear.forEach(r => {
+      const key = (r.FinalCategory && r.FinalCategory.trim()) ||
+                  (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
+                  r.MainCategory ||
+                  r.Category || 'Diğer';
+      const a = +r.Amount || 0;
+      catSum[key] = (catSum[key] || 0) + a;
+    });
+  } catch(e) {
+    console.warn('Pie (expenses) build error', e);
+  }
 
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+  const catEntries = Object.entries(catSum).sort((a,b)=> b[1] - a[1]);
+  const pieLabels = catEntries.map(([k]) => k);
+  const pieData   = catEntries.map(([,v]) => v);
 
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
-
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
-
-    if (expPieChart) expPieChart.destroy();
-    const pctx = document.getElementById('pieExpenses').getContext('2d');
-
-    const pieColors = [
-      'rgba(244,114,182,0.70)', // pink
-      'rgba(52,211,153,0.70)',  // emerald
-      'rgba(96,165,250,0.70)',  // blue
-      'rgba(251,191,36,0.70)',  // amber
-      'rgba(165,180,252,0.70)', // indigo
-      'rgba(248,113,113,0.70)', // red
-      'rgba(203,213,225,0.70)', // slate
-      'rgba(34,197,94,0.70)',   // green
-      'rgba(59,130,246,0.70)',  // blue-500
-      'rgba(14,165,233,0.70)',  // sky
-    ];
-    const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
-
-    expPieChart = new Chart(pctx, {
-      type: 'pie',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: labels.map((_, i) => pieColors[i % pieColors.length]),
-          hoverBackgroundColor: labels.map((_, i) => pieHover[i % pieHover.length]),
-          borderWidth: 1.5,
-          borderColor: 'rgba(255,255,255,0.55)'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
-        layout: { padding: 0 },
-        radius: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
-          datalabels: {
-            color: '#0f172a',
-            formatter: (v) => `${(v / totalYtd * 100).toFixed(1)}%`,
-            backgroundColor: 'rgba(255,255,255,0.40)',
-            borderColor: 'rgba(255,255,255,0.85)',
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 5,
-            clip: true
+  if (typeof expPieChart !== 'undefined' && expPieChart) expPieChart.destroy();
+  const pctx = document.getElementById('pieExpenses').getContext('2d');
+  expPieChart = new Chart(pctx, {
+    type: 'pie',
+    data: {
+      labels: pieLabels,
+      datasets: [{
+        data: pieData,
+        backgroundColor: [
+          'rgba(129,140,248,0.65)','rgba(52,211,153,0.65)','rgba(96,165,250,0.65)',
+          'rgba(251,191,36,0.65)','rgba(244,114,182,0.65)','rgba(248,113,113,0.65)',
+          'rgba(34,197,94,0.65)','rgba(59,130,246,0.65)','rgba(234,179,8,0.65)'
+        ],
+        hoverBackgroundColor: [
+          'rgba(129,140,248,0.85)','rgba(52,211,153,0.85)','rgba(96,165,250,0.85)',
+          'rgba(251,191,36,0.85)','rgba(244,114,182,0.85)','rgba(248,113,113,0.85)',
+          'rgba(34,197,94,0.85)','rgba(59,130,246,0.85)','rgba(234,179,8,0.85)'
+        ],
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.55)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
+      layout: { padding: 0 },
+      radius: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
+        datalabels: {
+          color:'#0f172a',
+          formatter:(v,ctx)=>{
+            const total = (ctx.dataset.data || []).reduce((a,b)=>a+b,0) || 1;
+            const pct = v/total*100; return `${pct.toFixed(1)}%`;
           },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.label}: ${numberTL(ctx.raw)}`
-            }
-          }
+          backgroundColor:'rgba(255,255,255,0.40)',
+          borderColor:'rgba(255,255,255,0.85)',
+          borderWidth:1,
+          borderRadius:12,
+          padding:5,
+          clip: true
         }
       }
-    });
-  } catch (e) {
-    console.warn('drawExpensesCharts pie error', e);
-  }
-}
-
-/* ================== Expenses: Load & Refresh ================== */
-function refreshExpenses(){
-  try{
-    expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache || []);
-    setExpensesKPIs(expensesMonthlyCache);
-    drawExpensesCharts(expensesMonthlyCache);
-    renderMainExpenseTable();
-  }catch(e){
-    console.warn('refreshExpenses error', e);
-  }
-}
-
-// URL / localStorage config for expenses CSV
-const EXPENSES_CSV_URL =
-  getParam('expenses') ||
-  getParam('expenses_csv') ||
-  localStorage.getItem('popdog_expenses_csv_url') ||
-  DEFAULT_EXPENSES_CSV;
-
-// YoY toggle for expenses chart
-(function initExpYoyToggle(){
-  const tgl = document.getElementById('expYoyToggle');
-  const stateEl = document.getElementById('expYoyState');
-  if (!tgl) return;
-  tgl.addEventListener('click', ()=>{
-    expYoyEnabled = !expYoyEnabled;
-    if (stateEl) stateEl.textContent = expYoyEnabled ? 'Açık' : 'Kapalı';
-    if (expensesMonthlyCache && expensesMonthlyCache.length) {
-      drawExpensesCharts(expensesMonthlyCache);
     }
   });
-})();
-
-/* ================== Hook expenses into global refreshAll ================== */
-(function patchRefreshAll(){
-  const prev = window.refreshAll;
-  window.refreshAll = function(...args){
-    if (typeof prev === 'function') {
-      try { prev.apply(this, args); } catch(e){ console.warn('refreshAll (prev) error', e); }
-    }
-    try { refreshExpenses(); } catch(e){ console.warn('refreshAll→refreshExpenses error', e); }
-  };
-})();
-
-async function loadExpensesCsv(url){
-  if(!url) return [];
-  const resp = await fetch(withCacheBust(url), { cache:'no-store' });
-  if(!resp.ok) return [];
-  const text = await resp.text();
-  return new Promise((resolve)=> {
-    Papa.parse(text, { header:true, skipEmptyLines:true,
-      complete:(res)=>{ const rows=(res.data||[]).map(parseExpenseRow).filter(r=> r.Date && r.Amount!==0); resolve(rows); },
-      error:()=> resolve([])
-    });
-  });
 }
-
-/* ================== Weekly UI ================== */
-let weeklyAgg = [];
-let selectedMondayISO = null;
-function renderWeek(){
-  if(!weeklyAgg.length){
-    document.getElementById('weekCards').innerHTML = '<div class="hint text-sm">Haftalık veri yok.</div>';
-    document.getElementById('weekWoW').textContent='';
-    document.getElementById('weekLabel').textContent='';
-    return;
-  }
-  if(!selectedMondayISO){ selectedMondayISO = weeklyAgg.at(-1).monday; }
-  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
-  const cur = weeklyAgg[idx];
-  const prev = weeklyAgg[idx-1] || null;
-
-  document.getElementById('weekLabel').textContent = weekRangeLabel(new Date(cur.monday + "T00:00:00"));
-
-  const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada'];
-  const labels = {Total:'Toplam', Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada'};
-  const wrap = document.getElementById('weekCards'); wrap.innerHTML='';
-  keys.forEach(k=>{
-    const v = cur[k]||0;
-    const p = prev ? prev[k]||0 : 0;
-    const wow = p ? (v-p)/p : 0;
-    const card = document.createElement('div');
-    card.className='glass card-3d rounded-2xl p-3';
-    card.innerHTML = `<div class="hint text-xs">${labels[k]}</div>
-      <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(v)}</div>
-      <div class="${wow>=0?'kpi-up':'kpi-down'} text-xs">${(wow*100).toFixed(1)}%</div>`;
-    wrap.appendChild(card);
-  });
-
-  const wowTotal = prev ? (cur.Total - prev.Total) / prev.Total : 0;
-  document.getElementById('weekWoW').textContent = `WoW (Toplam): ${(wowTotal*100).toFixed(1)}%`;
-}
-document.getElementById('weekPrev').onclick = ()=>{
-  if(!weeklyAgg.length || !selectedMondayISO) return;
-  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
-  if(idx>0){ selectedMondayISO = weeklyAgg[idx-1].monday; renderWeek(); }
-};
-document.getElementById('weekNext').onclick = ()=>{
-  if(!weeklyAgg.length || !selectedMondayISO) return;
-  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
-  if(idx<weeklyAgg.length-1){ selectedMondayISO = weeklyAgg[idx+1].monday; renderWeek(); }
-};
-
-/* ================== WhatsApp Paste → stage table ================== */
-function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
-function extractValue(line){
-  const m=line.match(/-?\d[\d\s.,]*/);
-  if(!m) return 0;
-  return parseTL(m[0]);
-}
-function parseDailyText(txt){
-  const lines = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  let dateISO = '', kk=0, qnb=0, nakit=0, toplam=0, kasaNakit=0, online=0, toptan=0, trendyol=0, hb=0;
-  for(const line of lines){
-    const low=line.toLowerCase();
-    if(low.includes('tarih')){ dateISO = parseTRDateString(line); continue; }
-    if(grab(low,['kredi kartı','kredi karti'])){ kk=extractValue(line); continue; }
-    if(grab(low,['qnb','iş','is','garanti'])){ qnb=extractValue(line); continue; }
-    if((low.includes('nakit') && !low.includes('kasa'))){ nakit=extractValue(line); continue; }
-    if(low.includes('toplam ciro')){ toplam=extractValue(line); continue; }
-    if(low.includes('kasa nakit')){ kasaNakit=extractValue(line); continue; }
-    if(low.includes('pop dog online')){ online=extractValue(line); continue; }
-    if(low.includes('pop dog toptan')){ toptan=extractValue(line); continue; }
-    if(low.startsWith('trendyol')){ trendyol=extractValue(line); continue; }
-    if(low.startsWith('hepsiburada')){ hb=extractValue(line); continue; }
-  }
-  const ckm = toplam || (kk + qnb + nakit);
-  return {
-    Date: dateISO || '',
-    Toptan: toptan||0,
-    Online: online||0,
-    CKM: ckm||0,
-    "CKM Nakit": nakit||0,
-    "Kasa Nakit (EoD)": kasaNakit||0,
-    Trendyol: trendyol||0,
-    Hepsiburada: hb||0,
-    Total: (toptan + online + ckm + trendyol + hb)
-  };
-}
-document.getElementById('parseAddBtn').onclick = ()=>{
-  const txt=document.getElementById('dailyText').value;
-  if(!txt.trim()){ document.getElementById('parseInfo').textContent='Metin boş.'; return; }
-  const row=parseDailyText(txt);
-  if(!row.Date){ document.getElementById('parseInfo').textContent='Tarih bulunamadı. "Tarih 07/09/2025" gibi.'; return; }
-  stagedRows.push(row);
-  document.getElementById('parseInfo').textContent=`Eklendi: ${row.Date}`;
-  document.getElementById('dailyText').value='';
-  refreshAll();
-};
-function renderStaged(){
-  const tbody = document.getElementById('stagedTbody'); tbody.innerHTML='';
-  for(const r of stagedRows){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="py-2 pr-4">${r.Date}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Toptan)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Online)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.CKM)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["CKM Nakit"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["Kasa Nakit (EoD)"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Trendyol)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Hepsiburada)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Total)}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-/* ================== CSV I/O (local import/export) ================== */
-document.getElementById('uploadBtn').onclick = ()=> document.getElementById('fileInput').click();
-document.getElementById('fileInput').addEventListener('change', e=>{
-  const file = e.target.files && e.target.files[0]; if(!file) return;
-  Papa.parse(file, { header:true, skipEmptyLines:true, complete:(res)=>{
-    const data = (res.data||[]).map(r=>{
-      const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
-      const row = {
-        Date: iso,
-        Toptan: parseTL(r.Toptan), Online: parseTL(r.Online),
-        CKM: parseTL(r.CKM), ["CKM Nakit"]: parseTL(r["CKM Nakit"]),
-        Trendyol: parseTL(r.Trendyol), Hepsiburada: parseTL(r.Hepsiburada),
-      };
-      row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
-      return row;
-    }).filter(r=>r.Date);
-    loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
-    refreshAll();
-  }});
-});
-document.getElementById('downloadBtn').onclick = ()=>{
-  // loaded + staged → tekilleştir ve tarihe göre sırala
-  const mergedRaw = [...loadedRows, ...stagedRows];
-  const merged = dedupeDailyRows(mergedRaw); // aynı güne ait en anlamlı satırı seçer
-
-  const headers = ["Date","Toptan","Online","CKM","CKM Nakit","Trendyol","Hepsiburada","Total"];
-  const lines = [headers.join(",")].concat(merged.map(r=>[
-    r.Date, r.Toptan, r.Online, r.CKM, r["CKM Nakit"]||0, r.Trendyol, r.Hepsiburada, r.Total
-  ].join(",")));
-
-  const csv = lines.join("\n");
-  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'revenue_2025_YTD.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
-/* ================== FX (TRY→USD) ================== */
-async function fetchFX(){
-  try{
-    const r = await fetch('https://open.er-api.com/v6/latest/TRY');
-    const j = await r.json();
-    if(j && j.rates && j.rates.USD){
-      fxRateUSDPerTRY = j.rates.USD;
-      fxDate = j.time_last_update_utc ? new Date(j.time_last_update_utc) : new Date();
-      const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
-      document.getElementById('fxNote').textContent =
-        tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
-      return;
-    }
-  }catch(e){}
-  try{
-    const r2 = await fetch('https://api.exchangerate.host/latest?base=TRY&symbols=USD');
-    const j2 = await r2.json();
-    if(j2 && j2.rates && j2.rates.USD){
-      fxRateUSDPerTRY = j2.rates.USD;
-      fxDate = j2.date ? new Date(j2.date) : new Date();
-      const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
-      document.getElementById('fxNote').textContent =
-        tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
-      return;
-    }
-  }catch(e){}
-  document.getElementById('fxNote').textContent = `Kur alınamadı`;
-}
-
-/* ================== DEDUPE HELPERS (daily revenue rows) ================== */
-function dedupeDailyRows(rows){
-  if (!Array.isArray(rows)) return [];
-  const byDate = new Map();
-  for (const r of rows){
-    if (!r || !r.Date) continue;
-    const key = String(r.Date).slice(0,10);
-    const cur = byDate.get(key);
-    // Daha büyük Total'ı seç. Eşitse dolu sütunu fazla olanı al.
-    if (!cur) { byDate.set(key, r); continue; }
-    const tNew = (+r.Total||0);
-    const tOld = (+cur.Total||0);
-    if (tNew > tOld) { byDate.set(key, r); continue; }
-    if (tNew === tOld) {
-      const nzNew = ((+r.Toptan||0)>0) + ((+r.Online||0)>0) + ((+r.CKM||0)>0) + ((+r.Trendyol||0)>0) + ((+r.Hepsiburada||0)>0);
-      const nzOld = ((+cur.Toptan||0)>0) + ((+cur.Online||0)>0) + ((+cur.CKM||0)>0) + ((+cur.Trendyol||0)>0) + ((+cur.Hepsiburada||0)>0);
-      if (nzNew > nzOld) byDate.set(key, r);
-    }
-  }
-  // Tarihe göre sırala
-  return Array.from(byDate.values()).sort((a,b)=> (a.Date||'').localeCompare(b.Date||''));
-}
-/* ================== PIPELINE (Revenue) ================== */
-function refreshAll(){
-  // 1) loaded + staged → tekilleştir (aynı güne ait satırlarda en anlamlı olanı seç)
-  const mergedRaw = [...loadedRows, ...stagedRows];
-  const merged = dedupeDailyRows(mergedRaw); // zaten tarihe göre sıralı döner
-
-  // 2) cache
-  mergedRowsCache = merged;
-
-  // 3) agregasyonlar
-  const monthly = buildMonthly(merged);
-  monthlyCache = monthly;
-  const weekly  = buildWeekly(merged); weeklyAgg = weekly;
-
-  // 4) Haftalık seçimi güncel son haftaya sabitle (varsa)
-  const lastMonday = weeklyAgg.length ? weeklyAgg[weeklyAgg.length - 1].monday : null;
-  if (
-    !selectedMondayISO ||
-    !weeklyAgg.some(w => w.monday === selectedMondayISO) ||
-    (lastMonday && selectedMondayISO < lastMonday)
-  ) {
-    selectedMondayISO = lastMonday;
-  }
-
-  // 5) KPI + UI
-  setKPIs(monthly);
-  buildAlerts(monthly);
-  drawCharts(monthly);
-  renderTargets(monthly);
-  renderStaged();
-  renderWeek();
-  renderLast7();
-
-  // 6) Stok bloğu
-  renderStockBlock();
-  // === Expenses (CFO) render ===
-try {
-  if (Array.isArray(expensesMonthlyCache) && expensesMonthlyCache.length) {
-    setExpensesKPIs(expensesMonthlyCache);
-    drawExpensesCharts(expensesMonthlyCache);
-  }
-} catch (e) {
-  console.warn('Expenses render error', e);
-}
-}
-/* ================== Last 7 Days Summary ================== */
-function startOfDayLocal(d){
-  const x = new Date(d);
-  x.setHours(0,0,0,0);
-  return x;
-}
-
-function renderLast7(){
-  const wrap = document.getElementById('last7Wrap');
-  if(!wrap) return;
-  const note = document.getElementById('last7Note');
-
-  const rows = Array.isArray(mergedRowsCache) ? mergedRowsCache : [];
-  if(!rows.length){
-    wrap.innerHTML = '<div class="hint text-sm">Veri yok.</div>';
-    if (note) note.textContent = '';
-    return;
-  }
-
-  // Gün gün toplamlar (bugün dahil son 7 gün)
-  const dayMs = 24*60*60*1000;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const days = [];
-  for(let i=6; i>=0; i--){
-    const d = new Date(today.getTime() - i*dayMs);
-    days.push(d);
-  }
-
-  const byDate = new Map(); // ISO-> {Total, Toptan, Online, CKM, Trendyol, Hepsiburada}
-  rows.forEach(r=>{
-    if(!r.Date) return;
-    const d = new Date(r.Date + 'T00:00:00'); d.setHours(0,0,0,0);
-    const iso = d.toISOString().slice(0,10);
-    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
-    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-    acc.Total += (tpt+onl+ckm+trn+hb);
-    acc.Toptan += tpt; acc.Online += onl; acc.CKM += ckm; acc.Trendyol += trn; acc.Hepsiburada += hb;
-    byDate.set(iso, acc);
-  });
-
-  wrap.innerHTML = '';
-  days.forEach(d=>{
-    const iso = d.toISOString().slice(0,10);
-    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
-    const card = document.createElement('div');
-    card.className = 'glass card-3d rounded-2xl p-3';
-    const lbl = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-    card.innerHTML = `
-      <div class="hint text-xs">${lbl}</div>
-      <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(acc.Total)}</div>
-      <div class="hint text-[11px]">T:${numberTL(acc.Toptan)} • O:${numberTL(acc.Online)} • C:${numberTL(acc.CKM)} • Tr:${numberTL(acc.Trendyol)} • H:${numberTL(acc.Hepsiburada)}</div>
-    `;
-    wrap.appendChild(card);
-  });
-
-  if (note) {
-    const first = days[0], last = days[days.length-1];
-    const fmt = x => `${String(x.getDate()).padStart(2,'0')}.${String(x.getMonth()+1).padStart(2,'0')}`;
-    note.textContent = `Gün gün: ${fmt(first)} – ${fmt(last)} (bugün dahil)`;
-  }
-}
-
-/* ================== BOOT & SAVE ================== */
-// No longer binding Data Source DOM elements
-
-async function boot(){
-  // 0) URL query param override (sheet, inv, orders) → directly persist
-  const qpSheet  = getParam('sheet');
-  const qpInv    = getParam('inv');
-  const qpOrders = getParam('orders');
-  if (qpSheet)  localStorage.setItem('popdog_sheet_csv_url',  qpSheet);
-  if (qpInv)    localStorage.setItem('popdog_inv_csv_url',    qpInv);
-  if (qpOrders) localStorage.setItem('popdog_orders_csv_url', qpOrders);
-
-  // Optional: persist clean flag from URL (?clean=1/0)
-  (function(){
-    const p = getParam('clean');
-    if (p === '1' || p === '0') {
-      try { localStorage.setItem('popdog_clean_on_load', p); } catch(e){}
-    }
-  })();
-
-  // 1) config.json (same folder) fallback if nothing set yet
-  const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url')   ||
-                          localStorage.getItem('popdog_inv_csv_url')     ||
-                          localStorage.getItem('popdog_orders_csv_url')  ||
-                          localStorage.getItem('popdog_expenses_csv_url'));
-  if (!hasAnyStored) {
-    try {
-      const r = await fetch('config.json', { cache: 'no-store' });
-      if (r.ok) {
-        const cfg = await r.json();
-        if (cfg.sheetCsv)     localStorage.setItem('popdog_sheet_csv_url',     cfg.sheetCsv);
-        if (cfg.inventoryCsv) localStorage.setItem('popdog_inv_csv_url',       cfg.inventoryCsv);
-        if (cfg.ordersCsv)    localStorage.setItem('popdog_orders_csv_url',    cfg.ordersCsv);
-        if (cfg.expensesCsv)  localStorage.setItem('popdog_expenses_csv_url',  cfg.expensesCsv);
-      }
-    } catch (e) { /* silent */ }
-  }
-
-  // 2) Resolve URLs: localStorage → defaults
-  const sheetUrl    = localStorage.getItem('popdog_sheet_csv_url')     || (typeof DEFAULT_SHEET_CSV     !== 'undefined' ? DEFAULT_SHEET_CSV     : '');
-  const invUrl      = localStorage.getItem('popdog_inv_csv_url')       || (typeof DEFAULT_INV_CSV       !== 'undefined' ? DEFAULT_INV_CSV       : '');
-  const ordersUrl   = localStorage.getItem('popdog_orders_csv_url')    || (typeof DEFAULT_ORDERS_CSV    !== 'undefined' ? DEFAULT_ORDERS_CSV    : '');
-  const expensesUrl = localStorage.getItem('popdog_expenses_csv_url')  || (typeof DEFAULT_EXPENSES_CSV  !== 'undefined' ? DEFAULT_EXPENSES_CSV  : '');
-
-  console.log('Data URLs →', { sheetUrl, invUrl, ordersUrl, expensesUrl });
-
-// Expenses load (CSV)
-try {
-  expensesRowsCache = await loadExpensesCsv(expensesUrl);
-  expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
-} catch(e) {
-  expensesRowsCache = [];
-  expensesMonthlyCache = [];
-}
-  // 3) FX
-  try { await fetchFX(); } catch(e){}
-
-  // 4) Cached revenue rows (from previous session)
-  const cached = localStorage.getItem('popdog_loaded_rows');
-  if (cached) { try { loadedRows = JSON.parse(cached) || []; } catch(e) {} }
-
-  // 5) Load revenue (sheet)
-  if (sheetUrl) {
-    console.log('Sheet’ten veri çekiliyor...');
-    try {
-      const data = await loadFromSheet(sheetUrl);
-      if (!data.length) throw new Error('Sheet boş döndü');
-      loadedRows = data;
-      localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
-      const first = loadedRows[0]?.Date || '—';
-      const last  = loadedRows.at(-1)?.Date || '—';
-      console.log(`Sheet yüklendi (${loadedRows.length} satır) • ${first} → ${last}`);
-    } catch (e) {
-      console.warn('Sheet yüklenemedi. URL ve yayınlama ayarlarını kontrol et.', e);
-    }
-  } else {
-    console.warn('CSV URL yok: Sheet verisi yüklenemedi.');
-  }
-
-  // 6) inventory_value
-  try {
-    if (invUrl) {
-      const invRows = await loadCSV(invUrl);
-      localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
-    }
-  } catch (e) { console.warn('INV CSV error', e); }
-
-  // 7) orders_raw (Shopify)
-  try {
-    if (ordersUrl) {
-      const rawRows = await loadCSV(ordersUrl);
-      const mapped = rawRows.map(mapOrderRow)
-                            .filter(o => o.sku && o.qty > 0 && o.date && !isNaN(+o.date));
-      localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
-    }
-  } catch (e) { console.warn('ORDERS CSV error', e); }
-
-  initSalesWindowSelector();
-  refreshAll();
-  (function(){
-    const t = document.getElementById('yoyToggle');
-    if (!t) return;
-    const syncLabel = () => {
-      const s = document.getElementById('yoyState');
-      if (s) s.textContent = yoyEnabled ? 'Açık' : 'Kapalı';
-    };
-    t.onclick = () => {
-      yoyEnabled = !yoyEnabled;
-      syncLabel();
-      drawCharts(monthlyCache || []);
-    };
-    syncLabel();
-  })();
-}
-
-/* ================== WRITE TO SHEET ================== */
-async function writeStagedToSheet(){
-  const rows = [...stagedRows];
-  if (!rows.length) { document.getElementById('parseInfo').textContent = 'Yazılacak satır yok.'; return; }
-  document.getElementById('parseInfo').textContent = 'Sheet’e yazılıyor...';
-  try {
-    const r = await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ rows })
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'WRITE_FAILED');
-    const added = (typeof j.added === 'number')
-      ? j.added
-      : (j.received && Array.isArray(j.received.rows) ? j.received.rows.length : 0);
-    document.getElementById('parseInfo').textContent = `Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`;
-    stagedRows = [];
-    renderStaged();
-  } catch (err) {
-    document.getElementById('parseInfo').textContent = `Hata: ${String(err)}`;
-  }
-}
-document.getElementById('writeSheetBtn').onclick = writeStagedToSheet;
-document.getElementById('pushRowsBtn').onclick  = writeStagedToSheet;
-
-/* ================== BOOT! ================== */
-boot();
-</script>
-</body>
-</html>
