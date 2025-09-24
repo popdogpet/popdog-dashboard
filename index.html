@@ -1688,15 +1688,19 @@ function parseExpenseRow(r){
     )
   );
 
-  // 3) Kategori sinyalleri — Source da dahil edildi
+  // 3) CSV'den Final* alanlarını açıkça çek ve sakla
+  const finalSub = (r.FinalSubcategory || '').toString().trim();
+  const finalCat = (r.FinalCategory     || '').toString().trim();
+
+  // 4) Kategori sinyalleri — Source da dahil edildi (normalize için)
   const catParts = [ r.FinalSubcategory, r.FinalCategory, r.Subcategory, r.Category, r.Kategori, r.Source ]
     .filter(Boolean).map(x => x.toString().trim());
   const combined = catParts.join(' | ');
 
-  // 4) Normalize edilmiş alt kategori adı
+  // 5) Normalize edilmiş alt kategori adı
   const cat = normalizeExpenseCategory(combined) || 'Diğer';
 
-  // 5) Ana kategori — metinden türet, gerektiğinde "Mal Alımı" sinyalini zorla
+  // 6) Ana kategori — metinden türet, gerektiğinde "Mal Alımı" sinyalini zorla
   let main = mapMainExpenseCategory(cat);
   try{
     if(main === 'Diğer'){
@@ -1705,21 +1709,35 @@ function parseExpenseRow(r){
     }
   }catch(e){ /* silent */ }
 
-  return { Date: iso, Amount: amt, Category: cat, MainCategory: main };
+  // 7) Objeye Final* alanlarını da ekle (null olarak da gelebilir)
+  return {
+    Date: iso,
+    Amount: amt,
+    Category: cat,            // normalize edilmiş alt kategori
+    MainCategory: main,       // türetilmiş ana kategori (fallback)
+    FinalSubcategory: finalSub || null,
+    FinalCategory: finalCat || null
+  };
 }
 
 function buildExpensesMonthly(rows){
   const map = new Map();
-  rows.forEach(r=>{
+  (rows||[]).forEach(r=>{
     if(!r.Date) return;
     const d = new Date(r.Date+'T00:00:00Z'); if(isNaN(+d)) return;
     const key = monthKey(d);
     const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{}, byMain:{} };
-    const a = +r.Amount || 0; prev.Total += a;
-    const c = r.Category || 'Diğer';
-    prev.byCat[c] = (prev.byCat[c]||0) + a;
-    const main = r.MainCategory || mapMainExpenseCategory(c);
-    prev.byMain[main] = (prev.byMain[main]||0) + a;
+
+    const a = +r.Amount || 0;
+    prev.Total += a;
+
+    // Kategoriler: Final* varsa onu kullan, yoksa eski alanlara düş
+    const catFine  = (r.FinalSubcategory && r.FinalSubcategory.trim()) || (r.Category || 'Diğer');
+    const mainFine = (r.FinalCategory     && r.FinalCategory.trim())     || (r.MainCategory || mapMainExpenseCategory(r.Category||'Diğer'));
+
+    prev.byCat[catFine]   = (prev.byCat[catFine]   || 0) + a;
+    prev.byMain[mainFine] = (prev.byMain[mainFine] || 0) + a;
+
     map.set(key, prev);
   });
   return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
@@ -1764,14 +1782,11 @@ const prevSum = (expMonthly||[]).reduce((acc,r)=> (r.year===expYear-1 && monthsT
 
 function renderMainExpenseTable(){
   try{
-    // === EXPENSES TABLE FILTER LOGIC (patched) ===
     const now = new Date();
     const curYear = now.getFullYear();
-    // Bu yıl veri yoksa, expensesMonthlyCache içinden son yılı kullan
     const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
     const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
 
-    // YTD satırlar (seçili yılda)
     const rows = (expensesRowsCache || []).filter(r => {
       const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
       return d && !isNaN(+d) && d.getFullYear() === expYear;
@@ -1780,7 +1795,12 @@ function renderMainExpenseTable(){
     const sumByMain = {};
     let total = 0;
     for(const r of rows){
-      const main = r.MainCategory || mapMainExpenseCategory(r.Category || '');
+      // FinalCategory varsa onu kullan; yoksa türetilmiş MainCategory / fallback
+      const main =
+        (r.FinalCategory && r.FinalCategory.trim()) ||
+        r.MainCategory ||
+        mapMainExpenseCategory(r.Category || 'Diğer');
+
       const a = +r.Amount || 0;
       sumByMain[main] = (sumByMain[main] || 0) + a;
       total += a;
@@ -1885,54 +1905,87 @@ function drawExpensesCharts(expMonthly){
     }
   });
 
-  // YTD category pie (by main if available, else byCat)
-  if (expPieChart) expPieChart.destroy();
-  const pctx = document.getElementById('pieExpenses').getContext('2d');
-  const catSum = {};
-  arr.forEach(m=>{
-    const src = (m.byMain && Object.keys(m.byMain).length) ? m.byMain : (m.byCat || {});
-    Object.entries(src).forEach(([k,v])=>{
-      catSum[k] = (catSum[k]||0)+v;
+   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
+  try {
+    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
+    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
+    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
+    const catSum = {};
+    arr.forEach(m => {
+      const src = (m.byMain && Object.keys(m.byMain).length) ? m.byMain : (m.byCat || {});
+      Object.entries(src).forEach(([k, v]) => {
+        catSum[k] = (catSum[k] || 0) + (v || 0);
+      });
     });
-  });
-  const labelsCat = Object.keys(catSum);
-  const valsCat = labelsCat.map(k => catSum[k]);
-  expPieChart = new Chart(pctx, {
-    type: 'doughnut',
-    data: {
-      labels: labelsCat,
-      datasets: [{
-        data: valsCat,
-        backgroundColor: labelsCat.map((_, i) => `hsla(${(i * 57) % 360},70%,70%,0.65)`),
-        borderColor: 'rgba(255,255,255,0.55)',
-        borderWidth: 1.5
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 1,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { boxWidth: 10, padding: 12 }
-        },
-        datalabels: {
-          color: '#0f172a',
-          formatter: (v, ctx) => {
-            const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
-            return `${(v / total * 100).toFixed(1)}%`;
+
+    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+
+    // Etiketleri tutara göre sırala
+    const sorted = Object.entries(catSum)
+      .map(([k, v]) => ({ k, v }))
+      .sort((a, b) => b.v - a.v);
+
+    const labels = sorted.map(x => x.k);
+    const data   = sorted.map(x => x.v);
+
+    if (expPieChart) expPieChart.destroy();
+    const pctx = document.getElementById('pieExpenses').getContext('2d');
+
+    const pieColors = [
+      'rgba(244,114,182,0.70)', // pink
+      'rgba(52,211,153,0.70)',  // emerald
+      'rgba(96,165,250,0.70)',  // blue
+      'rgba(251,191,36,0.70)',  // amber
+      'rgba(165,180,252,0.70)', // indigo
+      'rgba(248,113,113,0.70)', // red
+      'rgba(203,213,225,0.70)', // slate
+      'rgba(34,197,94,0.70)',   // green
+      'rgba(59,130,246,0.70)',  // blue-500
+      'rgba(14,165,233,0.70)',  // sky
+    ];
+    const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
+
+    expPieChart = new Chart(pctx, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: labels.map((_, i) => pieColors[i % pieColors.length]),
+          hoverBackgroundColor: labels.map((_, i) => pieHover[i % pieHover.length]),
+          borderWidth: 1.5,
+          borderColor: 'rgba(255,255,255,0.55)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        layout: { padding: 0 },
+        radius: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
+          datalabels: {
+            color: '#0f172a',
+            formatter: (v) => `${(v / totalYtd * 100).toFixed(1)}%`,
+            backgroundColor: 'rgba(255,255,255,0.40)',
+            borderColor: 'rgba(255,255,255,0.85)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 5,
+            clip: true
           },
-          backgroundColor: 'rgba(255,255,255,0.40)',
-          borderColor: 'rgba(255,255,255,0.85)',
-          borderWidth : 1,
-          borderRadius: 12,
-          padding: 5,
-          clip: true
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${numberTL(ctx.raw)}`
+            }
+          }
         }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.warn('drawExpensesCharts pie error', e);
+  }
 }
 
 /* ================== Expenses: Load & Refresh ================== */
