@@ -558,6 +558,20 @@ function withCacheBust(url){
   return `${url}${sep}t=${Date.now()}`;
 }
 
+function dedupeDailyRows(rows){
+  const byDate = new Map();
+  const nz = (x)=> ['Toptan','Online','CKM','Trendyol','Hepsiburada']
+                  .reduce((a,k)=>a+((x[k]||0)>0?1:0),0);
+  for (const r of rows||[]) {
+    if(!r.Date) continue;
+    const cur = byDate.get(r.Date);
+    if (!cur) { byDate.set(r.Date, r); continue; }
+    const better = (nz(r) > nz(cur)) || (nz(r)===nz(cur) && (r.Total||0) > (cur.Total||0));
+    if (better) byDate.set(r.Date, r);
+  }
+  return Array.from(byDate.values()).sort((a,b)=> a.Date.localeCompare(b.Date));
+}
+
 /* ================== QUERY PARAM HELPERS ================== */
 function getParam(name){
   try { return new URLSearchParams(location.search).get(name) || ''; } catch(e){ return ''; }
@@ -1998,7 +2012,7 @@ function drawExpensesCharts(expMonthly){
         })(),
         pointRadius: 3,
         pointHoverRadius: 5
-      }]},
+      }]}, 
       options: {
         plugins: {
           legend: { display: true, position: 'bottom' },
