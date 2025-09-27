@@ -1710,6 +1710,31 @@ function isZeeExpense(r){
   return fields.some(f => f && re.test(String(f)));
 }
 
+// Unified category extractor with HARD Zee.Dog override
+function expenseCats(r){
+  const finalSub = (r && r.FinalSubcategory ? String(r.FinalSubcategory).trim() : '');
+  const finalCat = (r && r.FinalCategory    ? String(r.FinalCategory).trim()    : '');
+
+  const parts = [
+    r && r.FinalSubcategory, r && r.FinalCategory,
+    r && r.Subcategory, r && r.Category, r && r.Kategori,
+    r && r.Source, r && r.Aciklama, r && r['Açıklama'], r && r.Description, r && r.Details, r && r.Note, r && r.Notes, r && r.Memo,
+    r && r.Merchant, r && r.Payee, r && r.Supplier, r && r.Vendor, r && r.Bank, r && r.Banka, r && r.Account
+  ].filter(Boolean).map(x => String(x).trim());
+  const combined = parts.join(' | ');
+
+  const sub0 = finalSub || normalizeExpenseCategory(combined) || 'Diğer';
+  let main  = finalCat || mapMainExpenseCategory(sub0);
+
+  const zeeRegex = /zee[\s\.-]*dog/i;
+  const zeeAny   = zeeRegex.test(combined) || zeeRegex.test(sub0) || zeeRegex.test(finalCat) || isZeeExpense(r);
+
+  if (zeeAny) main = 'Zee.Dog';
+  const sub = zeeAny ? 'Zee.Dog' : sub0;
+
+  return { sub, main };
+}
+
 function getExpenseISODate(r){
   const cands = [r && r.Date, r && r.date, r && r.DATE, r && r['Tarih'], r && r['Transaction Date'], r && r['Posting Date']];
   for(const c of cands){
@@ -1834,66 +1859,51 @@ function mapMainExpenseCategory(cat){
 }
 
 function parseExpenseRow(r){
-  // Robust date extraction
   const iso = getExpenseISODate(r);
-
-  // CSV Final* fields
-  const finalSub = (r.FinalSubcategory || '').toString().trim();
-  const finalCat = (r.FinalCategory || '').toString().trim();
-
-  // Combine text fields for normalization
-  const parts = [
-    r.FinalSubcategory, r.FinalCategory,
-    r.Subcategory, r.Category, r.Kategori,
-    r.Source, r.Aciklama, r['Açıklama'], r.Description, r.Details, r.Note, r.Notes, r.Memo,
-    r.Merchant, r.Payee, r.Supplier, r.Vendor, r.Bank, r.Banka, r.Account
-  ].filter(Boolean).map(x => x.toString().trim());
-  const combined = parts.join(' | ');
-
-  // Normalized subcategory
-  const cat = finalSub ? normalizeExpenseCategory(finalSub) : (normalizeExpenseCategory(combined) || 'Diğer');
-
-  // Main category — FinalCategory first; else mapped; if Zee anywhere, force 'Zee.Dog'
-  let main = finalCat || mapMainExpenseCategory(cat);
-  if(!finalCat && isZeeExpense(r)) main = 'Zee.Dog';
-
-  // Amount (TRY) with Zee USD→TRY handling
   const amt = readExpenseAmountTRY(r);
+  const cats = expenseCats(r);
 
   return {
     Date: iso,
-    Amount: Math.abs(amt||0),
-    Category: cat,
-    MainCategory: main,
-    FinalSubcategory: finalSub || null,
-    FinalCategory: finalCat || null
+    Amount: Math.abs(amt || 0),
+    Category: cats.sub,       // leaf/visible
+    MainCategory: cats.main,  // PRIMARY (Zee.Dog zorunlu)
+    FinalSubcategory: (r && r.FinalSubcategory) ? String(r.FinalSubcategory).trim() : null,
+    FinalCategory:    (r && r.FinalCategory)    ? String(r.FinalCategory).trim()    : null
   };
 }
 
 function buildExpensesMonthly(rows){
   const map = new Map();
-  (rows||[]).forEach(r=>{
-    const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(r.Date)) ? r.Date : getExpenseISODate(r);
-    if(!iso) return;
-    const d = new Date(iso + 'T00:00:00Z'); if(isNaN(+d)) return;
+
+  (rows || []).forEach(r => {
+    const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(String(r.Date)))
+      ? String(r.Date).slice(0,10)
+      : getExpenseISODate(r);
+    if (!iso) return;
+
+    const d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(+d)) return;
+
     const key = monthKey(d);
 
-    const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{}, byMain:{} };
+    const amount = ('Amount' in r && r.Amount !== null && r.Amount !== '')
+      ? (Number(r.Amount) || 0)
+      : readExpenseAmountTRY(r);
 
-    // Amount already in TRY (read with fallback if necessary)
-    const a = ('Amount' in r && r.Amount !== null && r.Amount !== '') ? (Number(r.Amount)||0) : readExpenseAmountTRY(r);
+    const cats = expenseCats(r);
+    const subKey  = cats.sub || 'Diğer';
+    const mainKey = cats.main || 'Diğer';
 
-    // Category/Main (prefer Final*, else fallback/mapped); if Zee anywhere, main='Zee.Dog'
-    const catFine  = (r.FinalSubcategory && String(r.FinalSubcategory).trim()) || (r.Category || 'Diğer');
-    const mainFine = (r.FinalCategory && String(r.FinalCategory).trim()) || (r.MainCategory || mapMainExpenseCategory(r.Category||'Diğer'));
-    const mainKey = isZeeExpense(r) || catFine === 'Zee.Dog' || mainFine === 'Zee.Dog' ? 'Zee.Dog' : mainFine;
+    const prev = map.get(key) || { month: key, year: d.getFullYear(), Total: 0, byCat: {}, byMain: {} };
 
-    prev.Total += a;
-    prev.byCat[catFine]   = (prev.byCat[catFine]   || 0) + a;
-    prev.byMain[mainKey]  = (prev.byMain[mainKey]  || 0) + a;
+    prev.Total += amount;
+    prev.byCat[subKey]   = (prev.byCat[subKey]   || 0) + amount;
+    prev.byMain[mainKey] = (prev.byMain[mainKey] || 0) + amount;
 
     map.set(key, prev);
   });
+
   return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
 }
 
