@@ -1751,23 +1751,66 @@ function getExpenseISODate(r){
 
 // Returns TRY value; if Zee and only USD is present, converts USD→TRY using fxRateUSDPerTRY (USD per TRY)
 function readExpenseAmountTRY(r){
+  // 1) TRY alanlarından doğrudan oku
   const tryCands = [r && r.Amount, r && r.TRY, r && r.Tutar, r && r['Tutar (TRY)'], r && r['Amount (TRY)']];
   let amtTry = 0;
-  for(const v of tryCands){
+  for (const v of tryCands){
     const n = parseTL(v);
-    if(n){ amtTry = Math.abs(n); break; }
+    if (n){ amtTry = Math.abs(n); break; }
   }
+
+  // 2) USD alanlarından oku (varsa)
   const usdCands = [r && r.USD, r && r['USD '], r && r['Amount (USD)'], r && r['USD Amount'], r && r['USD_Amount'], r && r['USD$']];
   let amtUsd = 0;
-  for(const v of usdCands){
+  for (const v of usdCands){
     const n = parseTL(v);
-    if(n){ amtUsd = Math.abs(n); break; }
+    if (n){ amtUsd = Math.abs(n); break; }
   }
-  if(isZeeExpense(r) && (!amtTry || amtTry===0) && amtUsd>0){
-    // fxRateUSDPerTRY is USD per TRY, so TRY = USD / (USD per TRY)
-    if(fxRateUSDPerTRY){ return amtUsd / fxRateUSDPerTRY; }
+
+  // Eğer TRY zaten varsa, onu döndür (USD varsa bile)
+  if (amtTry && amtTry > 0) return amtTry;
+
+  // 3) TRY yok ama USD var → kur ile çevir
+  if (amtUsd && amtUsd > 0){
+    // 3.a) Satır bazlı kur alanları (öncelikli)
+    const fxRowCands = [
+      r && r.FX, r && r['FX Rate'], r && r['USDTRY'], r && r['USD/TRY'], r && r['USD-TRY'],
+      r && r['USD to TRY'], r && r['USD→TRY'], r && r['Kur'], r && r['Döviz Kuru']
+    ];
+    let tryPerUsd = 0; // TRY per 1 USD
+    for (const v of fxRowCands){
+      const n = parseTL(v);
+      if (n){ tryPerUsd = Math.abs(n); break; }
+    }
+
+    // 3.b) Global kurdan çevir (fxRateUSDPerTRY = USD per 1 TRY) → TRY = USD / (USD per TRY)
+    if (!tryPerUsd && fxRateUSDPerTRY){
+      const usdPerTry = Number(fxRateUSDPerTRY) || 0; // örn: 0.03 USD/TRY
+      if (usdPerTry > 0){ tryPerUsd = 1 / usdPerTry; }
+    }
+
+    // 3.c) localStorage fallback'ı (hem USD/TRY hem TRY/USD anahtarlarını dene)
+    if (!tryPerUsd){
+      try {
+        const lsUsdPerTry = parseFloat(localStorage.getItem('popdog_fx_usd_per_try') || '0');
+        const lsTryPerUsd = parseFloat(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+        if (lsTryPerUsd > 0) tryPerUsd = lsTryPerUsd;
+        else if (lsUsdPerTry > 0) tryPerUsd = 1 / lsUsdPerTry;
+      } catch(e) { /* silent */ }
+    }
+
+    // 3.d) Hâlâ yoksa: güvenli bir varsayılan kullan (görünürlük için) – istenirse URL parametresi ile override edilebilir
+    if (!tryPerUsd){
+      const q = new URLSearchParams(location.search);
+      const override = parseFloat(q.get('fx_try_per_usd') || '0');
+      tryPerUsd = override > 0 ? override : 35; // son çare
+    }
+
+    return amtUsd * tryPerUsd;
   }
-  return amtTry || 0;
+
+  // 4) Ne TRY ne USD → 0
+  return 0;
 }
 
 function normalizeExpenseCategory(cat){
