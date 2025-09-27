@@ -1969,7 +1969,6 @@ function drawExpensesCharts(expMonthly){
   });
 
   // ----- Pasta grafik: YTD Ana Kategori Dağılımı -----
-  // rowsThisYear.byMain'leri YTD topla
   const byMainYTD = {};
   rowsThisYear.forEach(m=>{
     const bm = m.byMain || {};
@@ -2063,55 +2062,6 @@ function renderMainExpenseTable(){
   }).join('');
 }
 
-function renderMainExpenseTable(){
-  try{
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
-    const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
-
-    const rows = (expensesRowsCache || []).filter(r => {
-      const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
-      return d && !isNaN(+d) && d.getFullYear() === expYear;
-    });
-
-    const sumByMain = {};
-    const sumByMainUSD = {};
-    let total = 0;
-    for(const r of rows){
-      // FinalCategory ve FinalSubcategory öncelikli; yoksa türetilmiş MainCategory / fallback
-      const main =
-        (r.FinalCategory && r.FinalCategory.trim()) ||
-        (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-        r.MainCategory ||
-        mapMainExpenseCategory(r.Category || 'Diğer');
-
-      const a = +r.Amount || 0;
-      const aUSD = +r.AmountUSD || 0;
-      sumByMain[main] = (sumByMain[main] || 0) + a;
-      sumByMainUSD[main] = (sumByMainUSD[main] || 0) + aUSD;
-      total += a;
-    }
-
-    const arr = Object.entries(sumByMain)
-      .map(([k,v]) => ({ k, v, usd: (sumByMainUSD[k] || 0), p: total ? (v/total*100) : 0 }))
-      .sort((a,b) => b.v - a.v);
-
-    const tbody = document.getElementById('tblMainExpenses');
-if(!tbody) return;
-tbody.innerHTML = arr.length
-  ? arr.map(x => `
-      <tr>
-        <td class="text-left py-1 pr-3">${x.k}</td>
-        <td class="text-right py-1 pr-3">${numberTL(x.v)}</td>
-        <td class="text-right py-1 pr-3">${x.usd ? numberUSD(x.usd) : '–'}</td>
-        <td class="text-right py-1 pr-0">${x.p.toFixed(1)}%</td>
-      </tr>
-    `).join('')
-  : '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
-} catch(e){ console.warn('Main expense table render error', e); }
-}
-
 // Bootstrap çağrısı hata vermesin diye basit stub:
 function drawExpensesCharts(expMonthly){ /* TODO: daha sonra dolduracağız */ }
 
@@ -2159,6 +2109,8 @@ async function bootstrapData(){
     expensesRowsCache = (expRaw || []).map(parseExpenseRow).filter(r => r.Date && r.Amount > 0);
     expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
     setExpensesKPIs(expensesMonthlyCache);
+    drawExpensesCharts(expensesMonthlyCache);
+    renderMainExpenseTable();
     if (typeof drawExpensesCharts === 'function') drawExpensesCharts(expensesMonthlyCache);
     if (typeof renderMainExpenseTable === 'function') renderMainExpenseTable();
   }catch(e){
