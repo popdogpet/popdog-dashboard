@@ -1593,10 +1593,58 @@ function drawCharts(monthly){
 }
 
 /* ================== Expenses (CFO) ================== */
+
 let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
 let expensesRowsAdjustedCache = [];
+
+// === Helpers specific to Expenses (robust Zee.Dog handling) ===
+function isZeeExpense(r){
+  const re = /zee[\s\.-]*dog/i;
+  const fields = [
+    r && r.FinalSubcategory, r && r.FinalCategory, r && r.MainCategory, r && r.Category, r && r.Subcategory,
+    r && r.Source, r && r.Description, r && r.Details, r && r.Note, r && r.Notes, r && r.Memo,
+    r && r.Merchant, r && r.Payee, r && r.Supplier, r && r.Vendor, r && r.Bank, r && r.Banka, r && r.Account,
+    r && r.Aciklama, r && r['Açıklama']
+  ];
+  return fields.some(f => f && re.test(String(f)));
+}
+
+function getExpenseISODate(r){
+  const cands = [r && r.Date, r && r.date, r && r.DATE, r && r['Tarih'], r && r['Transaction Date'], r && r['Posting Date']];
+  for(const c of cands){
+    if(!c) continue;
+    const s = String(c).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    if(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(s)){
+      const iso = parseTRDateString(s);
+      if(iso) return iso;
+    }
+  }
+  return '';
+}
+
+// Returns TRY value; if Zee and only USD is present, converts USD→TRY using fxRateUSDPerTRY (USD per TRY)
+function readExpenseAmountTRY(r){
+  const tryCands = [r && r.Amount, r && r.TRY, r && r.Tutar, r && r['Tutar (TRY)'], r && r['Amount (TRY)']];
+  let amtTry = 0;
+  for(const v of tryCands){
+    const n = parseTL(v);
+    if(n){ amtTry = Math.abs(n); break; }
+  }
+  const usdCands = [r && r.USD, r && r['USD '], r && r['Amount (USD)'], r && r['USD Amount'], r && r['USD_Amount'], r && r['USD$']];
+  let amtUsd = 0;
+  for(const v of usdCands){
+    const n = parseTL(v);
+    if(n){ amtUsd = Math.abs(n); break; }
+  }
+  if(isZeeExpense(r) && (!amtTry || amtTry===0) && amtUsd>0){
+    // fxRateUSDPerTRY is USD per TRY, so TRY = USD / (USD per TRY)
+    if(fxRateUSDPerTRY){ return amtUsd / fxRateUSDPerTRY; }
+  }
+  return amtTry || 0;
+}
 
 function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
@@ -1687,67 +1735,37 @@ function mapMainExpenseCategory(cat){
 }
 
 function parseExpenseRow(r){
-  // 1) Tarih: ISO ya da TR formatını destekle
-  const rawDate = (r.Date || r.date || r.DATE || '').toString().trim();
-  let iso = rawDate.slice(0,10);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){
-    if(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(rawDate)){
-      iso = parseTRDateString(rawDate) || '';
-    } else {
-      iso = '';
-    }
-  }
+  // Robust date extraction
+  const iso = getExpenseISODate(r);
 
-  // 3) CSV'den Final* alanlarını açıkça çek ve sakla (kullanıcı override)
+  // CSV Final* fields
   const finalSub = (r.FinalSubcategory || '').toString().trim();
-  const finalCat = (r.FinalCategory     || '').toString().trim();
+  const finalCat = (r.FinalCategory || '').toString().trim();
 
-  // 4) Kategori sinyalleri — geniş alan seti (varsa ekle)
+  // Combine text fields for normalization
   const parts = [
     r.FinalSubcategory, r.FinalCategory,
     r.Subcategory, r.Category, r.Kategori,
-    r.Source, r.Aciklama, r.Açıklama, r.Description, r.Details, r.Note, r.Notes, r.Memo,
+    r.Source, r.Aciklama, r['Açıklama'], r.Description, r.Details, r.Note, r.Notes, r.Memo,
     r.Merchant, r.Payee, r.Supplier, r.Vendor, r.Bank, r.Banka, r.Account
   ].filter(Boolean).map(x => x.toString().trim());
-
   const combined = parts.join(' | ');
 
-  // 5) Normalize edilmiş alt kategori adı
-  //    Eğer FinalSubcategory varsa onu öncelikle normalize et, yoksa combined'dan üret
+  // Normalized subcategory
   const cat = finalSub ? normalizeExpenseCategory(finalSub) : (normalizeExpenseCategory(combined) || 'Diğer');
 
-  // 6) Ana kategori — FinalCategory > mapper(cat) > mapper(combined)
+  // Main category — FinalCategory first; else mapped; if Zee anywhere, force 'Zee.Dog'
   let main = finalCat || mapMainExpenseCategory(cat);
-  if (!finalCat && (!main || main === 'Diğer')) {
-    main = mapMainExpenseCategory(combined);
-  }
+  if(!finalCat && isZeeExpense(r)) main = 'Zee.Dog';
 
-  // 2) Tutar (mutlak değer) — Zee.Dog USD kolonu desteği
-  // Önce TRY alanlarını dene
-  let amtTry = Math.abs(
-    parseTL(
-      r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
-    )
-  );
-  // Olası USD alanları
-  const usdRaw = Math.abs(
-    parseTL(
-      r.USD || r['USD '] || r['Amount (USD)'] || r['USD Amount'] || r['USD_Amount'] || r['USD$'] || 0
-    )
-  );
-  // Satır Zee.Dog ise ve TRY boşsa, USD kolonunu kullan
-  const isZeeLine =
-    (r.FinalSubcategory && String(r.FinalSubcategory).trim().toLowerCase() === 'zee.dog') ||
-    (cat === 'Zee.Dog') || (main === 'Zee.Dog') ||
-    /zee[\s\.-]*dog/i.test(combined);
-
-  const amt = (isZeeLine && (!amtTry || amtTry === 0) && usdRaw > 0) ? usdRaw : amtTry;
+  // Amount (TRY) with Zee USD→TRY handling
+  const amt = readExpenseAmountTRY(r);
 
   return {
     Date: iso,
-    Amount: amt,
-    Category: cat,            // normalize edilmiş alt kategori
-    MainCategory: main,       // ana kategori (FinalCategory öncelikli)
+    Amount: Math.abs(amt||0),
+    Category: cat,
+    MainCategory: main,
     FinalSubcategory: finalSub || null,
     FinalCategory: finalCat || null
   };
@@ -1756,22 +1774,24 @@ function parseExpenseRow(r){
 function buildExpensesMonthly(rows){
   const map = new Map();
   (rows||[]).forEach(r=>{
-    if(!r.Date) return;
-    const d = new Date(r.Date+'T00:00:00Z'); if(isNaN(+d)) return;
+    const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(r.Date)) ? r.Date : getExpenseISODate(r);
+    if(!iso) return;
+    const d = new Date(iso + 'T00:00:00Z'); if(isNaN(+d)) return;
     const key = monthKey(d);
+
     const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{}, byMain:{} };
 
-    const isZee = (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || (r.Category === 'Zee.Dog');
-    const aRaw = +r.Amount || 0;
-    const a = (isZee && fxRateUSDPerTRY) ? (aRaw / fxRateUSDPerTRY) : aRaw;
+    // Amount already in TRY (read with fallback if necessary)
+    const a = ('Amount' in r && r.Amount !== null && r.Amount !== '') ? (Number(r.Amount)||0) : readExpenseAmountTRY(r);
+
+    // Category/Main (prefer Final*, else fallback/mapped); if Zee anywhere, main='Zee.Dog'
+    const catFine  = (r.FinalSubcategory && String(r.FinalSubcategory).trim()) || (r.Category || 'Diğer');
+    const mainFine = (r.FinalCategory && String(r.FinalCategory).trim()) || (r.MainCategory || mapMainExpenseCategory(r.Category||'Diğer'));
+    const mainKey = isZeeExpense(r) || catFine === 'Zee.Dog' || mainFine === 'Zee.Dog' ? 'Zee.Dog' : mainFine;
+
     prev.Total += a;
-
-    // Kategoriler: Final* varsa onu kullan, yoksa eski alanlara düş
-    const catFine  = (r.FinalSubcategory && r.FinalSubcategory.trim()) || (r.Category || 'Diğer');
-    const mainFine = (r.FinalCategory     && r.FinalCategory.trim())     || (r.MainCategory || mapMainExpenseCategory(r.Category||'Diğer'));
-
     prev.byCat[catFine]   = (prev.byCat[catFine]   || 0) + a;
-    prev.byMain[mainFine] = (prev.byMain[mainFine] || 0) + a;
+    prev.byMain[mainKey]  = (prev.byMain[mainKey]  || 0) + a;
 
     map.set(key, prev);
   });
@@ -1822,35 +1842,29 @@ function renderMainExpenseTable(){
     const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
     const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
 
-      const baseRows = (expensesRowsAdjustedCache && expensesRowsAdjustedCache.length)
-      ? expensesRowsAdjustedCache
-      : expensesRowsCache;
-      const rows = (baseRows || []).filter(r => {
-      const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
+    const baseRows = (expensesRowsAdjustedCache && expensesRowsAdjustedCache.length) ? expensesRowsAdjustedCache : expensesRowsCache;
+    const rows = (baseRows || []).filter(r => {
+      const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(r.Date)) ? r.Date : getExpenseISODate(r);
+      if(!iso) return false;
+      const d = new Date(iso + 'T00:00:00Z');
       return d && !isNaN(+d) && d.getFullYear() === expYear;
     });
 
     const sumByMain = {};
     let total = 0;
     for(const r of rows){
-      // FinalCategory ve FinalSubcategory öncelikli; yoksa türetilmiş MainCategory / fallback
-      const main =
-        (r.FinalCategory && r.FinalCategory.trim()) ||
-        (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-        r.MainCategory ||
-        mapMainExpenseCategory(r.Category || 'Diğer');
+      const main = (r.FinalCategory && String(r.FinalCategory).trim()) || (r.FinalSubcategory && String(r.FinalSubcategory).trim()) || r.MainCategory || mapMainExpenseCategory(r.Category || 'Diğer');
 
-      // Zee.Dog özel durumu: ana kategori olarak aynen kullan
-      let mainFixed = main;
-      if ((r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || r.Category === 'Zee.Dog') {
-        mainFixed = 'Zee.Dog';
-      }
+      // Detect Zee across all fields
+      const zee = isZeeExpense(r) || main === 'Zee.Dog' || (r.Category === 'Zee.Dog');
+      const mainFixed = zee ? 'Zee.Dog' : main;
 
-      const isZee = (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || (r.Category === 'Zee.Dog');
-      const aRaw = +r.Amount || 0;
-      const a = (isZee && fxRateUSDPerTRY) ? (aRaw / fxRateUSDPerTRY) : aRaw;
-      sumByMain[mainFixed] = (sumByMain[mainFixed] || 0) + a;
-      total += a;
+      // Amount in TRY with USD→TRY fallback for Zee
+      let a = ('Amount' in r && r.Amount !== null && r.Amount !== '') ? (Number(r.Amount)||0) : 0;
+      if(!a){ a = readExpenseAmountTRY(r); }
+
+      sumByMain[mainFixed] = (sumByMain[mainFixed] || 0) + (a || 0);
+      total += (a || 0);
     }
 
     const arr = Object.entries(sumByMain)
