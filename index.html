@@ -1680,6 +1680,8 @@ function mapMainExpenseCategory(cat){
       /(kira|elektrik|su|dogalgaz|doğalgaz|aidat|internet)/.test(s))
     return 'Ev Giderleri';
 
+  // 9.b) Marka bazlı özel kasa: Zee.Dog ana kategori olarak ayrı listelensin
+  if (/(zee)[\s\.-]*dog/.test(s)) return 'Zee.Dog';
   // 10) Varsayılan
   return 'Diğer';
 }
@@ -1824,10 +1826,16 @@ function renderMainExpenseTable(){
         r.MainCategory ||
         mapMainExpenseCategory(r.Category || 'Diğer');
 
+      // Zee.Dog özel durumu: ana kategori olarak aynen kullan
+      let mainFixed = main;
+      if ((r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || r.Category === 'Zee.Dog') {
+        mainFixed = 'Zee.Dog';
+      }
+
       const isZee = (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || (r.Category === 'Zee.Dog');
       const aRaw = +r.Amount || 0;
       const a = (isZee && fxRateUSDPerTRY) ? (aRaw / fxRateUSDPerTRY) : aRaw;
-      sumByMain[main] = (sumByMain[main] || 0) + a;
+      sumByMain[mainFixed] = (sumByMain[mainFixed] || 0) + a;
       total += a;
     }
 
