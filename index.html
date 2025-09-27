@@ -259,7 +259,7 @@ th, td { white-space: nowrap; }
         </div>
         <div class="glass card-3d rounded-2xl p-4">
           <div class="text-slate-700 dark:text-slate-200 mb-2">Gider Dağılımı (YTD)</div>
-          <canvas id="pieExpenses" style="height: 220px; width: 100%;"></canvas>
+          <canvas id="pieExpenses" style="height: 320px; width: 100%;"></canvas>
         </div>
       </div>
       <div class="glass card-3d rounded-2xl p-4 mt-4">
@@ -1866,7 +1866,81 @@ function drawExpensesCharts(expMonthly){
   const labels = arr.map(r=> r.month);
   const dataCur = arr.map(r=> r.Total||0);
 
-  // yearsWithData yukarıda hesaplandı
+  // === Expenses Pie Chart: Main Categories (YTD) ===
+  // For the selected year, get main category names and totals
+  const mainTotals = {};
+  arr.forEach(row=>{
+    if (row.byMain) {
+      for (const [k, v] of Object.entries(row.byMain)) {
+        mainTotals[k] = (mainTotals[k]||0) + v;
+      }
+    }
+  });
+  // Sort by value descending, pick top 6 (for color palette)
+  const mainArr = Object.entries(mainTotals)
+    .map(([k,v])=>({k,v}))
+    .sort((a,b)=>b.v-a.v)
+    .slice(0,6);
+  const mainLabels = mainArr.map(x=>x.k);
+  const mainData = mainArr.map(x=>x.v);
+
+  if (expPieChart) expPieChart.destroy();
+  const p2ctx = document.getElementById('pieExpenses').getContext('2d');
+
+  expPieChart = new Chart(p2ctx, {
+    type: 'pie',
+    data: {
+      labels: mainLabels,     // existing array of main category names
+      datasets: [{
+        data: mainData,       // existing array of totals per main category
+        backgroundColor: [
+          'rgba(129,140,248,0.65)',
+          'rgba(52,211,153,0.65)',
+          'rgba(96,165,250,0.65)',
+          'rgba(251,191,36,0.65)',
+          'rgba(244,114,182,0.65)',
+          'rgba(203,213,225,0.65)'
+        ],
+        hoverBackgroundColor: [
+          'rgba(129,140,248,0.85)',
+          'rgba(52,211,153,0.85)',
+          'rgba(96,165,250,0.85)',
+          'rgba(251,191,36,0.85)',
+          'rgba(244,114,182,0.85)',
+          'rgba(203,213,225,0.85)'
+        ],
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      // Allow the canvas CSS height (320px) to dictate the actual height
+      maintainAspectRatio: false,
+      layout: { padding: 4 },
+      // Make the pie larger in its box
+      radius: '78%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
+        datalabels: {
+          // Bigger and higher-contrast labels
+          color: '#0f172a',
+          backgroundColor: 'rgba(255,255,255,0.55)',
+          borderColor: 'rgba(255,255,255,0.85)',
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 6,
+          font: { weight: '600', size: 12 },
+          formatter: (v, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
+            const pct = (v / total) * 100;
+            return `${pct.toFixed(1)}%`;
+          },
+          clip: true
+        }
+      }
+    }
+  });
   let prevYear = expYear - 1;
   if (!yearsWithData.includes(prevYear)){
     for (let i = yearsWithData.length - 1; i >= 0; i--) {
