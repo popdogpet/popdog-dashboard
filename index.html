@@ -240,8 +240,8 @@ th, td { white-space: nowrap; }
         </div>
       </div>
 
-      <div class="grid lg:grid-cols-3 gap-6 mt-4">
-        <div class="glass card-3d rounded-2xl p-4 lg:col-span-2">
+      <div class="grid lg:grid-cols-1 gap-6 mt-4">
+        <div class="glass card-3d rounded-2xl p-4">
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
@@ -256,10 +256,6 @@ th, td { white-space: nowrap; }
               padding: 8px;
             }
           </style>
-        </div>
-        <div class="glass card-3d rounded-2xl p-4">
-          <div class="text-slate-700 dark:text-slate-200 mb-2">Gider Dağılımı (YTD)</div>
-          <canvas id="pieExpenses" style="height: 220px; width: 100%;"></canvas>
         </div>
       </div>
       <div class="glass card-3d rounded-2xl p-4 mt-4">
@@ -1846,7 +1842,7 @@ function renderMainExpenseTable(){
     console.warn('renderMainExpenseTable error', e);
   }
 }
-let expLineChart, expPieChart;
+let expLineChart;
 function drawExpensesCharts(expMonthly){
   const now = new Date();
   const curYear = now.getFullYear();
@@ -1953,61 +1949,8 @@ arr.forEach(m=>{
     const labels = sorted.map(x => x.k);
     const data   = sorted.map(x => x.v);
 
-    if (expPieChart) expPieChart.destroy();
-    const pctx = document.getElementById('pieExpenses').getContext('2d');
-
-    const pieColors = [
-      'rgba(244,114,182,0.70)', // pink
-      'rgba(52,211,153,0.70)',  // emerald
-      'rgba(96,165,250,0.70)',  // blue
-      'rgba(251,191,36,0.70)',  // amber
-      'rgba(165,180,252,0.70)', // indigo
-      'rgba(248,113,113,0.70)', // red
-      'rgba(203,213,225,0.70)', // slate
-      'rgba(34,197,94,0.70)',   // green
-      'rgba(59,130,246,0.70)',  // blue-500
-      'rgba(14,165,233,0.70)',  // sky
-    ];
     const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
 
-    expPieChart = new Chart(pctx, {
-      type: 'pie',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: labels.map((_, i) => pieColors[i % pieColors.length]),
-          hoverBackgroundColor: labels.map((_, i) => pieHover[i % pieHover.length]),
-          borderWidth: 1.5,
-          borderColor: 'rgba(255,255,255,0.55)'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
-        layout: { padding: 0 },
-        radius: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
-          datalabels: {
-            color: '#0f172a',
-            formatter: (v) => `${(v / totalYtd * 100).toFixed(1)}%`,
-            backgroundColor: 'rgba(255,255,255,0.40)',
-            borderColor: 'rgba(255,255,255,0.85)',
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 5,
-            clip: true
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.label}: ${numberTL(ctx.raw)}`
-            }
-          }
-        }
-      }
-    });
   } catch (e) {
     console.warn('drawExpensesCharts pie error', e);
   }
