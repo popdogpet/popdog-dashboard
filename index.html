@@ -1767,7 +1767,25 @@ function readExpenseAmountTRY(r){
     if (n){ amtUsd = Math.abs(n); break; }
   }
 
-  // Eğer TRY zaten varsa, onu döndür (USD varsa bile)
+  // 2.a) Zee.Dog satırları için — bilinmeyen kolondaki sayı USD olabilir (ör: üçüncü sütun isimsiz)
+  if (!amtTry && !amtUsd && isZeeExpense(r)){
+    try{
+      // Sayısal değer gibi görünen tüm hücreleri tara; tarih ve metin sütunlarını ele
+      const BAD_KEYS = /date|tarih|category|kategori|cat|sub|desc|açıklama|aciklama|note|account|bank|banka|source|merchant|vendor|payee|cash|hesap|explanation|details|memo/i;
+      let best = 0;
+      Object.entries(r||{}).forEach(([k,v])=>{
+        if (k && BAD_KEYS.test(String(k))) return; // açıkça metinsel alanlar
+        const n = parseTL(v);
+        if (!n) return;
+        // saçma büyük olmayan, pozitif en büyük değeri seç (örn 23,946 gibi)
+        const m = Math.abs(n);
+        if (m>best && m<1e9) best = m;
+      });
+      if (best>0) amtUsd = best;
+    }catch(e){ /* silent */ }
+  }
+
+  // Eğer TRY zaten varsa, onu döndür (USD olsa bile TRY öncelikli)
   if (amtTry && amtTry > 0) return amtTry;
 
   // 3) TRY yok ama USD var → kur ile çevir
@@ -1799,11 +1817,11 @@ function readExpenseAmountTRY(r){
       } catch(e) { /* silent */ }
     }
 
-    // 3.d) Hâlâ yoksa: güvenli bir varsayılan kullan (görünürlük için) – istenirse URL parametresi ile override edilebilir
+    // 3.d) URL parametresi ile override veya güvenli varsayılan
     if (!tryPerUsd){
       const q = new URLSearchParams(location.search);
-      const override = parseFloat(q.get('fx_try_per_usd') || '0');
-      tryPerUsd = override > 0 ? override : 35; // son çare
+      const override = parseFloat(q.get('fx_try_per_usd') || '');
+      tryPerUsd = (override && override>0) ? override : 35; // son çare
     }
 
     return amtUsd * tryPerUsd;
