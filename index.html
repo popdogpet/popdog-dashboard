@@ -1939,11 +1939,22 @@ function renderMainExpenseTable(){
       .sort((a,b) => b.v - a.v);
 
     const tbody = document.getElementById('tblMainExpenses');
-    if(!tbody) return;
-    tbody.innerHTML = arr.length
-      ? arr.map(x => `
-         <!-- ...existing code... -->
-</script>
+if(!tbody) return;
+tbody.innerHTML = arr.length
+  ? arr.map(x => `
+      <tr>
+        <td class="text-left py-1 pr-3">${x.k}</td>
+        <td class="text-right py-1 pr-3">${numberTL(x.v)}</td>
+        <td class="text-right py-1 pr-3">${x.usd ? numberUSD(x.usd) : '–'}</td>
+        <td class="text-right py-1 pr-0">${x.p.toFixed(1)}%</td>
+      </tr>
+    `).join('')
+  : '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
+} catch(e){ console.warn('Main expense table render error', e); }
+}
+
+// Bootstrap çağrısı hata vermesin diye basit stub:
+function drawExpensesCharts(expMonthly){ /* TODO: daha sonra dolduracağız */ }
 
 /* ================== INITIAL LOAD ================== */
 async function bootstrapData(){
