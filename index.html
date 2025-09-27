@@ -1698,13 +1698,6 @@ function parseExpenseRow(r){
     }
   }
 
-  // 2) Tutar (mutlak değer)
-  const amt = Math.abs(
-    parseTL(
-      r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
-    )
-  );
-
   // 3) CSV'den Final* alanlarını açıkça çek ve sakla (kullanıcı override)
   const finalSub = (r.FinalSubcategory || '').toString().trim();
   const finalCat = (r.FinalCategory     || '').toString().trim();
@@ -1728,6 +1721,27 @@ function parseExpenseRow(r){
   if (!finalCat && (!main || main === 'Diğer')) {
     main = mapMainExpenseCategory(combined);
   }
+
+  // 2) Tutar (mutlak değer) — Zee.Dog USD kolonu desteği
+  // Önce TRY alanlarını dene
+  let amtTry = Math.abs(
+    parseTL(
+      r.Amount || r.TRY || r.Tutar || r['Tutar (TRY)'] || r['Amount (TRY)'] || 0
+    )
+  );
+  // Olası USD alanları
+  const usdRaw = Math.abs(
+    parseTL(
+      r.USD || r['USD '] || r['Amount (USD)'] || r['USD Amount'] || r['USD_Amount'] || r['USD$'] || 0
+    )
+  );
+  // Satır Zee.Dog ise ve TRY boşsa, USD kolonunu kullan
+  const isZeeLine =
+    (r.FinalSubcategory && String(r.FinalSubcategory).trim().toLowerCase() === 'zee.dog') ||
+    (cat === 'Zee.Dog') || (main === 'Zee.Dog') ||
+    /zee[\s\.-]*dog/i.test(combined);
+
+  const amt = (isZeeLine && (!amtTry || amtTry === 0) && usdRaw > 0) ? usdRaw : amtTry;
 
   return {
     Date: iso,
