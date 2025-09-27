@@ -551,6 +551,38 @@ function weekRangeLabel(monday){
   return `${f(monday)} – ${f(sun)}`;
 }
 
+/* Robust daily deduper: same-date rows merged (keeps max Total, or merges non-zero fields) */
+function dedupeDailyRows(rows){
+  const byDate = new Map();
+  (rows || []).forEach(r => {
+    if(!r || !r.Date) return;
+    const k = r.Date.slice(0,10);
+    const cur = byDate.get(k);
+    if(!cur){
+      byDate.set(k, { ...r });
+    } else {
+      // merge strategy: keep larger Total; if equal, prefer row with more non-zero fields
+      const totA = (+cur.Toptan||0)+(+cur.Online||0)+(+cur.CKM||0)+(+cur.Trendyol||0)+(+cur.Hepsiburada||0);
+      const totB = (+r.Toptan||0)+(+r.Online||0)+(+r.CKM||0)+(+r.Trendyol||0)+(+r.Hepsiburada||0);
+      const nzA = [cur.Toptan,cur.Online,cur.CKM,cur.Trendyol,cur.Hepsiburada].filter(x => (x||0) > 0).length;
+      const nzB = [r.Toptan,r.Online,r.CKM,r.Trendyol,r.Hepsiburada].filter(x => (x||0) > 0).length;
+      if (totB > totA || (totB === totA && nzB > nzA)) {
+        byDate.set(k, { ...r });
+      } else {
+        // also allow non-zero field-wise merge in case the winning row had zeros
+        const m = byDate.get(k);
+        ['Toptan','Online','CKM','Trendyol','Hepsiburada'].forEach(f=>{
+          const va = +m[f]||0, vb = +r[f]||0;
+          if (vb > 0 && va === 0) m[f] = vb;
+        });
+        m.Total = (+m.Toptan||0)+(+m.Online||0)+(+m.CKM||0)+(+m.Trendyol||0)+(+m.Hepsiburada||0);
+        byDate.set(k, m);
+      }
+    }
+  });
+  return Array.from(byDate.values()).sort((a,b)=> a.Date.localeCompare(b.Date));
+}
+
 /* Cache-bust */
 function withCacheBust(url){
   if(!url) return '';
@@ -582,6 +614,22 @@ let stagedRows = [];     // whatsapp pasted rows
 let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
+
+/* ================== FX (TRY→USD) FETCH ================== */
+async function fetchFX(){
+  try{
+    // Returns base TRY; rates.USD = USD per 1 TRY (what the code expects)
+    const r = await fetch('https://open.er-api.com/v6/latest/TRY', { cache: 'no-store' });
+    const j = await r.json();
+    if (j && j.result === 'success' && j.rates && j.rates.USD){
+      fxRateUSDPerTRY = j.rates.USD;
+      fxDate = j.time_last_update_utc || null;
+    }
+  }catch(e){
+    // Fallback (approx) if API unavailable; keep null if you prefer to hide USD
+    if (fxRateUSDPerTRY == null) fxRateUSDPerTRY = 0.03;
+  }
+}
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
@@ -1428,6 +1476,19 @@ Chart.register(ChartDataLabels);
 let lineChart, pieChart, barChart;
 let monthlyCache = [];
 let yoyEnabled = true;
+
+// === YoY toggle (line chart) ===
+(function(){
+  const btn = document.getElementById('yoyToggle');
+  const lbl = document.getElementById('yoyState');
+  if(btn){
+    btn.addEventListener('click', () => {
+      yoyEnabled = !yoyEnabled;
+      if (lbl) lbl.textContent = yoyEnabled ? 'Açık' : 'Kapalı';
+      drawCharts(monthlyCache);
+    });
+  }
+})();
 function drawCharts(monthly){
   // Cache incoming monthly for later re-draws (toggle)
   monthlyCache = Array.isArray(monthly) ? monthly : [];
@@ -1610,6 +1671,19 @@ function drawCharts(monthly){
 let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
+
+// === Expenses YoY label toggle (visual only for now) ===
+(function(){
+  const chip = document.getElementById('expYoyToggle');
+  const stateEl = document.getElementById('expYoyState');
+  if (chip){
+    chip.addEventListener('click', () => {
+      expYoyEnabled = !expYoyEnabled;
+      if (stateEl) stateEl.textContent = expYoyEnabled ? 'Açık' : 'Kapalı';
+      // In case you later add a prev-year series, call drawExpensesCharts(expensesMonthlyCache) here.
+    });
+  }
+})();
 
 function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
@@ -1868,146 +1942,119 @@ function renderMainExpenseTable(){
     if(!tbody) return;
     tbody.innerHTML = arr.length
       ? arr.map(x => `
-          <tr>
-            <td class="py-1 pr-3">${x.k}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(x.v)}</td>
-            <td class="py-1 pr-3 text-right">${x.usd > 0 ? numberUSD(x.usd) : '–'}</td>
-            <td class="py-1 pr-0 text-right">${x.p.toFixed(1)}%</td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="4" class="hint py-1">Veri yok.</td></tr>';
+         <!-- ...existing code... -->
+</script>
+
+/* ================== INITIAL LOAD ================== */
+async function bootstrapData(){
+  try{
+    // 1) FX first (so USD badges show immediately if possible)
+    await fetchFX();
+
+    // 2) Revenue (sheet CSV)
+    const sheetUrl = getParam('sheet_csv') || localStorage.getItem('popdog_sheet_csv') || '${DEFAULT_SHEET_CSV}';
+    localStorage.setItem('popdog_sheet_csv', sheetUrl);
+    loadedRows = await loadFromSheet(sheetUrl);
+    const monthly = buildMonthly(loadedRows);
+    setKPIs(monthly);
+    buildAlerts(monthly);
+    drawCharts(monthly);
+    renderTargets(monthly);
+
+    // 3) Inventory
+    const invUrl = getParam('inv_csv') || localStorage.getItem('popdog_inv_csv') || '${DEFAULT_INV_CSV}';
+    localStorage.setItem('popdog_inv_csv', invUrl);
+    const invRows = await loadCSV(invUrl);
+    localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows || []));
+
+    // 4) Orders (Shopify raw / cleaned)
+    const ordersUrl = getParam('orders_csv') || localStorage.getItem('popdog_orders_csv') || '${DEFAULT_ORDERS_CSV}';
+    localStorage.setItem('popdog_orders_csv', ordersUrl);
+    const ordersRaw = await loadCSV(ordersUrl);
+    const ordersMapped = (ordersRaw || []).map(mapOrderRow).filter(o => o.sku && o.qty > 0 && o.date);
+    localStorage.setItem('popdog_orders_cache', JSON.stringify(ordersMapped || []));
+
+    // 5) Stock block render
+    renderStockBlock();
+    initSalesWindowSelector();
+
+    // 6) Expenses
+    const expUrl = getParam('expenses_csv') || localStorage.getItem('popdog_expenses_csv') || '${DEFAULT_EXPENSES_CSV}';
+    localStorage.setItem('popdog_expenses_csv', expUrl);
+    const expensesRaw = await loadCSV(expUrl);
+    expensesRowsCache = (expensesRaw || []).map(parseExpenseRow).filter(r => r.Date && (r.Amount || 0) > 0);
+    expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
+    setExpensesKPIs(expensesMonthlyCache);
+    renderMainExpenseTable();
+    drawExpensesCharts(expensesMonthlyCache);
   }catch(e){
-    console.warn('renderMainExpenseTable error', e);
+    console.warn('Bootstrap error', e);
+    const ul = document.getElementById('alertsList');
+    if (ul){
+      const li = document.createElement('li');
+      li.className = 'hint';
+      li.textContent = 'Veri yüklenirken bir sorun oluştu. Sayfayı yenilemeyi deneyin.';
+      ul.appendChild(li);
+    }
   }
 }
-let expLineChart, expPieChart;
-function drawExpensesCharts(expMonthly){
-  const now = new Date();
-  const curYear = now.getFullYear();
-  // Bu yıl veri yoksa, eldeki son yılı kullan
-  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
-  const expYear = yearsWithData.includes(curYear) ? curYear : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
-  const arr = (expMonthly||[]).filter(r=> r.year===expYear);
-  const labels = arr.map(r=> r.month);
-  const dataCur = arr.map(r=> r.Total||0);
 
-  // === Expenses Pie Chart: Main Categories (TRY, YTD) ===
-  if (expPieChart) expPieChart.destroy();
-  (function(){
-    // Yıl seçimi (renderMainExpenseTable ile aynı mantık)
-    const years = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
-    const targetYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
+// Basic CSV Upload/Download wiring for the header buttons
+(function(){
+  const uploadBtn = document.getElementById('uploadBtn');
+  const fileInput = document.getElementById('fileInput');
+  const downloadBtn = document.getElementById('downloadBtn');
 
-    // Yalnızca hedef yıl satırlarını ham satırlardan al; MainCategory bazında TRY toplamla.
-    const rowsY = (expensesRowsCache || []).filter(r=>{
-      const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
-      return d && !isNaN(+d) && d.getFullYear() === targetYear;
-    });
-
-    const byMainTRY = {};
-    rowsY.forEach(r=>{
-      // Ana kategori: FinalCategory > FinalSubcategory > MainCategory mapper
-      const main =
-        (r.FinalCategory && r.FinalCategory.trim()) ||
-        (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-        r.MainCategory || mapMainExpenseCategory(r.Category || 'Diğer');
-
-      const aTRY = +r.Amount || 0;      // TRY (USD varsa dönüştürülmüş)
-      byMainTRY[main] = (byMainTRY[main] || 0) + aTRY;
-    });
-
-    // Chart datasını hazırla (en büyükten küçüğe)
-    const pairs = Object.entries(byMainTRY).sort((a,b)=> b[1]-a[1]);
-    const labelsPie = pairs.map(([k])=>k);
-    const dataPie   = pairs.map(([,v])=>v);
-
-    const ctxPie = document.getElementById('pieExpenses').getContext('2d');
-    const bg = [
-      'rgba(129,140,248,0.75)',
-      'rgba(52,211,153,0.75)',
-      'rgba(96,165,250,0.75)',
-      'rgba(251,191,36,0.75)',
-      'rgba(244,114,182,0.75)',
-      'rgba(248,113,113,0.75)',
-      'rgba(94,234,212,0.75)',
-      'rgba(190,242,100,0.75)'
-    ];
-    const hover = bg.map(c => c.replace('0.75','0.95'));
-
-    expPieChart = new Chart(ctxPie, {
-      type: 'pie',
-      data: {
-        labels: labelsPie,
-        datasets: [{
-          data: dataPie,
-          backgroundColor: bg,
-          hoverBackgroundColor: hover,
-          borderWidth: 1.5,
-          borderColor: 'rgba(255,255,255,0.55)'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: 0 },
-        radius: '78%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
-          datalabels: {
-            color: '#0f172a',
-            formatter: (v,ctx) => {
-              const sum = ctx.dataset.data.reduce((a,b)=>a+b,0) || 1;
-              const pct = v/sum*100;
-              return `${pct.toFixed(1)}%`;
-            },
-            backgroundColor: 'rgba(255,255,255,0.50)',
-            borderColor: 'rgba(255,255,255,0.90)',
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 5,
-            clip: true
-          }
+  if (uploadBtn && fileInput){
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      Papa.parse(f, {
+        header: true, skipEmptyLines: true,
+        complete: (res) => {
+          try{
+            const data = (res.data || []).map(r=>{
+              const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
+              const row = {
+                Date: iso,
+                Toptan: parseTL(r.Toptan),
+                Online: parseTL(r.Online),
+                CKM: parseTL(r.CKM),
+                "CKM Nakit": parseTL(r["CKM Nakit"]),
+                Trendyol: parseTL(r.Trendyol),
+                Hepsiburada: parseTL(r.Hepsiburada),
+              };
+              row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
+              return row;
+            }).filter(r=>r.Date);
+            loadedRows = dedupeDailyRows(data);
+            const monthly = buildMonthly(loadedRows);
+            setKPIs(monthly); buildAlerts(monthly); drawCharts(monthly); renderTargets(monthly);
+          }catch(e){ console.warn('Upload parse error', e); }
         }
-      },
-      plugins: [glassPie]
+      });
     });
+  }
 
-    // === Line: Aylık Giderler (TRY) ===
-    if (expLineChart) expLineChart.destroy();
-    const ctxLine = document.getElementById('lineExpenses').getContext('2d');
-
-    // Mevcut yıl dizisi
-    const arrY = (expMonthly||[]).filter(r=> r.year===targetYear);
-    const labelsExp = arrY.map(r=>r.month);
-    const dataExp   = arrY.map(r=>r.Total||0);
-
-    expLineChart = new Chart(ctxLine, {
-      type: 'line',
-      data: { labels: labelsExp, datasets: [{
-        label: 'Giderler (TRY)',
-        data: dataExp,
-        tension: 0.35,
-        borderWidth: 3,
-        borderColor: '#f59e0b',
-        fill: true,
-        backgroundColor: (function(){
-          const g = ctxLine.createLinearGradient(0,0,0,220);
-          g.addColorStop(0, 'rgba(245,158,11,0.25)');
-          g.addColorStop(1, 'rgba(245,158,11,0.04)');
-          return g;
-        })(),
-        pointRadius: 3,
-        pointHoverRadius: 5
-      }]}, 
-      options: {
-        plugins: {
-          legend: { display: true, position: 'bottom' },
-          datalabels: { align: 'top', anchor: 'end', formatter: (v) => numberTL(v), color: '#64748b', clip: true }
-        },
-        scales: {
-          x: { ticks: { maxRotation: 0 } },
-          y: { ticks: { callback: (v) => numberTL(v) } }
-        }
-      }
+  if (downloadBtn){
+    downloadBtn.addEventListener('click', () => {
+      try{
+        const header = ['Date','Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada','Total'];
+        const lines = [header.join(',')].concat((loadedRows||[]).map(r => [
+          r.Date,
+          r.Toptan, r.Online, r.CKM, r['CKM Nakit'], r.Trendyol, r.Hepsiburada,
+          r.Total
+        ].join(',')));
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'revenue_export.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(e){ console.warn('Download error', e); }
     });
-  })();}
+  }
+})();
+
+// Start on DOM ready
+document.addEventListener('DOMContentLoaded', bootstrapData);
