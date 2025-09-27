@@ -492,7 +492,7 @@ th, td { white-space: nowrap; }
 <script>
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
-const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI11v-3QKXxod7fK6ErFnegN-XBT277j0DDF8xBCO4tAfoUhQUD24UYOJBe1iC4OGS/exec';
+let SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI11v-3QKXxod7fK6ErFnegN-XBT277j0DDF8xBCO4tAfoUhQUD24UYOJBe1iC4OGS/exec';
 // === Hardcoded default CSV URLs (fallbacks if nothing set) ===
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
@@ -928,6 +928,15 @@ function renderStockBlock(){
   const dio30 = daysOfInventory(invRows, ordersMap, 30);
   const dio90 = daysOfInventory(invRows, ordersMap, 90);
   document.getElementById('kpiDIO60').textContent = dio60 ? `${dio60.toFixed(0)} gün` : '– gün';
+document.getElementById('kpiDIO60').title =
+  `DIO ~ On-hand / günlük satış ort.\n30g: ${dio30?dio30.toFixed(0):'–'} • 60g: ${dio60?dio60.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
+  // also update the inline (30g / 90g) helper label
+(function(){
+  const diox = document.getElementById('kpiDIOx');
+  if (diox) {
+    diox.textContent = `30g: ${dio30?dio30.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
+  }
+})();
 
   // küçük açıklama (title attribute)
   document.getElementById('kpiDIO60').title =
@@ -1927,91 +1936,90 @@ function drawExpensesCharts(expMonthly){
   });
 
    // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
-  try {
-    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
-    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
-    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
-    const catSum = {};
-arr.forEach(m=>{
-  (m.rows || []).forEach(r=>{
+  
+try {
+  // Build YTD category totals from raw expense rows for the selected year (Final* overrides win)
+  const rowsYtd = (expensesRowsCache || []).filter(r => {
+    if (!r || !r.Date) return false;
+    const d = new Date(r.Date + 'T00:00:00Z');
+    return !isNaN(+d) && d.getFullYear() === expYear;
+  });
+
+  const catSum = {};
+  for (const r of rowsYtd) {
     const key = (r.FinalCategory && r.FinalCategory.trim()) ||
                 (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
                 r.MainCategory ||
                 r.Category || 'Diğer';
     const a = +r.Amount || 0;
-    catSum[key] = (catSum[key]||0) + a;
-  });
-});
+    catSum[key] = (catSum[key] || 0) + a;
+  }
 
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+  const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+  const sorted = Object.entries(catSum)
+    .map(([k, v]) => ({ k, v }))
+    .sort((a, b) => b.v - a.v);
 
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
+  const labelsPie = sorted.map(x => x.k);
+  const dataPie   = sorted.map(x => x.v);
 
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
+  if (expPieChart) expPieChart.destroy();
+  const pctx = document.getElementById('pieExpenses').getContext('2d');
 
-    if (expPieChart) expPieChart.destroy();
-    const pctx = document.getElementById('pieExpenses').getContext('2d');
+  const pieColors = [
+    'rgba(244,114,182,0.70)',
+    'rgba(52,211,153,0.70)',
+    'rgba(96,165,250,0.70)',
+    'rgba(251,191,36,0.70)',
+    'rgba(165,180,252,0.70)',
+    'rgba(248,113,113,0.70)',
+    'rgba(203,213,225,0.70)',
+    'rgba(34,197,94,0.70)',
+    'rgba(59,130,246,0.70)',
+    'rgba(14,165,233,0.70)'
+  ];
+  const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
 
-    const pieColors = [
-      'rgba(244,114,182,0.70)', // pink
-      'rgba(52,211,153,0.70)',  // emerald
-      'rgba(96,165,250,0.70)',  // blue
-      'rgba(251,191,36,0.70)',  // amber
-      'rgba(165,180,252,0.70)', // indigo
-      'rgba(248,113,113,0.70)', // red
-      'rgba(203,213,225,0.70)', // slate
-      'rgba(34,197,94,0.70)',   // green
-      'rgba(59,130,246,0.70)',  // blue-500
-      'rgba(14,165,233,0.70)',  // sky
-    ];
-    const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
-
-    expPieChart = new Chart(pctx, {
-      type: 'pie',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: labels.map((_, i) => pieColors[i % pieColors.length]),
-          hoverBackgroundColor: labels.map((_, i) => pieHover[i % pieHover.length]),
-          borderWidth: 1.5,
-          borderColor: 'rgba(255,255,255,0.55)'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
-        layout: { padding: 0 },
-        radius: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
-          datalabels: {
-            color: '#0f172a',
-            formatter: (v) => `${(v / totalYtd * 100).toFixed(1)}%`,
-            backgroundColor: 'rgba(255,255,255,0.40)',
-            borderColor: 'rgba(255,255,255,0.85)',
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 5,
-            clip: true
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.label}: ${numberTL(ctx.raw)}`
-            }
-          }
+  expPieChart = new Chart(pctx, {
+    type: 'pie',
+    data: {
+      labels: labelsPie,
+      datasets: [{
+        data: dataPie,
+        backgroundColor: labelsPie.map((_, i) => pieColors[i % pieColors.length]),
+        hoverBackgroundColor: labelsPie.map((_, i) => pieHover[i % pieHover.length]),
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.55)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
+      layout: { padding: 0 },
+      radius: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
+        datalabels: {
+          color: '#0f172a',
+          formatter: (v) => `${(v / totalYtd * 100).toFixed(1)}%`,
+          backgroundColor: 'rgba(255,255,255,0.40)',
+          borderColor: 'rgba(255,255,255,0.85)',
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 5,
+          clip: true
+        },
+        tooltip: {
+          callbacks: { label: (ctx) => `${ctx.label}: ${numberTL(ctx.raw)}` }
         }
       }
-    });
-  } catch (e) {
-    console.warn('drawExpensesCharts pie error', e);
-  }
+    }
+  });
+} catch (e) {
+  console.warn('drawExpensesCharts pie error', e);
 }
+  }
 
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
@@ -2392,7 +2400,13 @@ async function boot(){
   if (qpSheet)  localStorage.setItem('popdog_sheet_csv_url',  qpSheet);
   if (qpInv)    localStorage.setItem('popdog_inv_csv_url',    qpInv);
   if (qpOrders) localStorage.setItem('popdog_orders_csv_url', qpOrders);
-
+// Optional: override write endpoint via ?webapp= or ?write=
+(function(){
+  const qpWebapp = getParam('webapp') || getParam('write') || '';
+  if (qpWebapp) {
+    try { SHEET_WEBAPP_URL = qpWebapp; } catch(e){}
+  }
+})();
   // Optional: persist clean flag from URL (?clean=1/0)
   (function(){
     const p = getParam('clean');
