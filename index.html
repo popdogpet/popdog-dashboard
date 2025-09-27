@@ -1959,54 +1959,51 @@ function drawExpensesCharts(expMonthly){ /* TODO: daha sonra dolduracağız */ }
 /* ================== INITIAL LOAD ================== */
 async function bootstrapData(){
   try{
-    // 1) FX first (so USD badges show immediately if possible)
+    // --- URL resolution: ?param > localStorage > DEFAULT_* ---
+    const sheetUrl    = getParam('sheet')    || localStorage.getItem('popdog_sheet_csv')    || DEFAULT_SHEET_CSV;
+    const invUrl      = getParam('inv')      || localStorage.getItem('popdog_inv_csv')      || DEFAULT_INV_CSV;
+    const ordersUrl   = getParam('orders')   || localStorage.getItem('popdog_orders_csv')   || DEFAULT_ORDERS_CSV;
+    const expensesUrl = getParam('expenses') || localStorage.getItem('popdog_expenses_csv') || DEFAULT_EXPENSES_CSV;
+
+    // Effective URLs (debug için)
+    localStorage.setItem('popdog_sheet_csv_effective', sheetUrl);
+    localStorage.setItem('popdog_inv_csv_effective', invUrl);
+    localStorage.setItem('popdog_orders_csv_effective', ordersUrl);
+    localStorage.setItem('popdog_expenses_csv_effective', expensesUrl);
+
+    // USD göstergeleri için kur önce gelsin
     await fetchFX();
 
-    // 2) Revenue (sheet CSV)
-    const sheetUrl = getParam('sheet_csv') || localStorage.getItem('popdog_sheet_csv') || '${DEFAULT_SHEET_CSV}';
-    localStorage.setItem('popdog_sheet_csv', sheetUrl);
+    // --- Revenue (Sheet) ---
     loadedRows = await loadFromSheet(sheetUrl);
     const monthly = buildMonthly(loadedRows);
     setKPIs(monthly);
     buildAlerts(monthly);
     drawCharts(monthly);
-    renderTargets(monthly);
 
-    // 3) Inventory
-    const invUrl = getParam('inv_csv') || localStorage.getItem('popdog_inv_csv') || '${DEFAULT_INV_CSV}';
-    localStorage.setItem('popdog_inv_csv', invUrl);
-    const invRows = await loadCSV(invUrl);
-    localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows || []));
+    // --- Inventory & Orders ---
+    const [invRaw, ordersRaw] = await Promise.all([
+      loadCSV(invUrl),
+      loadCSV(ordersUrl)
+    ]);
+    localStorage.setItem('popdog_inv_cache', JSON.stringify(invRaw || []));
 
-    // 4) Orders (Shopify raw / cleaned)
-    const ordersUrl = getParam('orders_csv') || localStorage.getItem('popdog_orders_csv') || '${DEFAULT_ORDERS_CSV}';
-    localStorage.setItem('popdog_orders_csv', ordersUrl);
-    const ordersRaw = await loadCSV(ordersUrl);
-    const ordersMapped = (ordersRaw || []).map(mapOrderRow).filter(o => o.sku && o.qty > 0 && o.date);
-    localStorage.setItem('popdog_orders_cache', JSON.stringify(ordersMapped || []));
+    const mappedOrders = (ordersRaw || [])
+      .map(mapOrderRow)
+      .filter(o => o.sku && o.qty > 0 && o.date);
+    localStorage.setItem('popdog_orders_cache', JSON.stringify(mappedOrders));
 
-    // 5) Stock block render
     renderStockBlock();
-    initSalesWindowSelector();
 
-    // 6) Expenses
-    const expUrl = getParam('expenses_csv') || localStorage.getItem('popdog_expenses_csv') || '${DEFAULT_EXPENSES_CSV}';
-    localStorage.setItem('popdog_expenses_csv', expUrl);
-    const expensesRaw = await loadCSV(expUrl);
-    expensesRowsCache = (expensesRaw || []).map(parseExpenseRow).filter(r => r.Date && (r.Amount || 0) > 0);
+    // --- Expenses ---
+    const expRaw = await loadCSV(expensesUrl);
+    expensesRowsCache = (expRaw || []).map(parseExpenseRow).filter(r => r.Date && r.Amount > 0);
     expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
     setExpensesKPIs(expensesMonthlyCache);
-    renderMainExpenseTable();
-    drawExpensesCharts(expensesMonthlyCache);
+    if (typeof drawExpensesCharts === 'function') drawExpensesCharts(expensesMonthlyCache);
+    if (typeof renderMainExpenseTable === 'function') renderMainExpenseTable();
   }catch(e){
-    console.warn('Bootstrap error', e);
-    const ul = document.getElementById('alertsList');
-    if (ul){
-      const li = document.createElement('li');
-      li.className = 'hint';
-      li.textContent = 'Veri yüklenirken bir sorun oluştu. Sayfayı yenilemeyi deneyin.';
-      ul.appendChild(li);
-    }
+    console.warn('bootstrapData error', e);
   }
 }
 
