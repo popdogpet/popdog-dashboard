@@ -1745,7 +1745,9 @@ function buildExpensesMonthly(rows){
     const key = monthKey(d);
     const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0, byCat:{}, byMain:{} };
 
-    const a = +r.Amount || 0;
+    const isZee = (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || (r.Category === 'Zee.Dog');
+    const aRaw = +r.Amount || 0;
+    const a = (isZee && fxRateUSDPerTRY) ? (aRaw / fxRateUSDPerTRY) : aRaw;
     prev.Total += a;
 
     // Kategoriler: Final* varsa onu kullan, yoksa eski alanlara düş
@@ -1822,7 +1824,9 @@ function renderMainExpenseTable(){
         r.MainCategory ||
         mapMainExpenseCategory(r.Category || 'Diğer');
 
-      const a = +r.Amount || 0;
+      const isZee = (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') || (r.Category === 'Zee.Dog');
+      const aRaw = +r.Amount || 0;
+      const a = (isZee && fxRateUSDPerTRY) ? (aRaw / fxRateUSDPerTRY) : aRaw;
       sumByMain[main] = (sumByMain[main] || 0) + a;
       total += a;
     }
