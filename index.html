@@ -1596,6 +1596,7 @@ function drawCharts(monthly){
 let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
+let expensesRowsAdjustedCache = [];
 
 function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
@@ -1803,7 +1804,10 @@ function renderMainExpenseTable(){
     const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
     const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
 
-    const rows = (expensesRowsCache || []).filter(r => {
+      const baseRows = (expensesRowsAdjustedCache && expensesRowsAdjustedCache.length)
+      ? expensesRowsAdjustedCache
+      : expensesRowsCache;
+      const rows = (baseRows || []).filter(r => {
       const d = r.Date ? new Date(r.Date + 'T00:00:00Z') : null;
       return d && !isNaN(+d) && d.getFullYear() === expYear;
     });
@@ -1959,7 +1963,22 @@ arr.forEach(m=>{
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
   try{
-    expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache || []);
+    // 1) USD→TRY: Zee.Dog satırları USD; TRY’ye çevir
+    const adjRows = (expensesRowsCache || []).map(r => {
+      const isZee =
+        (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') ||
+        r.Category === 'Zee.Dog';
+      const amtRaw = +r.Amount || 0; // CSV’deki değer (Zee.Dog için USD kabul)
+      // fxRateUSDPerTRY: 1 TRY kaç USD (USD/TRY). USD → TRY: USD / (USD/TRY)
+      const amtTRY = (isZee && fxRateUSDPerTRY) ? (amtRaw / fxRateUSDPerTRY) : amtRaw;
+      return { ...r, Amount: amtTRY, __currency: isZee ? 'USD→TRY' : 'TRY' };
+    });
+    expensesRowsAdjustedCache = adjRows;
+
+    // 2) Aylık agregasyonları ayarla (artık TRY)
+    expensesMonthlyCache = buildExpensesMonthly(adjRows);
+
+    // 3) KPI + chart + tablo
     setExpensesKPIs(expensesMonthlyCache);
     drawExpensesCharts(expensesMonthlyCache);
     renderMainExpenseTable();
@@ -2373,7 +2392,7 @@ async function boot(){
 // Expenses load (CSV)
 try {
   expensesRowsCache = await loadExpensesCsv(expensesUrl);
-  expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache);
+  expensesMonthlyCache = []; // eskiden buildExpensesMonthly(...) idi
 } catch(e) {
   expensesRowsCache = [];
   expensesMonthlyCache = [];
