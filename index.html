@@ -535,7 +535,21 @@ function parseTRDateString(s){
   let dd=+m[1], mm=+m[2], yy=+m[3]; if(yy<100) yy += 2000;
   return yyyymmddUTC(yy, mm, dd);
 }
-
+function parseUSD(v){
+  if(v==null || v==='') return 0;
+  if(typeof v === 'number') return v;
+  let s = String(v).trim();
+  s = s.replace(/USD/gi,'').replace(/\$/g,'').replace(/\s/g,'').replace(/\u00A0/g,'');
+  if(s === '-' || s === '–' || s === '—') return 0;
+  if(/^-?\d+$/.test(s)) return Number(s);
+  if(s.includes('.') && s.includes(',')){
+    s = s.replace(/,/g,'');
+    const n = Number(s);
+    return isNaN(n)?0:n;
+  }
+  const n = Number(s.replace(/,/g,''));
+  return isNaN(n)?0:n;
+}
 function toMonday(d){
   const dt = new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt;
 }
@@ -1231,7 +1245,30 @@ function lastSaleDateForSKU(sku, ordersMap){
   }
   return last;
 }
+function deriveTryPerUsdFromKPI(){
+  try{
+    const tlEl  = document.getElementById('kpiYTD');
+    const usdEl = document.getElementById('kpiYTD_USD');
+    if(!tlEl || !usdEl) return 0;
 
+    const tl  = parseTL(tlEl.textContent || '');
+    // "≈ $12,345 USD" benzeri metinden USD’yi çek
+    const usdText = (usdEl.textContent || '').replace(/≈/g,'').replace(/about/i,'');
+    const usd = parseUSD(usdText);
+
+    if(tl > 0 && usd > 0){
+      const usdPerTry = usd / tl;      // 1 TRY kaç USD
+      const tryPerUsd = 1 / usdPerTry; // 1 USD kaç TRY
+      // cache’le
+      try{
+        localStorage.setItem('popdog_fx_try_per_usd', String(tryPerUsd));
+        localStorage.setItem('popdog_fx_usd_per_try', String(usdPerTry));
+      }catch(e){}
+      return tryPerUsd;
+    }
+    return 0;
+  }catch(e){ return 0; }
+}
 /* ================== REVENUE AGGREGATIONS & UI ================== */
 function buildMonthly(rows){
   const map = new Map();
@@ -1817,14 +1854,25 @@ function readExpenseAmountTRY(r){
       } catch(e) { /* silent */ }
     }
 
-    // 3.d) URL parametresi ile override veya güvenli varsayılan
-    if (!tryPerUsd){
-      const q = new URLSearchParams(location.search);
-      const override = parseFloat(q.get('fx_try_per_usd') || '');
-      tryPerUsd = (override && override>0) ? override : 35; // son çare
-    }
+// 3.d) KPI'lerden türet (kpiYTD ve kpiYTD_USD)
+if (!tryPerUsd){
+  const inferred = deriveTryPerUsdFromKPI();
+  if (inferred > 0) tryPerUsd = inferred;
+}
 
-    return amtUsd * tryPerUsd;
+// 3.e) URL parametresi ile override veya güvenli varsayılan
+if (!tryPerUsd){
+  const q = new URLSearchParams(location.search);
+  const override = parseFloat(q.get('fx_try_per_usd') || '');
+  tryPerUsd = (override && override > 0) ? override : 35; // son çare
+}
+
+// kur kararlaştıysa cache’le
+if (tryPerUsd > 0){
+  try { localStorage.setItem('popdog_fx_try_per_usd', String(tryPerUsd)); } catch(e) {}
+}
+
+return amtUsd * tryPerUsd;
   }
 
   // 4) Ne TRY ne USD → 0
