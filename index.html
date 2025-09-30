@@ -587,23 +587,6 @@ function isCleanOnLoad(){
 
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
-function dedupeDailyRows(rows){
-  try{
-    const map = new Map();
-    const richness = (r)=>{
-      const fields = [r.Toptan, r.Online, r.CKM, r["CKM Nakit"], r.Trendyol, r.Hepsiburada];
-      return fields.reduce((a,b)=> a + (b && Number(b)>0 ? 1 : 0), 0);
-    };
-    (rows||[]).forEach(r=>{
-      if(!r || !r.Date) return;
-      const prev = map.get(r.Date);
-      if(!prev){ map.set(r.Date, r); return; }
-      const tA = Number(r.Total||0), tB = Number(prev.Total||0);
-      if(tA>tB || (tA===tB && richness(r)>richness(prev))) map.set(r.Date, r);
-    });
-    return Array.from(map.values()).sort((a,b)=> String(a.Date).localeCompare(String(b.Date)));
-  }catch(e){ console.warn('dedupeDailyRows error', e); return rows||[]; }
-}
 let loadedRows = [];     // revenue rows (sheet csv)
 let stagedRows = [];     // whatsapp pasted rows
 let fxRateUSDPerTRY = null;
@@ -634,61 +617,17 @@ function renderStagedTable(){
   `).join('');
 }
 
-async function writeStagedToSheet(){
-  try{
-    const infoEl = document.getElementById('parseInfo');
-    const btn = document.getElementById('pushRowsBtn');
-    const setInfo = (t)=>{ if(infoEl) infoEl.textContent = t; };
-
-    // Safety
-    if(!Array.isArray(stagedRows) || stagedRows.length===0){ setInfo('Eklenecek satır yok.'); return; }
-
-    // Build existing date set from loadedRows (already on Sheet)
-    const existingDates = new Set((loadedRows||[]).map(r=> r && r.Date).filter(Boolean));
-    const uniqueIncoming = dedupeDailyRows(stagedRows);
-    const rowsToAdd = uniqueIncoming.filter(r=> r && r.Date && !existingDates.has(r.Date));
-
-    if(rowsToAdd.length===0){ setInfo('Eklenecek yeni tarih yok (hepsi mevcut).'); return; }
-
-    // Prepare payload for Apps Script Web App
-    const payload = {
-      action: 'appendDailyRows',
-      rows: rowsToAdd
-    };
-
-    if(btn){ btn.disabled = true; btn.textContent = 'Yazılıyor…'; }
-    setInfo(`${rowsToAdd.length} satır gönderiliyor…`);
-
-    const resp = await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if(!resp.ok){
-      const t = await resp.text().catch(()=> '');
-      throw new Error(`Sheet yazma hatası: ${resp.status} ${t}`);
-    }
-
-    // On success: merge into loadedRows, clear staged, refresh UI & KPIs
-    loadedRows = dedupeDailyRows([...(loadedRows||[]), ...rowsToAdd]);
-    stagedRows = [];
-    renderStagedTable();
-    setInfo('✔️ Yazıldı. Sayfayı yenilemeden devam edebilirsiniz.');
-  }catch(e){
-    console.error(e);
-    const infoEl = document.getElementById('parseInfo');
-    if(infoEl) infoEl.textContent = `Hata: ${e.message||e}`;
-  }finally{
-    const btn = document.getElementById('pushRowsBtn');
-    if(btn){ btn.disabled = false; btn.textContent = 'Sheet’e Yaz'; }
-  }
-}
 
 // Bind the writer to the button in the Daily Paste section
 (function(){
   const btn = document.getElementById('pushRowsBtn');
   if(btn) btn.onclick = writeStagedToSheet;
+})();
+
+// Bind the writer to the main Sheet’e Kaydet button (writeSheetBtn) using the JSON-based function
+(function(){
+  const b = document.getElementById('writeSheetBtn');
+  if (b) b.onclick = writeStagedToSheet;
 })();
 
 /* ================== CSV LOADERS ================== */
@@ -1038,6 +977,10 @@ function renderStockBlock(){
   const dio90 = daysOfInventory(invRows, ordersMap, 90);
   document.getElementById('kpiDIO60').textContent = dio60 ? `${dio60.toFixed(0)} gün` : '– gün';
 
+  // Patch: update kpiDIOx with 30g and 90g values
+  const dioxEl = document.getElementById('kpiDIOx');
+  if (dioxEl) dioxEl.textContent = `30g: ${dio30?dio30.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
+
   // küçük açıklama (title attribute)
   document.getElementById('kpiDIO60').title =
     `DIO ~ On-hand / günlük satış ort.\n30g: ${dio30?dio30.toFixed(0):'–'} • 60g: ${dio60?dio60.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
@@ -1075,7 +1018,6 @@ function renderStockBlock(){
       return t.includes('zee');
     };
     // Helper (already defined above for other lists) kept here for clarity:
-    // const isZee = (sku)=> ((titleMap.get(sku) || '').toLowerCase().includes('zee'));
 
     // 6.a En çok satan 5 (satış miktarına göre, sadece Zee)
     const topSellers = Array.from(soldMap.entries())
@@ -1619,62 +1561,7 @@ function drawCharts(monthly){
     }
   });
 
-  // ========== Pie: Kanal Payları (YTD) ==========
-  const sum = k => monthlyCache.reduce((a,r)=>a+(r[k]||0),0);
-  if(pieChart) pieChart.destroy();
-  const pctx = document.getElementById('pieShare').getContext('2d');
 
-  const pieColors = [
-    'rgba(129,140,248,0.65)',
-    'rgba(52,211,153,0.65)',
-    'rgba(96,165,250,0.65)',
-    'rgba(251,191,36,0.65)',
-    'rgba(244,114,182,0.65)'
-  ];
-  const pieHover = [
-    'rgba(129,140,248,0.85)',
-    'rgba(52,211,153,0.85)',
-    'rgba(96,165,250,0.85)',
-    'rgba(251,191,36,0.85)',
-    'rgba(244,114,182,0.85)'
-  ];
-
-  pieChart = new Chart(pctx, {
-    type:'pie',
-    data:{
-      labels:['Toptan','Online','CKM','Trendyol','Hepsiburada'],
-      datasets:[{
-        data:[sum('Toptan'),sum('Online'),sum('CKM'),sum('Trendyol'),sum('Hepsiburada')],
-        backgroundColor: pieColors,
-        hoverBackgroundColor: pieHover,
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.55)'
-      }]
-    },
-    options:{
-      responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 1,
-      layout: { padding: 0 },
-      radius: '65%',
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
-        datalabels: {
-          color:'#0f172a',
-          formatter:(v,ctx)=>{
-            const total = ctx.dataset.data.reduce((a,b)=>a+b,0)||1;
-            const pct = v/total*100; return `${pct.toFixed(1)}%`;
-          },
-          backgroundColor:'rgba(255,255,255,0.40)',
-          borderColor:'rgba(255,255,255,0.85)',
-          borderWidth:1,
-          borderRadius:12,
-          padding:5,
-          clip: true
-        }
-      }
-    }
-  });
 
   // ========== Stacked Bar: Kanal Bazlı Aylık Ciro (bu yıl aylar) ==========
   if (barChart) barChart.destroy();
@@ -1735,34 +1622,19 @@ let expensesMonthlyCache = [];
 let expYoyEnabled = true;
 let expensesRowsAdjustedCache = [];
 
-// === Ensure Expenses KPIs + Table + Charts run exactly once ===
-let _expKPIOnce = false;
-function renderExpensesOnce(){
-  if (_expKPIOnce) return;
-  _expKPIOnce = true;
-  try { setExpensesKPIs(expensesMonthlyCache); } 
-  catch(e){ console.warn('setExpensesKPIs error', e); }
-  try { renderMainExpensesTable(); } 
-  catch(e){ console.warn('renderMainExpensesTable error', e); }
-  try { drawExpensesCharts(expensesMonthlyCache); } 
-  catch(e){ console.warn('drawExpensesCharts error', e); }
-}
+
 // === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
 function buildMainExpenseTotalsYTD(expRows){
   const year = new Date().getFullYear();
   const map = new Map(); // main -> sum TRY
-
   for (const r of (expRows || [])) {
     const iso = getExpenseISODate(r);
     if (!iso || !iso.startsWith(String(year))) continue;
-
-    const { main } = expenseCats(r);      // Zee.Dog'u kilitler (sert override)
-    const amt = readExpenseAmountTRY(r);  // USD→TRY dönüşümünü garanti eder
+    const { main } = expenseCats(r);     // Zee.Dog hard override
+    const amt = readExpenseAmountTRY(r); // tüm tutarları TRY’ye çevir
     if (!main || !amt) continue;
-
     map.set(main, (map.get(main) || 0) + Math.abs(amt));
   }
-
   return Array.from(map.entries())
     .map(([k,v]) => ({ main:k, total:v }))
     .sort((a,b) => b.total - a.total);
@@ -1855,97 +1727,73 @@ function getExpenseISODate(r){
   return '';
 }
 
-// Returns TRY value; if Zee and only USD is present, converts USD→TRY using fxRateUSDPerTRY (USD per TRY)
+// Returns TRY value; if Zee and only USD is present, converts USD→TRY using best available FX
 function readExpenseAmountTRY(r){
-  // 1) TRY alanlarından doğrudan oku
-  const tryCands = [r && r.Amount, r && r.TRY, r && r.Tutar, r && r['Tutar (TRY)'], r && r['Amount (TRY)']];
-  let amtTry = 0;
-  for (const v of tryCands){
-    const n = parseTL(v);
-    if (n){ amtTry = Math.abs(n); break; }
-  }
+  try{
+    // 1) TRY alanları
+    const tryCands = [r && r.Amount, r && r.TRY, r && r.Tutar, r && r['Tutar (TRY)'], r && r['Amount (TRY)']];
+    for (const v of tryCands){
+      const n = parseTL(v);
+      if (n) return Math.abs(n);
+    }
 
-  // 2) USD alanlarından oku (varsa)
-  const usdCands = [r && r.USD, r && r['USD '], r && r['Amount (USD)'], r && r['USD Amount'], r && r['USD_Amount'], r && r['USD$']];
-  let amtUsd = 0;
-  for (const v of usdCands){
-    const n = parseTL(v);
-    if (n){ amtUsd = Math.abs(n); break; }
-  }
+    // 2) USD alanları
+    const usdCands = [r && r.USD, r && r['USD '], r && r['Amount (USD)'], r && r['USD Amount'], r && r['USD_Amount'], r && r['USD$']];
+    let amtUsd = 0;
+    for (const v of usdCands){
+      const n = parseTL(v);
+      if (n){ amtUsd = Math.abs(n); break; }
+    }
 
-  // 2.a) Zee.Dog satırları için — bilinmeyen kolondaki sayı USD olabilir (ör: üçüncü sütun isimsiz)
-  if (!amtTry && !amtUsd && isZeeExpense(r)){
-    try{
-      // Sayısal değer gibi görünen tüm hücreleri tara; tarih ve metin sütunlarını ele
+    // 2.a) Zee.Dog satırlarında “ismi belirsiz” sayıyı USD varsay
+    if (!amtUsd && isZeeExpense(r)){
       const BAD_KEYS = /date|tarih|category|kategori|cat|sub|desc|açıklama|aciklama|note|account|bank|banka|source|merchant|vendor|payee|cash|hesap|explanation|details|memo/i;
       let best = 0;
       Object.entries(r||{}).forEach(([k,v])=>{
-        if (k && BAD_KEYS.test(String(k))) return; // açıkça metinsel alanlar
+        if (k && BAD_KEYS.test(String(k))) return;
         const n = parseTL(v);
-        if (!n) return;
-        // saçma büyük olmayan, pozitif en büyük değeri seç (örn 23,946 gibi)
-        const m = Math.abs(n);
-        if (m>best && m<1e9) best = m;
+        if (n){ const m = Math.abs(n); if (m>best && m<1e9) best = m; }
       });
       if (best>0) amtUsd = best;
-    }catch(e){ /* silent */ }
-  }
+    }
 
-  // Eğer TRY zaten varsa, onu döndür (USD olsa bile TRY öncelikli)
-  if (amtTry && amtTry > 0) return amtTry;
+    if (!amtUsd) return 0;
 
-  // 3) TRY yok ama USD var → kur ile çevir
-  if (amtUsd && amtUsd > 0){
-    // 3.a) Satır bazlı kur alanları (öncelikli)
+    // 3) Kur: satır -> global -> KPI -> localStorage
     const fxRowCands = [
       r && r.FX, r && r['FX Rate'], r && r['USDTRY'], r && r['USD/TRY'], r && r['USD-TRY'],
       r && r['USD to TRY'], r && r['USD→TRY'], r && r['Kur'], r && r['Döviz Kuru']
     ];
-    let tryPerUsd = 0; // TRY per 1 USD
+    let tryPerUsd = 0; // 1 USD = ? TRY
     for (const v of fxRowCands){
       const n = parseTL(v);
       if (n){ tryPerUsd = Math.abs(n); break; }
     }
 
-    // 3.b) Global kurdan çevir (fxRateUSDPerTRY = USD per 1 TRY) → TRY = USD / (USD per TRY)
-    if (!tryPerUsd && fxRateUSDPerTRY){
-      const usdPerTry = Number(fxRateUSDPerTRY) || 0; // örn: 0.03 USD/TRY
-      if (usdPerTry > 0){ tryPerUsd = 1 / usdPerTry; }
+    // global değişken: fxRateUSDPerTRY muhtemelen USD/TRY (TL→USD çevriminde kullanılıyor)
+    if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY>0){
+      tryPerUsd = 1 / fxRateUSDPerTRY; // biz TRY/USD istiyoruz
     }
 
-    // 3.c) localStorage fallback'ı (hem USD/TRY hem TRY/USD anahtarlarını dene)
+    // KPI metninden türet
     if (!tryPerUsd){
-      try {
-        const lsUsdPerTry = parseFloat(localStorage.getItem('popdog_fx_usd_per_try') || '0');
-        const lsTryPerUsd = parseFloat(localStorage.getItem('popdog_fx_try_per_usd') || '0');
-        if (lsTryPerUsd > 0) tryPerUsd = lsTryPerUsd;
-        else if (lsUsdPerTry > 0) tryPerUsd = 1 / lsUsdPerTry;
-      } catch(e) { /* silent */ }
+      const tpu = deriveTryPerUsdFromKPI();
+      if (tpu && isFinite(tpu)) tryPerUsd = tpu;
     }
 
-// 3.d) KPI'lerden türet (kpiYTD ve kpiYTD_USD)
-if (!tryPerUsd){
-  const inferred = deriveTryPerUsdFromKPI();
-  if (inferred > 0) tryPerUsd = inferred;
-}
+    // localStorage
+    if (!tryPerUsd){
+      try{
+        const ls = Number(localStorage.getItem('popdog_fx_try_per_usd')||'0');
+        if (ls>0) tryPerUsd = ls;
+      }catch(e){}
+    }
 
-// 3.e) URL parametresi ile override veya güvenli varsayılan
-if (!tryPerUsd){
-  const q = new URLSearchParams(location.search);
-  const override = parseFloat(q.get('fx_try_per_usd') || '');
-  tryPerUsd = (override && override > 0) ? override : 35; // son çare
-}
-
-// kur kararlaştıysa cache’le
-if (tryPerUsd > 0){
-  try { localStorage.setItem('popdog_fx_try_per_usd', String(tryPerUsd)); } catch(e) {}
-}
-
-return amtUsd * tryPerUsd;
+    if (!tryPerUsd) return 0;
+    return Math.abs(amtUsd * tryPerUsd);
+  }catch(e){
+    return 0;
   }
-
-  // 4) Ne TRY ne USD → 0
-  return 0;
 }
 
 function normalizeExpenseCategory(cat){
@@ -2306,7 +2154,8 @@ function refreshExpenses(){
     expensesMonthlyCache = buildExpensesMonthly(adjRows);
 
     // 3) KPI + chart + tablo
-    renderExpensesOnce();
+   // 3) KPI + chart + tablo
+    setExpensesKPIs(expensesMonthlyCache);
     drawExpensesCharts(expensesMonthlyCache);
     renderMainExpenseTable();
   }catch(e){
