@@ -683,6 +683,44 @@ function loadCSV(url){
   });
 }
 
+// Robust normalizer so Papa.parse output always has Date + Amount for quick filters
+function parseExpenseRow(r){
+  try{
+    const iso = getExpenseISODate(r) || '';
+    const amt = readExpenseAmountTRY(r) || 0;
+    // keep original fields; ensure Date & Amount are present for generic filters
+    return { ...r, Date: (iso || r.Date || r.date || ''), Amount: amt };
+  }catch(e){
+    return r || {};
+  }
+}
+
+// Correct CSV loader for Expenses (fetch text, then Papa.parse on string)
+async function loadExpensesCsv(url){
+  if (!url) return [];
+  try{
+    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+
+    return await new Promise((resolve) => {
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          const rows = (res.data || [])
+            .map(parseExpenseRow)
+            .filter(r => r.Date && r.Amount !== 0);
+          resolve(rows);
+        },
+        error: () => resolve([])
+      });
+    });
+  }catch(e){
+    return [];
+  }
+}
+
 /* ================== INVENTORY & ORDERS HELPERS ================== */
 const SALES_WINDOW_OPTIONS = [30,90,120,180];
 let salesWindowDays = Number(localStorage.getItem('popdog_sales_window_days') || '90');
@@ -1724,6 +1762,7 @@ function renderMainExpensesTable(){
 })();
 
 // ===== Ensure Expenses CSV loads on page load (idempotent) =====
+// ===== Ensure Expenses CSV loads on page load (idempotent) =====
 (function initExpensesLoader(){
   if (window.__popdog_expenses_inited) return; // prevent double init
   window.__popdog_expenses_inited = true;
@@ -1731,7 +1770,7 @@ function renderMainExpensesTable(){
     try{
       const expUrl = localStorage.getItem('popdog_expenses_csv') || DEFAULT_EXPENSES_CSV;
       if (!expUrl) return;
-      const expRows = await loadCSV(expUrl);
+      const expRows = await loadExpensesCsv(expUrl);
       expensesRowsCache = Array.isArray(expRows) ? expRows : [];
       if (!Array.isArray(expensesRowsAdjustedCache) || !expensesRowsAdjustedCache.length){
         expensesRowsAdjustedCache = expensesRowsCache.slice();
@@ -2294,16 +2333,31 @@ const EXPENSES_CSV_URL =
 })();
 
 async function loadExpensesCsv(url){
-  if(!url) return [];
-  const resp = await Papa.parse(assetURL(url), { cache:'no-store' });
-  if(!resp.ok) return [];
-  const text = await resp.text();
-  return new Promise((resolve)=> {
-    Papa.parse(text, { header:true, skipEmptyLines:true,
-      complete:(res)=>{ const rows=(res.data||[]).map(parseExpenseRow).filter(r=> r.Date && r.Amount!==0); resolve(rows); },
-      error:()=> resolve([])
+  if (!url) return [];
+  try{
+    // CSV metnini normal fetch ile çek (cache bust ile)
+    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+
+    // Papa.parse: string'i parse et
+    return await new Promise((resolve) => {
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          const rows = (res.data || [])
+            .map(parseExpenseRow)          // senin normalize edicin
+            .filter(r => r.Date && r.Amount !== 0);
+          resolve(rows);
+        },
+        error: () => resolve([])
+      });
     });
-  });
+  }catch(e){
+    // hata durumunda boş dön
+    return [];
+  }
 }
 
 /* ================== Weekly UI ================== */
