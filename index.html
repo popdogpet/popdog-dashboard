@@ -1644,7 +1644,11 @@ function buildMainExpenseTotalsYTD(expRows){
 
 // === "Ana Kategoriler (YTD)" tablosunu bu toplamlarla render et ===
 function renderMainExpensesTable(){
-  const totals = buildMainExpenseTotalsYTD(expensesRowsCache);
+  const rows = (Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length)
+    ? expensesRowsAdjustedCache
+    : expensesRowsCache;
+
+  const totals = buildMainExpenseTotalsYTD(rows);
   const sumAll = totals.reduce((a,b)=>a+b.total,0) || 1;
   const tbody = document.getElementById('tblMainExpenses');
   if (!tbody) return;
@@ -1680,7 +1684,7 @@ function renderMainExpensesTable(){
 
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
 function isZeeExpense(r){
-  const re = /zee[\s\.-]*dog/i;
+  const re = /(zee[\s\.-]*dog|zeedog)/i;
   const fields = [
     r && r.FinalSubcategory, r && r.FinalCategory, r && r.MainCategory, r && r.Category, r && r.Subcategory,
     r && r.Source, r && r.Description, r && r.Details, r && r.Note, r && r.Notes, r && r.Memo,
@@ -1706,7 +1710,7 @@ function expenseCats(r){
   const sub0 = finalSub || normalizeExpenseCategory(combined) || 'Diğer';
   let main  = finalCat || mapMainExpenseCategory(sub0);
 
-  const zeeRegex = /zee[\s\.-]*dog/i;
+  const zeeRegex = /(zee[\s\.-]*dog|zeedog)/i;
   const zeeAny   = zeeRegex.test(combined) || zeeRegex.test(sub0) || zeeRegex.test(finalCat) || isZeeExpense(r);
 
   if (zeeAny) main = 'Zee.Dog';
@@ -1829,7 +1833,7 @@ function normalizeExpenseCategory(cat){
   if (/(garanti|isbank|is\s*bankasi|qnb|enpara|akbank|ziraat|yapi\s*kredi|iyzico|iyzi|iyzi-co|payu|iyzico|iyzi\s*co|stripe|iyzico)/.test(primary)) return 'Banka/Ödeme';
 
   // 7) Özel ürün/marka örnekleri
-  if (/(zee)[\s\.-]*(dog)/.test(primary)) return 'Zee.Dog';
+  if (/(zee)[\s\.-]*(dog)|zeedog/.test(primary)) return 'Zee.Dog';
 
   // 8) Boşsa Diğer
   if (!primary || isOther(primary)) return 'Diğer';
@@ -1881,7 +1885,7 @@ function mapMainExpenseCategory(cat){
     return 'Ev Giderleri';
 
   // 9.b) Marka bazlı özel kasa: Zee.Dog ana kategori olarak ayrı listelensin
-  if (/(zee)[\s\.-]*dog/.test(s)) return 'Zee.Dog';
+  if (/(zee)[\s\.-]*dog|zeedog/.test(s)) return 'Zee.Dog';
   // 10) Varsayılan
   return 'Diğer';
 }
