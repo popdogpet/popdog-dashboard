@@ -620,6 +620,35 @@ let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
 
+// Deduplicate daily rows by Date; keep the row with higher Total or more non-zero fields
+function dedupeDailyRows(rows){
+  try{
+    const fields = ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada'];
+    const score = (r)=>{
+      let nonzero = 0, total = 0;
+      for (const k of fields){
+        const v = +r[k] || 0;
+        if (v) nonzero++;
+        total += v;
+      }
+      return { nonzero, total };
+    };
+    const map = new Map();
+    (rows||[]).forEach(r=>{
+      if(!r || !r.Date) return;
+      const cur = map.get(r.Date);
+      if(!cur){ map.set(r.Date, r); return; }
+      const a = score(cur), b = score(r);
+      const keepNew = (b.total > a.total) || (b.total === a.total && b.nonzero > a.nonzero);
+      map.set(r.Date, keepNew ? r : cur);
+    });
+    return Array.from(map.values()).sort((a,b)=> (a.Date<b.Date?-1:(a.Date>b.Date?1:0)));
+  }catch(e){
+    // If anything goes wrong, fall back to original rows
+    return Array.isArray(rows) ? rows : [];
+  }
+}
+
 /* === Daily rows UI + write helpers === */
 function renderStagedTable(){
   const tb = document.getElementById('stagedTbody');
