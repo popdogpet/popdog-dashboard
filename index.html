@@ -1358,6 +1358,8 @@ function setKPIs(monthly){
   const mLabels = rowsSorted.map(m => m.month);
   const momNote = document.getElementById('momNote');
   if (momNote) momNote.textContent = mLabels.length >= 2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
+  // Ensure expenses table re-renders after KPIs (FX may now be derived)
+  try { renderMainExpensesTable(); } catch (e) { /* silent */ }
 }
 
 /* ================== Alerts ================== */
