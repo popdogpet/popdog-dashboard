@@ -1701,8 +1701,6 @@ function renderMainExpensesTable(){
     }
   });
 })();
-</script>
-<script>
 // ===== Expenses Grouping Toggle (chip) =====
 (function(){
   function syncExpGroupChip(){
@@ -1723,7 +1721,6 @@ function renderMainExpensesTable(){
   // also re-sync after visibility change (in case of external updates)
   document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) syncExpGroupChip(); });
 })();
-</script>
 
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
 function isZeeExpense(r){
