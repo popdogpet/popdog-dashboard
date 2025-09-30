@@ -571,6 +571,29 @@ function withCacheBust(url){
   return `${url}${sep}t=${Date.now()}`;
 }
 
+// === Missing helpers (used by CSV loaders) ===
+// assetURL: currently just applies cache-bust; can be extended later for local assets
+function assetURL(url){
+  try{
+    return withCacheBust(url);
+  }catch(e){
+    return url || '';
+  }
+}
+
+// isFreshMode: controls fetch cache mode; can be toggled via ?fresh=1 or localStorage flag
+function isFreshMode(){
+  try{
+    const p = getParam('fresh');
+    if (p === '1') return true;
+    if (p === '0') return false;
+    const s = localStorage.getItem('popdog_fresh_mode');
+    if (s === '1') return true;
+    if (s === '0') return false;
+  } catch(e){}
+  return true; // default: fresh mode on (force reload)
+}
+
 /* ================== QUERY PARAM HELPERS ================== */
 function getParam(name){
   try { return new URLSearchParams(location.search).get(name) || ''; } catch(e){ return ''; }
