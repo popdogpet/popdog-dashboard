@@ -1735,6 +1735,75 @@ let expensesMonthlyCache = [];
 let expYoyEnabled = true;
 let expensesRowsAdjustedCache = [];
 
+// === Ensure Expenses KPIs + Table + Charts run exactly once ===
+let _expKPIOnce = false;
+function renderExpensesOnce(){
+  if (_expKPIOnce) return;
+  _expKPIOnce = true;
+  try { setExpensesKPIs(expensesMonthlyCache); } 
+  catch(e){ console.warn('setExpensesKPIs error', e); }
+  try { renderMainExpensesTable(); } 
+  catch(e){ console.warn('renderMainExpensesTable error', e); }
+  try { drawExpensesCharts(expensesMonthlyCache); } 
+  catch(e){ console.warn('drawExpensesCharts error', e); }
+}
+// === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
+function buildMainExpenseTotalsYTD(expRows){
+  const year = new Date().getFullYear();
+  const map = new Map(); // main -> sum TRY
+
+  for (const r of (expRows || [])) {
+    const iso = getExpenseISODate(r);
+    if (!iso || !iso.startsWith(String(year))) continue;
+
+    const { main } = expenseCats(r);      // Zee.Dog'u kilitler (sert override)
+    const amt = readExpenseAmountTRY(r);  // USD→TRY dönüşümünü garanti eder
+    if (!main || !amt) continue;
+
+    map.set(main, (map.get(main) || 0) + Math.abs(amt));
+  }
+
+  return Array.from(map.entries())
+    .map(([k,v]) => ({ main:k, total:v }))
+    .sort((a,b) => b.total - a.total);
+}
+
+// === "Ana Kategoriler (YTD)" tablosunu bu toplamlarla render et ===
+function renderMainExpensesTable(){
+  const totals = buildMainExpenseTotalsYTD(expensesRowsCache);
+  const sumAll = totals.reduce((a,b)=>a+b.total,0) || 1;
+  const tbody = document.getElementById('tblMainExpenses');
+  if (!tbody) return;
+  tbody.innerHTML = totals.map(t => `
+    <tr>
+      <td class="text-left py-1 pr-3">${t.main}</td>
+      <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
+      <td class="text-right py-1 pr-0">${(t.total/sumAll*100).toFixed(1)}%</td>
+    </tr>
+  `).join('');
+}
+
+// === Yumuşak bağlama (expensesRowsCache dolunca 1 kez çiz) ===
+(function setupMainExpensesAutoRender(){
+  let tries = 0;
+  const maxTries = 20; // ~16s
+  const iv = setInterval(()=>{
+    tries++;
+    if (Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      clearInterval(iv);
+      renderMainExpensesTable();
+    } else if (tries >= maxTries){
+      clearInterval(iv);
+    }
+  }, 800);
+  // Güvenlik için: sayfa görünür olduğunda tekrar dene
+  document.addEventListener('visibilitychange', ()=>{
+    if (!document.hidden && Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      renderMainExpensesTable();
+    }
+  });
+})();
+
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
 function isZeeExpense(r){
   const re = /zee[\s\.-]*dog/i;
@@ -2237,7 +2306,7 @@ function refreshExpenses(){
     expensesMonthlyCache = buildExpensesMonthly(adjRows);
 
     // 3) KPI + chart + tablo
-    setExpensesKPIs(expensesMonthlyCache);
+    renderExpensesOnce();
     drawExpensesCharts(expensesMonthlyCache);
     renderMainExpenseTable();
   }catch(e){
@@ -2532,7 +2601,7 @@ function refreshAll(){
   // === Expenses (CFO) render ===
 try {
   if (Array.isArray(expensesMonthlyCache) && expensesMonthlyCache.length) {
-    setExpensesKPIs(expensesMonthlyCache);
+    renderExpensesOnce();
     drawExpensesCharts(expensesMonthlyCache);
   }
 } catch (e) {
