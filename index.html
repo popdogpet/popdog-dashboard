@@ -636,12 +636,13 @@ function renderStagedTable(){
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
-  const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
+  const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
   if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
   const csvText = await resp.text();
   return new Promise((resolve,reject)=>{
     Papa.parse(csvText, {
       header:true, skipEmptyLines:true,
+      worker:true, fastMode:true,
       complete: (res)=>{
         try{
           const data = (res.data||[]).map(r=>{
@@ -673,8 +674,9 @@ async function loadFromSheet(url){
 function loadCSV(url){
   return new Promise((resolve,reject)=>{
     if(!url) return resolve([]);
-    Papa.parse(withCacheBust(url), {
+    Papa.parse(assetURL(url), {
       download:true, header:true, skipEmptyLines:true,
+      worker:true, fastMode:true,
       complete: (res)=> resolve(res.data||[]),
       error: reject
     });
@@ -2271,7 +2273,7 @@ const EXPENSES_CSV_URL =
 
 async function loadExpensesCsv(url){
   if(!url) return [];
-  const resp = await fetch(withCacheBust(url), { cache:'no-store' });
+  const resp = await Papa.parse(assetURL(url), { cache:'no-store' });
   if(!resp.ok) return [];
   const text = await resp.text();
   return new Promise((resolve)=> {
