@@ -1723,6 +1723,29 @@ function renderMainExpensesTable(){
   document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) syncExpGroupChip(); });
 })();
 
+// ===== Ensure Expenses CSV loads on page load (idempotent) =====
+(function initExpensesLoader(){
+  if (window.__popdog_expenses_inited) return; // prevent double init
+  window.__popdog_expenses_inited = true;
+  async function loadExp(){
+    try{
+      const expUrl = localStorage.getItem('popdog_expenses_csv') || DEFAULT_EXPENSES_CSV;
+      if (!expUrl) return;
+      const expRows = await loadCSV(expUrl);
+      expensesRowsCache = Array.isArray(expRows) ? expRows : [];
+      if (!Array.isArray(expensesRowsAdjustedCache) || !expensesRowsAdjustedCache.length){
+        expensesRowsAdjustedCache = expensesRowsCache.slice();
+      }
+      renderMainExpensesTable();
+    }catch(e){ console.warn('Expenses init error', e); }
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', loadExp, { once:true });
+  } else {
+    loadExp();
+  }
+})();
+
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
 function isZeeExpense(r){
   const re = /(zee[\s\.-]*dog|zeedog)/i;
