@@ -1699,6 +1699,7 @@ function expenseCats(r){
   const finalSub = (r && r.FinalSubcategory ? String(r.FinalSubcategory).trim() : '');
   const finalCat = (r && r.FinalCategory    ? String(r.FinalCategory).trim()    : '');
 
+  // Build a combined text for fallback normalization / Zee detection
   const parts = [
     r && r.FinalSubcategory, r && r.FinalCategory,
     r && r.Subcategory, r && r.Category, r && r.Kategori,
@@ -1707,15 +1708,42 @@ function expenseCats(r){
   ].filter(Boolean).map(x => String(x).trim());
   const combined = parts.join(' | ');
 
+  // Fallback subcategory candidate via normalization
   const sub0 = finalSub || normalizeExpenseCategory(combined) || 'Diğer';
-  let main  = finalCat || mapMainExpenseCategory(sub0);
 
+  // --- HARD override for Zee.Dog anywhere ---
   const zeeRegex = /(zee[\s\.-]*dog|zeedog)/i;
-  const zeeAny   = zeeRegex.test(combined) || zeeRegex.test(sub0) || zeeRegex.test(finalCat) || isZeeExpense(r);
+  const zeeAny   = zeeRegex.test(combined) || zeeRegex.test(sub0) || zeeRegex.test(finalCat);
 
-  if (zeeAny) main = 'Zee.Dog';
-  const sub = zeeAny ? 'Zee.Dog' : sub0;
+  // Prefer explicitly provided "main" category fields from the source row.
+  // This preserves granular categories like "Kredi", "Kira", "Google", etc.
+  const explicitMainCandidates = [
+    r && r.FinalCategory,
+    r && r.MainCategory,
+    r && r.Category,
+    r && r.Kategori
+  ].filter(Boolean).map(s => String(s).trim()).filter(s => s.length > 0);
 
+  let main = '';
+  if (zeeAny) {
+    main = 'Zee.Dog';
+  } else if (explicitMainCandidates.length) {
+    // Use the first explicit main-like field
+    main = explicitMainCandidates[0];
+    // If it is literally "Diğer" but we have a better sub, promote sub to main
+    if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
+      main = sub0;
+    }
+  } else {
+    // No explicit main given → map based on normalized sub as a last resort
+    main = mapMainExpenseCategory(sub0);
+    // Avoid collapsing into "Diğer" if sub looks meaningful
+    if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
+      main = sub0;
+    }
+  }
+
+  const sub = zeeAny ? 'Zee.Dog' : (finalSub || sub0);
   return { sub, main };
 }
 
