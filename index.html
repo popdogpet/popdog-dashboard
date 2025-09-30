@@ -1665,6 +1665,7 @@ function drawCharts(monthly){
 let expensesRowsCache = [];
 let expensesMonthlyCache = [];
 let expYoyEnabled = true;
+try{ const s = document.getElementById('expYoyState'); if (s) s.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }catch(e){}
 let expensesRowsAdjustedCache = [];
 
 // Grouping toggle for Main Expenses table (raw detailed vs. grouped/adjusted)
@@ -1776,6 +1777,7 @@ function renderMainExpensesTable(){
         expensesRowsAdjustedCache = expensesRowsCache.slice();
       }
       renderMainExpensesTable();
+      refreshExpensesUI();
     }catch(e){ console.warn('Expenses init error', e); }
   }
   if (document.readyState === 'loading'){
@@ -1783,6 +1785,176 @@ function renderMainExpensesTable(){
   } else {
     loadExp();
   }
+})();
+
+// === Build monthly totals for Expenses (by Date, abs(Amount) in TRY) ===
+function buildExpensesMonthly(expRows){
+  const map = new Map();
+  for(const r of (expRows||[])){
+    const iso = getExpenseISODate(r);
+    const amt = Math.abs(readExpenseAmountTRY(r)||0);
+    if(!iso || !amt) continue;
+    const d = new Date(iso+"T00:00:00Z");
+    if(isNaN(+d)) continue;
+    const key = monthKey(d);
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Total:0 };
+    prev.Total += amt;
+    map.set(key, prev);
+  }
+  return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
+}
+
+// === Helper: revenue YTD (same logic as setKPIs uses) ===
+function revenueYTDForYear(year){
+  try{
+    if(!Array.isArray(monthlyCache)||!monthlyCache.length) return 0;
+    return monthlyCache.filter(m=>m.year===year).reduce((a,b)=>a+(b.Total||0),0);
+  }catch(e){ return 0; }
+}
+
+// === Expenses KPIs (YTD, MoM, Net) ===
+function setExpensesKPIs(expMonthly){
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const rowsThisYear = (expMonthly||[]).filter(m=>m.year===thisYear);
+  const ytdExp = rowsThisYear.reduce((a,b)=>a+(b.Total||0),0);
+
+  // Toplam Gider (YTD)
+  const elExpYTD = document.getElementById('kpiExpYTD');
+  if(elExpYTD) elExpYTD.textContent = numberTL(ytdExp);
+  const elExpYTD_USD = document.getElementById('kpiExpYTD_USD');
+  if(elExpYTD_USD){
+    if (fxRateUSDPerTRY) elExpYTD_USD.textContent = `≈ ${numberUSD(ytdExp * fxRateUSDPerTRY)} USD`;
+    else elExpYTD_USD.textContent = '≈ – USD';
+  }
+
+  // YoY (ay hizalı)
+  try{
+    const prevYear = thisYear - 1;
+    const monthsThisYear = rowsThisYear.map(r=>r.month.slice(5,7));
+    const mmSet = new Set(monthsThisYear);
+    const prevYtd = (expMonthly||[]).reduce((acc,r)=>{
+      if(r.year!==prevYear) return acc;
+      const mm = r.month.slice(5,7);
+      if(mmSet.has(mm)) acc += (r.Total||0);
+      return acc;
+    },0);
+    const yoy = prevYtd ? ((ytdExp - prevYtd)/prevYtd) : 0;
+    const elYoY = document.getElementById('kpiExpYoY');
+    if(elYoY) elYoY.textContent = `YTD YoY: ${(yoy*100).toFixed(1)}%`;
+  }catch(e){ /* silent */ }
+
+  // MoM (gider)
+  const rowsSorted = rowsThisYear.slice().sort((a,b)=> a.month.localeCompare(b.month));
+  let last = 0, prev = 0;
+  if(rowsSorted.length >= 2){ last = rowsSorted.at(-1).Total; prev = rowsSorted.at(-2).Total; }
+  else if(rowsSorted.length===1){ last = rowsSorted[0].Total; prev = 0; }
+  const mom = prev ? (last - prev)/prev : 0;
+  const elMoM = document.getElementById('kpiExpMoM');
+  if(elMoM){
+    elMoM.textContent = `${(mom*100).toFixed(1)}%`;
+    elMoM.classList.remove('kpi-up','kpi-down');
+    elMoM.classList.add(mom>=0 ? 'kpi-up' : 'kpi-down');
+  }
+  const elMoMNote = document.getElementById('kpiExpMoMNote');
+  if(elMoMNote){
+    const mLabels = rowsSorted.map(m=>m.month);
+    elMoMNote.textContent = mLabels.length>=2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
+  }
+
+  // Net Kâr (YTD) = Revenue YTD - Expense YTD
+  const revYTD = revenueYTDForYear(thisYear);
+  const netYTD = revYTD - ytdExp;
+  const elNet = document.getElementById('kpiNetYTD');
+  if(elNet) elNet.textContent = numberTL(netYTD);
+  const elNetUSD = document.getElementById('kpiNetYTD_USD');
+  if(elNetUSD){
+    if (fxRateUSDPerTRY) elNetUSD.textContent = `≈ ${numberUSD(netYTD * fxRateUSDPerTRY)} USD`;
+    else elNetUSD.textContent = '≈ – USD';
+  }
+  const elNetNote = document.getElementById('kpiNetNote');
+  if(elNetNote) elNetNote.textContent = `Ciro YTD: ${numberTL(revYTD)} − Gider YTD: ${numberTL(ytdExp)}`;
+}
+
+// === Expenses Line Chart (YoY toggle) ===
+let expLineChart;
+function drawExpensesChart(expMonthly){
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const prevYear = currentYear - 1;
+  const curArr = (expMonthly||[]).filter(r=>r.year===currentYear);
+  const labels = curArr.map(r=>r.month);
+  const dataCur = curArr.map(r=>r.Total||0);
+  // Build prev aligned to current labels
+  const prevMap = {};
+  (expMonthly||[]).forEach(r=>{ if(r.year===prevYear){ const mm=r.month.slice(5,7); prevMap[mm]=(prevMap[mm]||0)+(r.Total||0); } });
+  const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
+
+  if(expLineChart) expLineChart.destroy();
+  const ctx = document.getElementById('lineExpenses').getContext('2d');
+  function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+  const datasets = [{
+    label:'Gider (Bu Yıl)',
+    data: dataCur,
+    tension:0.35, borderWidth:3, borderColor:'#ef4444', fill:true,
+    backgroundColor: grad(ctx, 'rgba(239,68,68,0.25)','rgba(239,68,68,0.05)'),
+    pointRadius:3, pointHoverRadius:5
+  }];
+  const hasPrevAny = dataPrev.some(v=>v>0);
+  if(expYoyEnabled && hasPrevAny){
+    datasets.push({
+      label:'Gider (Geçen Yıl)', data:dataPrev, tension:0.35,
+      borderWidth:2, borderDash:[6,4], borderColor:'#94a3b8', pointRadius:0, fill:false
+    });
+  }
+  expLineChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      plugins:{
+        legend:{display:true, position:'bottom'},
+        datalabels:{
+          display:(c)=> (c.chart.data.labels||[]).length <= 8,
+          align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true
+        }
+      },
+      scales:{ x:{ ticks:{ maxRotation:0 } }, y:{ ticks:{ callback:(v)=> numberTL(v) } } }
+    }
+  });
+}
+
+// === Toggle for Expenses YoY ===
+(function(){
+  const chip = document.getElementById('expYoyToggle');
+  const state = document.getElementById('expYoyState');
+  function sync(){ if(state) state.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }
+  if(chip){ chip.addEventListener('click', ()=>{ expYoyEnabled = !expYoyEnabled; sync(); drawExpensesChart(expensesMonthlyCache); }); }
+  sync();
+})();
+
+// === Recompute expenses monthly + KPIs + chart when cache changes ===
+function refreshExpensesUI(){
+  try{
+    expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache||[]);
+    // try to derive FX if not ready (from revenue YTD box)
+    if(!fxRateUSDPerTRY){
+      const tryPerUsd = deriveTryPerUsdFromKPI();
+      if(tryPerUsd>0){ fxRateUSDPerTRY = 1 / tryPerUsd; }
+    }
+    setExpensesKPIs(expensesMonthlyCache);
+    drawExpensesChart(expensesMonthlyCache);
+  }catch(e){ console.warn('Expenses UI refresh error', e); }
+}
+
+// Run once on load (after expensesRowsCache is filled by initExpensesLoader)
+(function(){
+  let tries = 0; const maxTries = 25; // ~20s
+  const iv = setInterval(()=>{
+    tries++;
+    if(Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      clearInterval(iv); refreshExpensesUI();
+    } else if (tries>=maxTries){ clearInterval(iv); }
+  }, 800);
 })();
 
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
