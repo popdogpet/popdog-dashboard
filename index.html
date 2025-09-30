@@ -1560,7 +1560,10 @@ function drawCharts(monthly){
     options:{
       plugins:{
         legend:{display:true, position:'bottom'},
-        datalabels:{ align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true }
+        datalabels:{
+          display:(ctx)=> (ctx.chart.data.labels||[]).length <= 8,
+          align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true
+        }
       },
       scales:{
         x:{ ticks:{ maxRotation:0 } },
@@ -1608,13 +1611,9 @@ function drawCharts(monthly){
         legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
         tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(ctx.raw)}` } },
         datalabels: {
-          display: ctx => ctx.raw > 0,
-          anchor: 'center',
-          align: 'center',
-          formatter: v => numberTL(v),
-          color: '#fff',
-          font: { weight: '600', size: 10 },
-          clamp: true
+          display: (ctx)=> (ctx.chart.data.labels||[]).length <= 6,
+          anchor: 'center', align: 'center', formatter: v => numberTL(v),
+          color: '#fff', font: { weight: '600', size: 10 }, clamp: true
         }
       },
       categoryPercentage: 0.7,
@@ -2533,6 +2532,103 @@ try {
   console.warn('Expenses render error', e);
 }
 }
+// ================== BOOTSTRAP (safe, idempotent) ==================
+(function bootPopdog(){
+  if (window.__popdog_bootstrapped) return; // idempotent
+  window.__popdog_bootstrapped = true;
+
+  // Quick placeholders to avoid blank UI perception
+  try{
+    const el1 = document.getElementById('kpiYTD');
+    if (el1) el1.textContent = 'yükleniyor…';
+    const el2 = document.getElementById('kpiInvCost');
+    if (el2) el2.textContent = 'yükleniyor…';
+    const el3 = document.getElementById('kpiInvPrice');
+    if (el3) el3.textContent = 'yükleniyor…';
+    const t = document.getElementById('tblMainExpenses');
+    if (t) t.innerHTML = '<tr><td class="hint py-1" colspan="3">Yükleniyor…</td></tr>';
+  }catch(e){}
+
+  async function boot(){
+    try {
+      // START ALL LOADS IN PARALLEL (guard against missing defaults)
+      const sheetUrl = localStorage.getItem('popdog_sheet_csv')    || (window.DEFAULT_SHEET_CSV    || '');
+      const invUrl   = localStorage.getItem('popdog_inv_csv')      || (window.DEFAULT_INV_CSV      || '');
+      const ordUrl   = localStorage.getItem('popdog_orders_csv')   || (window.DEFAULT_ORDERS_CSV   || '');
+      const expUrl   = localStorage.getItem('popdog_expenses_csv') || (window.DEFAULT_EXPENSES_CSV || '');
+
+      const pRev = (async()=>{
+        try{
+          if(!sheetUrl) return;
+          const revRows = await loadFromSheet(sheetUrl);
+          loadedRows = Array.isArray(revRows) ? revRows : [];
+          const monthly = buildMonthly(loadedRows);
+          setKPIs(monthly);
+          drawCharts(monthly);
+          buildAlerts(monthly);
+          renderTargets(monthly);
+        } catch(e){ console.warn('Revenue render error', e); }
+      })();
+
+      const pInv = (async()=>{
+        try{
+          if(!invUrl) return;
+          const invRows = await loadCSV(invUrl);
+          try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows || [])); } catch(e){}
+          renderStockBlock();
+        } catch(e){ console.warn('Inventory load/render error', e); }
+      })();
+
+      const pOrd = (async()=>{
+        try{
+          if(!ordUrl) return;
+          const ordRaw = await loadCSV(ordUrl);
+          const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+          const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString() }));
+          try { localStorage.setItem('popdog_orders_cache', JSON.stringify(persist)); } catch(e){}
+          renderStockBlock();
+        } catch(e){ console.warn('Orders load/render error', e); }
+      })();
+
+      const pExp = (async()=>{
+        try{
+          if(!expUrl) return;
+          const expRows = await loadCSV(expUrl);
+          expensesRowsCache = Array.isArray(expRows) ? expRows : [];
+          if (!Array.isArray(expensesRowsAdjustedCache) || !expensesRowsAdjustedCache.length){
+            expensesRowsAdjustedCache = expensesRowsCache.slice();
+          }
+          // Build monthly + KPIs + charts
+          try { refreshExpenses(); } catch(e) { console.warn('refreshExpenses error', e); }
+          // Ensure main table visible ASAP
+          try { renderMainExpensesTable(); } catch(e){}
+        } catch(e){ console.warn('Expenses load/render error', e); }
+      })();
+
+      await Promise.allSettled([pRev, pInv, pOrd, pExp]);
+
+      // Derive FX once (if needed) after first paints
+      try {
+        if (!fxRateUSDPerTRY){
+          const tryPerUsd = deriveTryPerUsdFromKPI();
+          if (tryPerUsd && isFinite(tryPerUsd)){
+            fxRateUSDPerTRY = 1 / tryPerUsd;
+          }
+        }
+      } catch(e){}
+    } catch(err){
+      console.error('BOOT error', err);
+    }
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    // DOM is already ready
+    boot();
+  }
+})();
+
 /* ================== Last 7 Days Summary ================== */
 function startOfDayLocal(d){
   const x = new Date(d);
