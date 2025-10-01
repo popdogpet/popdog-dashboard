@@ -186,8 +186,8 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid lg:grid-cols-3 gap-6">
-      <div class="glass card-3d rounded-3xl p-5 lg:col-span-2">
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="glass card-3d rounded-3xl p-5">
         <div class="flex items-center justify-between mb-2">
           <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
           <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
@@ -198,12 +198,12 @@ th, td { white-space: nowrap; }
         <canvas id="lineTotal" height="160"></canvas>
         <div id="lineTotalTblWrap"></div>
       </div>
-    </div>
 
-    <div class="glass card-3d rounded-3xl p-5">
-      <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-      <canvas id="barStack" height="160"></canvas>
-      <div id="barStackTblWrap"></div>
+      <div class="glass card-3d rounded-3xl p-5">
+        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
+        <canvas id="barStack" height="160"></canvas>
+        <div id="barStackTblWrap"></div>
+      </div>
     </div>
 
     <!-- === Expenses (CFO) === -->
@@ -1760,6 +1760,8 @@ function drawCharts(monthly){
     type:'line',
     data:{ labels: labels.map(m => m), datasets },
     options:{
+      maintainAspectRatio: true,
+      aspectRatio: 1.6,
       plugins:{
         legend:{display:true, position:'bottom'},
         datalabels:{
