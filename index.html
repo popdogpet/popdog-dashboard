@@ -196,12 +196,14 @@ th, td { white-space: nowrap; }
           </button>
         </div>
         <canvas id="lineTotal" height="160"></canvas>
+        <div id="lineTotalTblWrap"></div>
       </div>
     </div>
 
     <div class="glass card-3d rounded-3xl p-5">
       <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
       <canvas id="barStack" height="160"></canvas>
+      <div id="barStackTblWrap"></div>
     </div>
 
     <!-- === Expenses (CFO) === -->
@@ -1639,6 +1641,41 @@ function drawCharts(monthly){
     return prevMap[mm] || 0;
   });
 
+  // Helper function for monthly totals table (if not already present)
+  function renderMonthlyTotalsTable(wrapperId, labelsArr, totalsArr){
+    const wrap = document.getElementById(wrapperId);
+    if(!wrap) return;
+    try{
+      const rows = labelsArr.map((m,i)=>{
+        const total = totalsArr[i] || 0;
+        const prev  = i>0 ? (totalsArr[i-1]||0) : 0;
+        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
+        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
+        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
+        return `
+          <tr>
+            <td class="py-1 pr-3">${m}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(total)}</td>
+            <td class="py-1 text-right ${momCls}">${momStr}</td>
+          </tr>
+        `;
+      });
+      wrap.innerHTML = `
+        <div class="mt-2 overflow-auto">
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">Ay</th>
+                <th class="text-right py-1 pr-3">Toplam</th>
+                <th class="text-right py-1 pr-0">MoM</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
+          </table>
+        </div>`;
+    }catch(e){ /* silent */ }
+  }
+
   // ========== Line: Aylık Toplam Ciro ==========
   if(lineChart) lineChart.destroy();
   const lctx = document.getElementById('lineTotal').getContext('2d');
@@ -1733,6 +1770,10 @@ function drawCharts(monthly){
       barPercentage: 0.8
     }
   });
+
+  // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
+  renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+  renderMonthlyTotalsTable('barStackTblWrap', labels, dataCur);
 }
 
 /* ================== Expenses (CFO) ================== */
