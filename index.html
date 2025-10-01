@@ -1985,7 +1985,7 @@ function setExpensesKPIs(expMonthly){
 
 // === Expenses Line Chart (YoY toggle) ===
 var expLineChart;
-function drawExpensesChart(expMonthly){
+function drawExpensesCharts(expMonthly){
   const now = new Date();
   const currentYear = now.getFullYear();
   const prevYear = currentYear - 1;
@@ -2035,7 +2035,7 @@ function drawExpensesChart(expMonthly){
   const chip = document.getElementById('expYoyToggle');
   const state = document.getElementById('expYoyState');
   function sync(){ if(state) state.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }
-  if(chip){ chip.addEventListener('click', ()=>{ expYoyEnabled = !expYoyEnabled; sync(); drawExpensesChart(expensesMonthlyCache); }); }
+  if(chip){ chip.addEventListener('click', ()=>{ expYoyEnabled = !expYoyEnabled; sync(); drawExpensesCharts(expensesMonthlyCache); }); }
   sync();
 })();
 
@@ -2049,7 +2049,7 @@ function refreshExpensesUI(){
       if(tryPerUsd>0){ fxRateUSDPerTRY = 1 / tryPerUsd; }
     }
     setExpensesKPIs(expensesMonthlyCache);
-    drawExpensesChart(expensesMonthlyCache);
+    drawExpensesCharts(expensesMonthlyCache);
   }catch(e){ console.warn('Expenses UI refresh error', e); }
 }
 
