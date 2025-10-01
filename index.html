@@ -1844,7 +1844,7 @@ function buildMainExpenseBreakdownYTD(expRows){
 
   // Önce ana kategori, içinde tutara göre
   arr.sort((a,b)=>{
-    if (a.main !== b.main) return a.main.localeCompare(a.main, 'tr');
+    if (a.main !== b.main) return a.main.localeCompare(.main, 'tr');
     return b.total - a.total;
   });
 
@@ -1922,10 +1922,10 @@ function renderMainExpensesTable(){
     tbodyG.innerHTML = totalsGrouped.map(t => `
       <tr>
         <td class="text-left py-1 pr-3">${t.main}</td>
-        <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
+         <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
         <td class="text-right py-1 pr-0">${(t.total/sumGrouped*100).toFixed(1)}%</td>
       </tr>
-    `).join('');
+    `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
   }
 }
 
