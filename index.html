@@ -563,6 +563,20 @@ function parseUSD(v){
   const n = Number(s.replace(/,/g,''));
   return isNaN(n)?0:n;
 }
+ 
+function getTryPerUsd(){
+  try{
+    const s = localStorage.getItem('popdog_fx_try_per_usd');
+    const n = s ? Number(s) : 0;
+    if (n && !isNaN(n)) return n;
+
+    // if a session-level USD/TRY exists, invert it
+    if (typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
+      return 1 / fxRateUSDPerTRY;
+    }
+    return 0;
+  }catch(e){ return 0; }
+}
 function toMonday(d){
   const dt = new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt;
 }
@@ -1901,7 +1915,7 @@ function readExpenseAmountTRY(r){
   try{
     if(!r) return 0;
 
-    // 1) Currency hint from row
+    // 1) Currency hint from row (accept various header variants)
     const currency = String(
       r.Currency || r['Para Birimi'] || r['Currency Code'] || r['Currency'] || ''
     ).trim().toUpperCase();
@@ -1912,6 +1926,10 @@ function readExpenseAmountTRY(r){
       r.amount ??
       r['Amount (TRY)'] ??
       r['Amount (USD)'] ??
+      r['Expense Amount'] ??
+      r['Miktar'] ??
+      r['Value'] ??
+      r['Price'] ??
       r['Tutar'] ??
       r['Net Tutar'] ??
       r['Total'] ??
@@ -1924,49 +1942,44 @@ function readExpenseAmountTRY(r){
     const isAccountingNegative = /^\s*\(.*\)\s*$/.test(s);
 
     // 4) Detect currency from field or inline symbols
-    const looksUSD = currency === 'USD' || /\$|USD/i.test(s);
+    const looksUSD = currency === 'USD' || /\bUSD\b/i.test(s) || /^\s*\$/.test(s);
     const looksTRY = currency === 'TRY' || /₺|TL|TRY/i.test(s);
 
-    // 5) Convert based on detection
+    // 5) Helper to resolve TRY per USD (₺/USD)
+    const resolveTryPerUsd = ()=>{
+      // a) direct (stored) TRY per USD
+      try{
+        const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+        if (tpu > 0) return tpu;
+      }catch(e){}
+
+      // b) we might only have USD per TRY in fxRateUSDPerTRY or storage → invert
+      let usdPerTry = 0;
+      if (typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0) usdPerTry = fxRateUSDPerTRY;
+      try{
+        const upt = Number(localStorage.getItem('popdog_fx_usd_per_try') || '0');
+        if (upt > 0) usdPerTry = usdPerTry || upt;
+      }catch(e){}
+      if (usdPerTry > 0) return 1 / usdPerTry;
+
+      // c) derive from KPI widgets on screen (kpiYTD vs kpiYTD_USD)
+      const derived = deriveTryPerUsdFromKPI();
+      if (derived > 0) return derived;
+
+      return 0;
+    };
+
+    // 6) Convert based on detection
     if (looksUSD){
       // Parse as USD first
       const usd = parseUSD(s);
-
-      // Try to get TRY per USD (₺/USD) from various hints
-      let tryPerUsd = 0;
-
-      // a) If we previously derived/store FX from KPI
-      try {
-        const storedTpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
-        if (storedTpu > 0) tryPerUsd = storedTpu;
-      } catch(e){ /* ignore */ }
-
-      // b) If we only have USD per TRY → invert
-      if (!tryPerUsd){
-        let usdPerTry = 0;
-        if (typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0) usdPerTry = fxRateUSDPerTRY;
-        try {
-          const storedUpt = Number(localStorage.getItem('popdog_fx_usd_per_try') || '0');
-          if (storedUpt > 0) usdPerTry = usdPerTry || storedUpt;
-        } catch(e){ /* ignore */ }
-        if (usdPerTry > 0) tryPerUsd = 1 / usdPerTry;
-      }
-
-      // c) As a final fallback, derive from current KPI widgets on screen
-      if (!tryPerUsd){
-        const derived = deriveTryPerUsdFromKPI();
-        if (derived > 0) tryPerUsd = derived;
-      }
-
-      // If still unknown, treat as 0 to avoid polluting totals
+      const tryPerUsd = resolveTryPerUsd();
       if (!tryPerUsd) return 0;
-
       const valTRY = usd * tryPerUsd;
       return isAccountingNegative ? -Math.abs(valTRY) : valTRY;
     }
 
-    // Default branch: treat as TRY
-    // Parse TRY robustly (also honoring accounting negatives)
+    // 7) Default branch: treat as TRY (also honoring accounting negatives)
     if (isAccountingNegative){
       const inner = s.replace(/^\(|\)$/g,'');
       return -Math.abs(parseTL(inner));
@@ -2096,74 +2109,6 @@ function getExpenseISODate(r){
   return '';
 }
 
-// Returns TRY value; if Zee and only USD is present, converts USD→TRY using best available FX
-function readExpenseAmountTRY(r){
-  try{
-    // 1) TRY alanları
-    const tryCands = [r && r.Amount, r && r.TRY, r && r.Tutar, r && r['Tutar (TRY)'], r && r['Amount (TRY)']];
-    for (const v of tryCands){
-      const n = parseTL(v);
-      if (n) return Math.abs(n);
-    }
-
-    // 2) USD alanları
-    const usdCands = [r && r.USD, r && r['USD '], r && r['Amount (USD)'], r && r['USD Amount'], r && r['USD_Amount'], r && r['USD$']];
-    let amtUsd = 0;
-    for (const v of usdCands){
-      const n = parseTL(v);
-      if (n){ amtUsd = Math.abs(n); break; }
-    }
-
-    // 2.a) Zee.Dog satırlarında “ismi belirsiz” sayıyı USD varsay
-    if (!amtUsd && isZeeExpense(r)){
-      const BAD_KEYS = /date|tarih|category|kategori|cat|sub|desc|açıklama|aciklama|note|account|bank|banka|source|merchant|vendor|payee|cash|hesap|explanation|details|memo/i;
-      let best = 0;
-      Object.entries(r||{}).forEach(([k,v])=>{
-        if (k && BAD_KEYS.test(String(k))) return;
-        const n = parseTL(v);
-        if (n){ const m = Math.abs(n); if (m>best && m<1e9) best = m; }
-      });
-      if (best>0) amtUsd = best;
-    }
-
-    if (!amtUsd) return 0;
-
-    // 3) Kur: satır -> global -> KPI -> localStorage
-    const fxRowCands = [
-      r && r.FX, r && r['FX Rate'], r && r['USDTRY'], r && r['USD/TRY'], r && r['USD-TRY'],
-      r && r['USD to TRY'], r && r['USD→TRY'], r && r['Kur'], r && r['Döviz Kuru']
-    ];
-    let tryPerUsd = 0; // 1 USD = ? TRY
-    for (const v of fxRowCands){
-      const n = parseTL(v);
-      if (n){ tryPerUsd = Math.abs(n); break; }
-    }
-
-    // global değişken: fxRateUSDPerTRY muhtemelen USD/TRY (TL→USD çevriminde kullanılıyor)
-    if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY>0){
-      tryPerUsd = 1 / fxRateUSDPerTRY; // biz TRY/USD istiyoruz
-    }
-
-    // KPI metninden türet
-    if (!tryPerUsd){
-      const tpu = deriveTryPerUsdFromKPI();
-      if (tpu && isFinite(tpu)) tryPerUsd = tpu;
-    }
-
-    // localStorage
-    if (!tryPerUsd){
-      try{
-        const ls = Number(localStorage.getItem('popdog_fx_try_per_usd')||'0');
-        if (ls>0) tryPerUsd = ls;
-      }catch(e){}
-    }
-
-    if (!tryPerUsd) return 0;
-    return Math.abs(amtUsd * tryPerUsd);
-  }catch(e){
-    return 0;
-  }
-}
 
 function normalizeExpenseCategory(cat){
   const s0 = (cat || '').toString();
