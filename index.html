@@ -2207,9 +2207,7 @@ function buildExpensesMonthly(rows){
 
     const key = monthKey(d);
 
-    const amount = ('Amount' in r && r.Amount !== null && r.Amount !== '')
-      ? (Number(r.Amount) || 0)
-      : readExpenseAmountTRY(r);
+   const amount = readExpenseAmountTRY(r);
 
     const cats = expenseCats(r);
     const subKey  = cats.sub || 'Diğer';
@@ -2642,8 +2640,10 @@ async function fetchFX(){
       fxDate = j.time_last_update_utc ? new Date(j.time_last_update_utc) : new Date();
       const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
       document.getElementById('fxNote').textContent =
-        tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
-      return;
+  tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+try { refreshExpenses(); } catch(e) {}
+try { renderMainExpensesTable(); } catch(e) {}
+return;
     }
   }catch(e){}
   try{
@@ -2654,8 +2654,10 @@ async function fetchFX(){
       fxDate = j2.date ? new Date(j2.date) : new Date();
       const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
       document.getElementById('fxNote').textContent =
-        tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
-      return;
+  tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+try { refreshExpenses(); } catch(e) {}
+try { renderMainExpensesTable(); } catch(e) {}
+return;
     }
   }catch(e){}
   document.getElementById('fxNote').textContent = `Kur alınamadı`;
@@ -2759,6 +2761,7 @@ try {
           loadedRows = Array.isArray(revRows) ? revRows : [];
           const monthly = buildMonthly(loadedRows);
           setKPIs(monthly);
+          try { renderMainExpensesTable(); } catch(e) {}
           drawCharts(monthly);
           buildAlerts(monthly);
           renderTargets(monthly);
