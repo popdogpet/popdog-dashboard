@@ -1745,6 +1745,7 @@ let expensesRowsAdjustedCache = [];
 
 
 
+
 // Return the main category for a row; when grouped=true, collapse certain mains
 function mainCategoryForRow(r, grouped=false){
   try{
@@ -1759,6 +1760,55 @@ function mainCategoryForRow(r, grouped=false){
     }
     return m;
   }catch(e){ return String(r.Category||r.Main||'')||''; }
+}
+
+
+// Alt kırılım anahtarı: FinalSubcategory > Subcategory > "Diğer"
+function subKeyForRow(r){
+  const key =
+    r.FinalSubcategory || r.FinalSubCategory || r['Final Subcategory'] ||
+    r.Subcategory || r['Subcategory'] || r.SubCat || r['Sub Cat'] ||
+    '';
+  const s = String(key||'').trim();
+  return s || 'Diğer';
+}
+
+// YTD Detay kırılımı: Ana Kategori + (FinalSubcategory/Subcategory)
+function buildMainExpenseBreakdownYTD(expRows){
+  const year = new Date().getFullYear();
+  const map = new Map(); // "main||sub" -> TRY toplam
+  let sumAll = 0;
+
+  for (const r of (expRows || [])){
+    const iso = getExpenseISODate(r);
+    if (!iso || !iso.startsWith(String(year))) continue;
+
+    const main = mainCategoryForRow(r, false);
+    if (!main) continue;
+
+    const sub  = subKeyForRow(r);
+    const amt  = Math.abs(readExpenseAmountTRY(r)) || 0;
+    if (!amt) continue;
+
+    const k = `${main}||${sub}`;
+    map.set(k, (map.get(k)||0) + amt);
+    sumAll += amt;
+  }
+
+  // Diziye çevir, ana kategori + (tutar desc), sonra ana kategori alfabetik
+  const arr = Array.from(map.entries()).map(([k, v])=>{
+    const [main, sub] = k.split('||');
+    return { main, sub, total: v };
+  });
+
+  // Önce ana kategori, içinde tutara göre
+  arr.sort((a,b)=>{
+    if (a.main !== b.main) return a.main.localeCompare(a.main, 'tr');
+    return b.total - a.total;
+  });
+
+  // pay hesapları
+  return { rows: arr, sumAll: sumAll || 1 };
 }
 
 // === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
@@ -1780,28 +1830,51 @@ function buildMainExpenseTotalsYTD(expRows, grouped=false){
 
 // === "Ana Kategoriler (YTD)" tablosunu bu toplamlarla render et ===
 function renderMainExpensesTable(){
-  // Detail = raw rows; Grouped = adjusted rows (fallback to raw if empty)
+  // Kaynak diziler
   const rowsDetail  = Array.isArray(expensesRowsCache) ? expensesRowsCache : [];
   const rowsGrouped = (Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length)
     ? expensesRowsAdjustedCache
     : rowsDetail;
 
-  const totalsDetail  = buildMainExpenseTotalsYTD(rowsDetail, false);
-  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped, true);
+  /* -------- Detay (FinalSubcategory/Subcategory kırılımı) -------- */
+  const { rows: detailRows, sumAll: sumDetail } = buildMainExpenseBreakdownYTD(rowsDetail);
 
-  const sumDetail  = totalsDetail.reduce((a,b)=>a+b.total,0) || 1;
-  const sumGrouped = totalsGrouped.reduce((a,b)=>a+b.total,0) || 1;
+  // İsteğe bağlı: ana kategori başlığı eklemek için gruplayalım
+  const byMain = new Map();
+  for (const r of detailRows){
+    if(!byMain.has(r.main)) byMain.set(r.main, []);
+    byMain.get(r.main).push(r);
+  }
 
   const tbodyD = document.getElementById('tblMainExpensesDetail');
-  if (tbodyD) {
-    tbodyD.innerHTML = totalsDetail.map(t => `
-      <tr>
-        <td class="text-left py-1 pr-3">${t.main}</td>
-        <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
-        <td class="text-right py-1 pr-0">${(t.total/sumDetail*100).toFixed(1)}%</td>
-      </tr>
-    `).join('');
+  if (tbodyD){
+    const parts = [];
+    byMain.forEach((list, main)=>{
+      // Ana kategoriye başlık satırı
+      parts.push(`
+        <tr>
+          <td class="text-left py-1 pr-3 font-medium" colspan="3">${main}</td>
+        </tr>
+      `);
+      // Alt kırılımlar (sub)
+      list.forEach(item=>{
+        parts.push(`
+          <tr>
+            <td class="text-left py-1 pr-3 pl-4">↳ ${item.sub}</td>
+            <td class="text-right py-1 pr-3">${numberTL(item.total)}</td>
+            <td class="text-right py-1 pr-0">${(item.total/sumDetail*100).toFixed(1)}%</td>
+          </tr>
+        `);
+      });
+      // Ara ayraç
+      parts.push(`<tr><td colspan="3" class="py-1"></td></tr>`);
+    });
+    tbodyD.innerHTML = parts.join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
   }
+
+  /* -------- Gruplanmış (Ana Kategori toplamları) -------- */
+  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped, true);
+  const sumGrouped = totalsGrouped.reduce((a,b)=>a+b.total,0) || 1;
 
   const tbodyG = document.getElementById('tblMainExpensesGrouped');
   if (tbodyG) {
