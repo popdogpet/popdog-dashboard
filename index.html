@@ -1745,15 +1745,31 @@ let expensesRowsAdjustedCache = [];
 
 
 
+// Return the main category for a row; when grouped=true, collapse certain mains
+function mainCategoryForRow(r, grouped=false){
+  try{
+    const cats = typeof expenseCats === 'function' ? expenseCats(r) : { main: (r.Category||r.Main||'') };
+    let m = (cats && cats.main) ? String(cats.main) : String(r.Category||r.Main||'');
+    if (!m) return '';
+    if (grouped){
+      const key = m.toLowerCase();
+      // Collapse Caddebostan entries under a single bucket
+      if (key.includes('caddebostan')) m = 'Caddebostan (Toplam)';
+      // Add more grouping rules here if needed (e.g., advertising buckets)
+    }
+    return m;
+  }catch(e){ return String(r.Category||r.Main||'')||''; }
+}
+
 // === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
-function buildMainExpenseTotalsYTD(expRows){
+function buildMainExpenseTotalsYTD(expRows, grouped=false){
   const year = new Date().getFullYear();
   const map = new Map(); // main -> sum TRY
   for (const r of (expRows || [])) {
     const iso = getExpenseISODate(r);
     if (!iso || !iso.startsWith(String(year))) continue;
-    const { main } = expenseCats(r);     // Zee.Dog hard override
-    const amt = readExpenseAmountTRY(r); // tüm tutarları TRY’ye çevir
+    const main = mainCategoryForRow(r, grouped);   // use grouped mapping when requested
+    const amt = readExpenseAmountTRY(r);           // convert to TRY exactly once
     if (!main || !amt) continue;
     map.set(main, (map.get(main) || 0) + Math.abs(amt));
   }
@@ -1770,8 +1786,8 @@ function renderMainExpensesTable(){
     ? expensesRowsAdjustedCache
     : rowsDetail;
 
-  const totalsDetail  = buildMainExpenseTotalsYTD(rowsDetail);
-  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped);
+  const totalsDetail  = buildMainExpenseTotalsYTD(rowsDetail, false);
+  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped, true);
 
   const sumDetail  = totalsDetail.reduce((a,b)=>a+b.total,0) || 1;
   const sumGrouped = totalsGrouped.reduce((a,b)=>a+b.total,0) || 1;
