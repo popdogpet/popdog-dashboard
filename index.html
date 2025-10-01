@@ -728,6 +728,67 @@ function renderStagedTable(){
   if (b) b.onclick = writeStagedToSheet;
 })();
 
+/* === Write staged rows to Google Sheet via Apps Script WebApp (idempotent) === */
+if (!window.writeStagedToSheet) {
+  window.writeStagedToSheet = async function writeStagedToSheet() {
+    try {
+      const infoEl = document.getElementById('parseInfo');
+      const rows = Array.isArray(window.stagedRows) ? window.stagedRows.slice() : [];
+      if (!rows.length) {
+        if (infoEl) infoEl.textContent = 'Gönderilecek satır yok.';
+        return;
+      }
+
+      // Ensure payload fields are plain numbers / strings
+      const cleanRows = rows.map(r => ({
+        Date: r.Date || '',
+        Toptan: Number(r.Toptan || 0),
+        Online: Number(r.Online || 0),
+        CKM: Number(r.CKM || 0),
+        'CKM Nakit': Number(r['CKM Nakit'] || 0),
+        KasaNakit: Number(r.KasaNakit || 0),
+        Trendyol: Number(r.Trendyol || 0),
+        Hepsiburada: Number(r.Hepsiburada || 0),
+        Total: Number(r.Total || 0),
+      }));
+
+      if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+
+      const resp = await fetch(SHEET_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'appendDaily', rows: cleanRows })
+      });
+
+      if (!resp.ok) {
+        const t = await resp.text().catch(() => '');
+        throw new Error(`HTTP ${resp.status} ${t ? '• ' + t : ''}`);
+      }
+
+      // Try to read a JSON message if provided
+      let msg = '';
+      try {
+        const data = await resp.json();
+        if (data && (data.message || data.msg)) msg = String(data.message || data.msg);
+      } catch (_) { /* response might not be JSON; ignore */ }
+
+      if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${msg ? ' • ' + msg : ''}`;
+
+      // Clear staged rows and re-render the temp table
+      window.stagedRows = [];
+      try { renderStagedTable(); } catch (_) {}
+
+      // If the app has a refresh hook, call it to reload KPIs/charts
+      try { if (typeof refreshAll === 'function') refreshAll(); } catch (_) {}
+
+    } catch (err) {
+      const infoEl = document.getElementById('parseInfo');
+      if (infoEl) infoEl.textContent = `⚠️ Sheet yazma hatası: ${err.message || err}`;
+      console.error('writeStagedToSheet error:', err);
+    }
+  };
+}
+
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
   const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
