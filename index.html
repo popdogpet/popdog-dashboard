@@ -1646,8 +1646,25 @@ let lineChart, pieChart, barChart;
 let monthlyCache = [];
 let yoyEnabled = true;
 function drawCharts(monthly){
+  // ====== Safe helpers & state ======
+  const toNum = (v)=> Number.isFinite(v) ? v : (isNaN(+v) ? 0 : +v);
+
   // Cache incoming monthly for later re-draws (toggle)
   monthlyCache = Array.isArray(monthly) ? monthly : [];
+
+  // Eğer hiç veri yoksa: grafikleri güvenle temizle, tabloları "veri yok" göster
+  const safeDestroy = (cVarName) => {
+    try { if (window[cVarName]) { window[cVarName].destroy(); window[cVarName] = null; } } catch(e){}
+  };
+  if (!Array.isArray(monthlyCache) || monthlyCache.length === 0){
+    safeDestroy('lineChart');
+    safeDestroy('barChart');
+    const w1 = document.getElementById('lineTotalTblWrap');
+    const w2 = document.getElementById('barStackTblWrap');
+    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    return;
+  }
 
   // ==== Build label set for the current year & an aligned prev-year series ====
   const now = new Date();
@@ -1655,30 +1672,38 @@ function drawCharts(monthly){
   const prevYear = currentYear - 1;
 
   const curArr = monthlyCache.filter(r => r.year === currentYear);
-  const labels = curArr.map(r => r.month); // e.g. "2025-01", "2025-02", ...
+  const labels = Array.isArray(curArr) ? curArr.map(r => r.month) : [];
+
+  // Veri güvenlik kontrolü (label yoksa temizle ve çık)
+  if (!Array.isArray(labels) || labels.length === 0){
+    safeDestroy('lineChart');
+    safeDestroy('barChart');
+    const w1 = document.getElementById('lineTotalTblWrap');
+    const w2 = document.getElementById('barStackTblWrap');
+    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    return;
+  }
 
   // Map prev-year by MM for alignment to current labels
   const prevMap = {};
   monthlyCache.forEach(r => {
     if (r.year === prevYear) {
-      const mm = r.month.slice(5, 7); // "MM"
-      prevMap[mm] = (prevMap[mm] || 0) + (r.Total || 0);
+      const mm = (r.month || '').slice(5, 7);
+      prevMap[mm] = toNum(prevMap[mm] || 0) + toNum(r.Total || 0);
     }
   });
-  const dataCur = curArr.map(r => r.Total || 0);
-  const dataPrev = labels.map(m => {
-    const mm = m.slice(5, 7);
-    return prevMap[mm] || 0;
-  });
+  const dataCur  = curArr.map(r => toNum(r.Total || 0));
+  const dataPrev = labels.map(m => toNum(prevMap[(m||'').slice(5, 7)] || 0));
 
-  // Helper function for monthly totals table (if not already present)
+  // === Table helpers (inline) ===
   function renderMonthlyTotalsTable(wrapperId, labelsArr, totalsArr){
     const wrap = document.getElementById(wrapperId);
     if(!wrap) return;
     try{
-      const rows = labelsArr.map((m,i)=>{
-        const total = totalsArr[i] || 0;
-        const prev  = i>0 ? (totalsArr[i-1]||0) : 0;
+      const rows = (labelsArr||[]).map((m,i)=>{
+        const total = toNum(totalsArr[i] || 0);
+        const prev  = i>0 ? toNum(totalsArr[i-1] || 0) : 0;
         const mom   = prev ? ((total - prev) / prev) * 100 : 0;
         const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
         const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
@@ -1706,21 +1731,20 @@ function drawCharts(monthly){
     }catch(e){ /* silent */ }
   }
 
-  // Helper function for channel breakdown table for stacked bar chart
-  function renderChannelMonthlyTable(wrapperId, labelsArr, curArr){
+  function renderChannelMonthlyTable(wrapperId, labelsArr, curMonthlyArr){
     const wrap = document.getElementById(wrapperId);
     if(!wrap) return;
     try{
-      const rows = labelsArr.map((m,i)=>{
-        const r   = curArr[i] || {};
-        const tpt = r.Toptan || 0;
-        const onl = r.Online || 0;
-        const ckm = r.CKM || 0;
-        const trn = r.Trendyol || 0;
-        const hb  = r.Hepsiburada || 0;
-        const total = r.Total || (tpt + onl + ckm + trn + hb);
-        const prevR = i>0 ? (curArr[i-1] || {}) : null;
-        const prev  = prevR ? (prevR.Total || ((prevR.Toptan||0) + (prevR.Online||0) + (prevR.CKM||0) + (prevR.Trendyol||0) + (prevR.Hepsiburada||0))) : 0;
+      const rows = (labelsArr||[]).map((m,i)=>{
+        const r   = curMonthlyArr[i] || {};
+        const tpt = toNum(r.Toptan);
+        const onl = toNum(r.Online);
+        const ckm = toNum(r.CKM);
+        const trn = toNum(r.Trendyol);
+        const hb  = toNum(r.Hepsiburada);
+        const total = toNum(r.Total || (tpt + onl + ckm + trn + hb));
+        const prevR = i>0 ? (curMonthlyArr[i-1] || {}) : null;
+        const prev  = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
         const mom   = prev ? ((total - prev) / prev) * 100 : 0;
         const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
         const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
@@ -1759,9 +1783,16 @@ function drawCharts(monthly){
   }
 
   // ========== Line: Aylık Toplam Ciro ==========
-  if(lineChart) lineChart.destroy();
-  const lctx = document.getElementById('lineTotal').getContext('2d');
-  function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+  if (lineChart) { try{ lineChart.destroy(); }catch(e){} lineChart = null; }
+  const lctxEl = document.getElementById('lineTotal');
+  if (!lctxEl || !lctxEl.getContext){
+    // canvas bulunamazsa tabloları yine de bas
+    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
+    return;
+  }
+  const lctx = lctxEl.getContext('2d');
+  const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
 
   const datasets = [{
     label:'Bu Yıl',
@@ -1772,7 +1803,7 @@ function drawCharts(monthly){
   }];
 
   // add prev year overlay if toggled on and we have any values
-  const hasPrevAny = dataPrev.some(v => v > 0);
+  const hasPrevAny = (dataPrev||[]).some(v => toNum(v) > 0);
   if (yoyEnabled && hasPrevAny) {
     datasets.push({
       label:'Geçen Yıl',
@@ -1780,37 +1811,49 @@ function drawCharts(monthly){
       tension:0.35,
       borderWidth:2,
       borderDash:[6,4],
-      borderColor:'#94a3b8',     // slate-400
+      borderColor:'#94a3b8',
       pointRadius:0,
       fill:false
     });
   }
 
-  lineChart = new Chart(lctx, {
-    type:'line',
-    data:{ labels: labels.map(m => m), datasets },
-    options:{
-      resizeDelay: 200,
-      maintainAspectRatio: false,
-      plugins:{
-        legend:{display:true, position:'bottom'},
-        datalabels:{
-          display:(ctx)=> (ctx.chart.data.labels||[]).length <= 8,
-          align:'top', anchor:'end', formatter:(v)=> numberTL(v), color:'#64748b', clip:true
+  try{
+    lineChart = new Chart(lctx, {
+      type:'line',
+      data:{ labels: labels.map(m => m), datasets },
+      options:{
+        resizeDelay: 200,
+        maintainAspectRatio: false,
+        plugins:{
+          legend:{display:true, position:'bottom'},
+          datalabels:{
+            display:(ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
+              return L.length <= 8;
+            },
+            align:'top', anchor:'end', formatter:(v)=> numberTL(toNum(v)), color:'#64748b', clip:true
+          }
+        },
+        scales:{
+          x:{ ticks:{ maxRotation:0 } },
+          y:{ ticks:{ callback:(v)=> numberTL(toNum(v)) } }
         }
-      },
-      scales:{
-        x:{ ticks:{ maxRotation:0 } },
-        y:{ ticks:{ callback:(v)=> numberTL(v) } }
       }
-    }
-  });
+    });
+  }catch(err){
+    console.warn('Line chart init error', err);
+    try{ if(lineChart){ lineChart.destroy(); lineChart=null; } }catch(e){}
+  }
 
-
-
-  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro (bu yıl aylar) ==========
-  if (barChart) barChart.destroy();
-  const bctx = document.getElementById('barStack').getContext('2d');
+  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro ==========
+  if (barChart) { try{ barChart.destroy(); }catch(e){} barChart = null; }
+  const bctxEl = document.getElementById('barStack');
+  if (!bctxEl || !bctxEl.getContext){
+    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
+    return;
+  }
+  const bctx = bctxEl.getContext('2d');
   const barColors = [
     'rgba(165,180,252,0.70)',
     'rgba(52,211,153,0.70)',
@@ -1820,40 +1863,48 @@ function drawCharts(monthly){
   ];
   const barBorder = 'rgba(255,255,255,0.55)';
 
-  barChart = new Chart(bctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Toptan',      data: curArr.map(r=>r.Toptan),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Online',      data: curArr.map(r=>r.Online),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'CKM',         data: curArr.map(r=>r.CKM),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Trendyol',    data: curArr.map(r=>r.Trendyol),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        { label: 'Hepsiburada', data: curArr.map(r=>r.Hepsiburada), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-      ]
-    },
-    options: {
-      resizeDelay: 200,
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: { padding: 0 },
-      scales: {
-        x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
-        y: { stacked:true, ticks:{ callback:(v)=> numberTL(v) }, grid:{ color:'rgba(148,163,184,0.15)' } }
+  try{
+    barChart = new Chart(bctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Toptan',      data: curArr.map(r=>toNum(r.Toptan)),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Online',      data: curArr.map(r=>toNum(r.Online)),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'CKM',         data: curArr.map(r=>toNum(r.CKM)),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Trendyol',    data: curArr.map(r=>toNum(r.Trendyol)),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Hepsiburada', data: curArr.map(r=>toNum(r.Hepsiburada)), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        ]
       },
-      plugins: {
-        legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
-        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(ctx.raw)}` } },
-        datalabels: {
-          display: (ctx)=> (ctx.chart.data.labels||[]).length <= 6,
-          anchor: 'center', align: 'center', formatter: v => numberTL(v),
-          color: '#fff', font: { weight: '600', size: 10 }, clamp: true
-        }
-      },
-      categoryPercentage: 0.7,
-      barPercentage: 0.8
-    }
-  });
+      options: {
+        resizeDelay: 200,
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: 0 },
+        scales: {
+          x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
+          y: { stacked:true, ticks:{ callback:(v)=> numberTL(toNum(v)) }, grid:{ color:'rgba(148,163,184,0.15)' } }
+        },
+        plugins: {
+          legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
+          datalabels: {
+            display: (ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
+              return L.length <= 6;
+            },
+            anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
+            color: '#fff', font: { weight: '600', size: 10 }, clamp: true
+          }
+        },
+        categoryPercentage: 0.7,
+        barPercentage: 0.8
+      }
+    });
+  }catch(err){
+    console.warn('Bar chart init error', err);
+    try{ if(barChart){ barChart.destroy(); barChart=null; } }catch(e){}
+  }
 
   // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
   renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
