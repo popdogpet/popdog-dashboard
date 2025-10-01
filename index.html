@@ -783,10 +783,9 @@ async function loadExpensesCsv(url){
         header: true,
         skipEmptyLines: true,
         complete: (res) => {
-          const rows = (res.data || [])
-            .map(parseExpenseRow)
-            .filter(r => r.Date && r.Amount !== 0);
-          resolve(rows);
+const rows = (res.data || [])
+  .map(parseExpenseRow)
+  .filter(r => r.Date);          resolve(rows);
         },
         error: () => resolve([])
       });
@@ -1911,6 +1910,67 @@ function revenueYTDForYear(year){
 }
 
 // Robustly parse expense amount in TRY, including USD->TRY conversion if needed
+// === Expense helpers: robust date parse, category mapping (Zee.Dog override), TRY amount ===
+function getExpenseISODate(r){
+  try{
+    const raw = (r && (r.Date || r.date)) ? String(r.Date || r.date).trim() : '';
+    if (!raw) return '';
+    const mIso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (mIso) return mIso[1];
+    const mTr = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+    if (mTr){
+      let dd=+mTr[1], mm=+mTr[2], yy=+mTr[3]; if(yy<100) yy+=2000;
+      return `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+    }
+    const d = new Date(raw);
+    return isNaN(+d) ? '' : d.toISOString().slice(0,10);
+  }catch(e){ return ''; }
+}
+
+function expenseCats(r){
+  const sub  = ((r && (r.FinalSubcategory || r.Subcategory || r.subcategory)) || '').toString().toLowerCase();
+  const cat  = ((r && (r.Category || r.category)) || '').toString().toLowerCase();
+
+  // --- HARD OVERRIDE: Zee.Dog görünmeli ---
+  if (sub.includes('zee')) return { main: 'Zee.Dog', sub: 'Zee.Dog' };
+
+  if (cat.includes('mal alımı') || cat.includes('cogs') || cat.includes('inventory') || cat.includes('stock')){
+    return { main: 'Mal Alımı', sub: (r.Subcategory || r.FinalSubcategory || 'Mal Alımı') };
+  }
+  if (cat.includes('kira')) return { main: 'Kira', sub: r.Subcategory || 'Kira' };
+  if (cat.includes('maaş') || cat.includes('personel') || cat.includes('sgk')) return { main: 'Personel', sub: r.Subcategory || 'Personel' };
+  if (cat.includes('pazarlama') || cat.includes('reklam') || cat.includes('ads')) return { main: 'Pazarlama', sub: r.Subcategory || 'Pazarlama' };
+  if (cat.includes('lojistik') || cat.includes('kargo') || cat.includes('shipping')) return { main: 'Lojistik', sub: r.Subcategory || 'Lojistik' };
+  if (cat.includes('genel') || cat.includes('g&a') || cat.includes('ofis')) return { main: 'Genel Gider', sub: r.Subcategory || 'Genel' };
+
+  const main = (r.Category || r.Subcategory || r.FinalSubcategory || 'Diğer').toString();
+  return { main, sub: r.Subcategory || r.FinalSubcategory || main };
+}
+
+function readExpenseAmountTRY(r){
+  try{
+    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
+    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
+    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
+    if (!amtNum) return 0;
+
+    if (cur === 'USD'){
+      let tryPerUsd = 0;
+      tryPerUsd = getTryPerUsd();
+      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
+        tryPerUsd = 1 / fxRateUSDPerTRY;
+      }
+      if (!tryPerUsd){
+        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
+      }
+      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
+      return amtNum * tryPerUsd;
+    }
+    return parseTL(amtNum);
+  }catch(e){
+    return 0;
+  }
+}
 function readExpenseAmountTRY(r){
   try{
     if(!r) return 0;
