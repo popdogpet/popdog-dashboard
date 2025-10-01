@@ -79,6 +79,9 @@ th, td { white-space: nowrap; }
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     padding: 8px;
   }
+/* === Unified chart sizing for consistency (mobile-first) === */
+.chart-can{ width:100%; display:block; height: clamp(180px, 40vw, 260px); }
+@media (min-width:1024px){ .chart-can{ height: 220px; } }
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
 .sales-turnover table td,
@@ -206,13 +209,13 @@ th, td { white-space: nowrap; }
             <span id="yoyState" class="val">Açık</span>
           </button>
         </div>
-        <canvas id="lineTotal" height="160"></canvas>
+        <canvas id="lineTotal" class="chart-can"></canvas>
         <div id="lineTotalTblWrap"></div>
       </div>
 
       <div class="glass card-3d rounded-3xl p-5">
         <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-        <canvas id="barStack" height="160"></canvas>
+        <canvas id="barStack" class="chart-can"></canvas>
         <div id="barStackTblWrap"></div>
       </div>
     </div>
@@ -1771,8 +1774,7 @@ function drawCharts(monthly){
     type:'line',
     data:{ labels: labels.map(m => m), datasets },
     options:{
-      maintainAspectRatio: true,
-      aspectRatio: 1.6,
+      maintainAspectRatio: false,
       plugins:{
         legend:{display:true, position:'bottom'},
         datalabels:{
@@ -1815,8 +1817,7 @@ function drawCharts(monthly){
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 1.6,
+      maintainAspectRatio: false,
       layout: { padding: 0 },
       scales: {
         x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
