@@ -1896,6 +1896,91 @@ function revenueYTDForYear(year){
   }catch(e){ return 0; }
 }
 
+// Robustly parse expense amount in TRY, including USD->TRY conversion if needed
+function readExpenseAmountTRY(r){
+  try{
+    if(!r) return 0;
+
+    // 1) Currency hint from row
+    const currency = String(
+      r.Currency || r['Para Birimi'] || r['Currency Code'] || r['Currency'] || ''
+    ).trim().toUpperCase();
+
+    // 2) Candidate amount fields (robust to header variants)
+    let raw =
+      r.Amount ??
+      r.amount ??
+      r['Amount (TRY)'] ??
+      r['Amount (USD)'] ??
+      r['Tutar'] ??
+      r['Net Tutar'] ??
+      r['Total'] ??
+      r['Toplam'] ??
+      0;
+
+    const s = String(raw || '');
+
+    // 3) Detect sign in accounting format "(1,234.00)"
+    const isAccountingNegative = /^\s*\(.*\)\s*$/.test(s);
+
+    // 4) Detect currency from field or inline symbols
+    const looksUSD = currency === 'USD' || /\$|USD/i.test(s);
+    const looksTRY = currency === 'TRY' || /₺|TL|TRY/i.test(s);
+
+    // 5) Convert based on detection
+    if (looksUSD){
+      // Parse as USD first
+      const usd = parseUSD(s);
+
+      // Try to get TRY per USD (₺/USD) from various hints
+      let tryPerUsd = 0;
+
+      // a) If we previously derived/store FX from KPI
+      try {
+        const storedTpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+        if (storedTpu > 0) tryPerUsd = storedTpu;
+      } catch(e){ /* ignore */ }
+
+      // b) If we only have USD per TRY → invert
+      if (!tryPerUsd){
+        let usdPerTry = 0;
+        if (typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0) usdPerTry = fxRateUSDPerTRY;
+        try {
+          const storedUpt = Number(localStorage.getItem('popdog_fx_usd_per_try') || '0');
+          if (storedUpt > 0) usdPerTry = usdPerTry || storedUpt;
+        } catch(e){ /* ignore */ }
+        if (usdPerTry > 0) tryPerUsd = 1 / usdPerTry;
+      }
+
+      // c) As a final fallback, derive from current KPI widgets on screen
+      if (!tryPerUsd){
+        const derived = deriveTryPerUsdFromKPI();
+        if (derived > 0) tryPerUsd = derived;
+      }
+
+      // If still unknown, treat as 0 to avoid polluting totals
+      if (!tryPerUsd) return 0;
+
+      const valTRY = usd * tryPerUsd;
+      return isAccountingNegative ? -Math.abs(valTRY) : valTRY;
+    }
+
+    // Default branch: treat as TRY
+    // Parse TRY robustly (also honoring accounting negatives)
+    if (isAccountingNegative){
+      const inner = s.replace(/^\(|\)$/g,'');
+      return -Math.abs(parseTL(inner));
+    }
+    if (looksTRY){
+      return parseTL(s);
+    }
+    // If currency is unknown, prefer TRY interpretation
+    return parseTL(s);
+  }catch(e){
+    return 0;
+  }
+}
+
 
 
 // === Toggle for Expenses YoY ===
