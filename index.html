@@ -1676,6 +1676,58 @@ function drawCharts(monthly){
     }catch(e){ /* silent */ }
   }
 
+  // Helper function for channel breakdown table for stacked bar chart
+  function renderChannelMonthlyTable(wrapperId, labelsArr, curArr){
+    const wrap = document.getElementById(wrapperId);
+    if(!wrap) return;
+    try{
+      const rows = labelsArr.map((m,i)=>{
+        const r   = curArr[i] || {};
+        const tpt = r.Toptan || 0;
+        const onl = r.Online || 0;
+        const ckm = r.CKM || 0;
+        const trn = r.Trendyol || 0;
+        const hb  = r.Hepsiburada || 0;
+        const total = r.Total || (tpt + onl + ckm + trn + hb);
+        const prevR = i>0 ? (curArr[i-1] || {}) : null;
+        const prev  = prevR ? (prevR.Total || ((prevR.Toptan||0) + (prevR.Online||0) + (prevR.CKM||0) + (prevR.Trendyol||0) + (prevR.Hepsiburada||0))) : 0;
+        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
+        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
+        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
+        return `
+          <tr>
+            <td class="py-1 pr-3">${m}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(tpt)}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(onl)}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(ckm)}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(trn)}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(hb)}</td>
+            <td class="py-1 pr-3 text-right font-medium">${numberTL(total)}</td>
+            <td class="py-1 text-right ${momCls}">${momStr}</td>
+          </tr>
+        `;
+      });
+      wrap.innerHTML = `
+        <div class="mt-2 overflow-auto">
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">Ay</th>
+                <th class="text-right py-1 pr-3">Toptan</th>
+                <th class="text-right py-1 pr-3">Online</th>
+                <th class="text-right py-1 pr-3">CKM</th>
+                <th class="text-right py-1 pr-3">Trendyol</th>
+                <th class="text-right py-1 pr-3">HB</th>
+                <th class="text-right py-1 pr-3">Toplam</th>
+                <th class="text-right py-1 pr-0">MoM</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
+          </table>
+        </div>`;
+    }catch(e){ /* silent */ }
+  }
+
   // ========== Line: Aylık Toplam Ciro ==========
   if(lineChart) lineChart.destroy();
   const lctx = document.getElementById('lineTotal').getContext('2d');
@@ -1773,7 +1825,7 @@ function drawCharts(monthly){
 
   // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
   renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-  renderMonthlyTotalsTable('barStackTblWrap', labels, dataCur);
+  renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
 }
 
 /* ================== Expenses (CFO) ================== */
