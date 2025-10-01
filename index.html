@@ -217,10 +217,6 @@ th, td { white-space: nowrap; }
             <span class="label">YoY</span>
             <span id="expYoyState" class="val">Açık</span>
           </span>
-          <span class="chip-ios text-xs" title="Ana kategorileri üst başlıklara grupla / detay göster" id="expGroupToggle">
-            <span class="label">Grupla</span>
-            <span id="expGroupState" class="val">Kapalı</span>
-          </span>
         </div>
       </div>
 
@@ -249,7 +245,7 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <canvas id="lineExpenses" height="220"></canvas>
+          <canvas id="lineExpenses" height="160"></canvas>
           <style>
             #lineExpenses {
               background: rgba(255,255,255,0.25);
@@ -262,19 +258,36 @@ th, td { white-space: nowrap; }
           </style>
         </div>
       </div>
-      <div class="glass card-3d rounded-2xl p-4 mt-4">
-        <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD)</div>
-        <div class="overflow-auto">
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Kategori</th>
-                <th class="text-right py-1 pr-3">Tutar</th>
-                <th class="text-right py-1 pr-0">Pay</th>
-              </tr>
-            </thead>
-            <tbody id="tblMainExpenses" class="text-slate-800 dark:text-slate-100"></tbody>
-          </table>
+      <div class="grid lg:grid-cols-2 gap-4 mt-4">
+        <div class="glass card-3d rounded-2xl p-4">
+          <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD) — Detay</div>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300">
+                <tr>
+                  <th class="text-left py-1 pr-3">Kategori</th>
+                  <th class="text-right py-1 pr-3">Tutar</th>
+                  <th class="text-right py-1 pr-0">Pay</th>
+                </tr>
+              </thead>
+              <tbody id="tblMainExpensesDetail" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="glass card-3d rounded-2xl p-4">
+          <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD) — Gruplanmış</div>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300">
+                <tr>
+                  <th class="text-left py-1 pr-3">Kategori</th>
+                  <th class="text-right py-1 pr-3">Tutar</th>
+                  <th class="text-right py-1 pr-0">Pay</th>
+                </tr>
+              </thead>
+              <tbody id="tblMainExpensesGrouped" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -1720,11 +1733,6 @@ let expYoyEnabled = true;
 try{ const s = document.getElementById('expYoyState'); if (s) s.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }catch(e){}
 let expensesRowsAdjustedCache = [];
 
-// Grouping toggle for Main Expenses table (raw detailed vs. grouped/adjusted)
-let expGroupEnabled = false;
-try {
-  expGroupEnabled = (localStorage.getItem('popdog_exp_group') === '1');
-} catch(e) { /* noop */ }
 
 
 // === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
@@ -1746,29 +1754,39 @@ function buildMainExpenseTotalsYTD(expRows){
 
 // === "Ana Kategoriler (YTD)" tablosunu bu toplamlarla render et ===
 function renderMainExpensesTable(){
-  // Choose data source based on grouping toggle
-  const useAdjusted = !!expGroupEnabled && Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length;
-  const rows = useAdjusted ? expensesRowsAdjustedCache : expensesRowsCache;
+  // Detail = raw rows; Grouped = adjusted rows (fallback to raw if empty)
+  const rowsDetail  = Array.isArray(expensesRowsCache) ? expensesRowsCache : [];
+  const rowsGrouped = (Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length)
+    ? expensesRowsAdjustedCache
+    : rowsDetail;
 
-  const totals = buildMainExpenseTotalsYTD(rows);
-  const sumAll = totals.reduce((a,b)=>a+b.total,0) || 1;
-  const tbody = document.getElementById('tblMainExpenses');
-  if (!tbody) return;
-  tbody.innerHTML = totals.map(t => `
-    <tr>
-      <td class="text-left py-1 pr-3">${t.main}</td>
-      <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
-      <td class="text-right py-1 pr-0">${(t.total/sumAll*100).toFixed(1)}%</td>
-    </tr>
-  `).join('');
-  try {
-    const titleEls = Array.from(document.querySelectorAll('section .text-slate-700.dark\\:text-slate-200.mb-2'));
-    const titleEl = titleEls.find(el => /Ana Kategoriler \(YTD\)/.test(el.textContent || ''));
-    if (titleEl) {
-      const base = 'Ana Kategoriler (YTD)';
-      titleEl.textContent = base + (expGroupEnabled ? ' — Gruplanmış' : ' — Detay');
-    }
-  } catch(e) { /* silent */ }
+  const totalsDetail  = buildMainExpenseTotalsYTD(rowsDetail);
+  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped);
+
+  const sumDetail  = totalsDetail.reduce((a,b)=>a+b.total,0) || 1;
+  const sumGrouped = totalsGrouped.reduce((a,b)=>a+b.total,0) || 1;
+
+  const tbodyD = document.getElementById('tblMainExpensesDetail');
+  if (tbodyD) {
+    tbodyD.innerHTML = totalsDetail.map(t => `
+      <tr>
+        <td class="text-left py-1 pr-3">${t.main}</td>
+        <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
+        <td class="text-right py-1 pr-0">${(t.total/sumDetail*100).toFixed(1)}%</td>
+      </tr>
+    `).join('');
+  }
+
+  const tbodyG = document.getElementById('tblMainExpensesGrouped');
+  if (tbodyG) {
+    tbodyG.innerHTML = totalsGrouped.map(t => `
+      <tr>
+        <td class="text-left py-1 pr-3">${t.main}</td>
+        <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
+        <td class="text-right py-1 pr-0">${(t.total/sumGrouped*100).toFixed(1)}%</td>
+      </tr>
+    `).join('');
+  }
 }
 
 // === Yumuşak bağlama (expensesRowsCache dolunca 1 kez çiz) ===
@@ -1780,8 +1798,6 @@ function renderMainExpensesTable(){
     if (Array.isArray(expensesRowsCache) && expensesRowsCache.length){
       clearInterval(iv);
       renderMainExpensesTable();
-      const s = document.getElementById('expGroupState');
-      if (s) s.textContent = expGroupEnabled ? 'Açık' : 'Kapalı';
     } else if (tries >= maxTries){
       clearInterval(iv);
     }
@@ -1792,25 +1808,6 @@ function renderMainExpensesTable(){
       renderMainExpensesTable();
     }
   });
-})();
-(function(){
-  function syncExpGroupChip(){
-    const s = document.getElementById('expGroupState');
-    if (s) s.textContent = expGroupEnabled ? 'Açık' : 'Kapalı';
-  }
-  // initial
-  syncExpGroupChip();
-  // click handler
-  const t = document.getElementById('expGroupToggle');
-  if (t) t.addEventListener('click', ()=>{
-    expGroupEnabled = !expGroupEnabled;
-    try { localStorage.setItem('popdog_exp_group', expGroupEnabled ? '1' : '0'); } catch(e){}
-    syncExpGroupChip();
-    // re-render table with selected dataset
-    try { renderMainExpensesTable(); } catch(e){}
-  });
-  // also re-sync after visibility change (in case of external updates)
-  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) syncExpGroupChip(); });
 })();
 
 // ===== MAIN DATA LOAD (Revenue + Inventory + Orders) =====
