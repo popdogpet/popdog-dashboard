@@ -758,13 +758,14 @@ function loadCSV(url){
   });
 }
 
-// Robust normalizer so Papa.parse output always has Date + Amount for quick filters
+// Robust normalizer so Papa.parse output always has Date normalized.
 function parseExpenseRow(r){
   try{
     const iso = getExpenseISODate(r) || '';
-    const amt = readExpenseAmountTRY(r) || 0;
-    // keep original fields; ensure Date & Amount are present for generic filters
-    return { ...r, Date: (iso || r.Date || r.date || ''), Amount: amt };
+    // IMPORTANT:
+    // Do NOT modify or overwrite r.Amount here.
+    // Keep raw CSV fields intact so readExpenseAmountTRY(r) can apply FX exactly once later.
+    return { ...r, Date: (iso || r.Date || r.date || '') };
   }catch(e){
     return r || {};
   }
