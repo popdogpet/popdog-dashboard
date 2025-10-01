@@ -1610,20 +1610,33 @@ const glassBars = {
   },
   afterDatasetDraw(chart, args, pluginOptions) {
     if (chart.config.type !== 'bar') return;
-    const { ctx, chartArea } = chart;
-    const { left, top, right, bottom } = chartArea;
-    // subtle diagonal sheen across the plot area
-    const grad = ctx.createLinearGradient(left, top, right, bottom);
-    grad.addColorStop(0.0, 'rgba(255,255,255,0.12)');
-    grad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
-    grad.addColorStop(1.0, 'rgba(255,255,255,0.00)');
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = grad;
-    ctx.fillRect(left, top, right - left, bottom - top);
-    ctx.restore();
-    // clear shadow for next charts
-    ctx.restore();
+    const { ctx } = chart;
+    try {
+      const ca = chart.chartArea;
+      // If chartArea is not ready (0 size / initial render), just restore once and exit.
+      if (!ca) {
+        try { ctx.restore(); } catch(e) {}
+        return;
+      }
+      const { left, top, right, bottom } = ca;
+
+      // Draw subtle diagonal sheen
+      ctx.save();
+      const grad = ctx.createLinearGradient(left, top, right, bottom);
+      grad.addColorStop(0.0, 'rgba(255,255,255,0.12)');
+      grad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
+      grad.addColorStop(1.0, 'rgba(255,255,255,0.00)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = grad;
+      ctx.fillRect(left, top, right - left, bottom - top);
+      ctx.restore();
+
+      // Restore the save from beforeDatasetDraw (clears shadows)
+      try { ctx.restore(); } catch(e) {}
+    } catch (e) {
+      // On any error, attempt to restore context balance and continue
+      try { ctx.restore(); } catch(_) {}
+    }
   }
 };
 Chart.register(glassPie);
