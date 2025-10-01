@@ -1996,14 +1996,7 @@ function readExpenseAmountTRY(r){
 
 
 
-// === Toggle for Expenses YoY ===
-(function(){
-  const chip = document.getElementById('expYoyToggle');
-  const state = document.getElementById('expYoyState');
-  function sync(){ if(state) state.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }
-  if(chip){ chip.addEventListener('click', ()=>{ expYoyEnabled = !expYoyEnabled; sync(); drawExpensesCharts(expensesMonthlyCache); }); }
-  sync();
-})();
+
 
 // === Recompute expenses monthly + KPIs + chart when cache changes ===
 function refreshExpensesUI(){
@@ -2198,20 +2191,7 @@ function mapMainExpenseCategory(cat){
   return 'Diğer';
 }
 
-function parseExpenseRow(r){
-  const iso = getExpenseISODate(r);
-  const amt = readExpenseAmountTRY(r);
-  const cats = expenseCats(r);
 
-  return {
-    Date: iso,
-    Amount: Math.abs(amt || 0),
-    Category: cats.sub,       // leaf/visible
-    MainCategory: cats.main,  // PRIMARY (Zee.Dog zorunlu)
-    FinalSubcategory: (r && r.FinalSubcategory) ? String(r.FinalSubcategory).trim() : null,
-    FinalCategory:    (r && r.FinalCategory)    ? String(r.FinalCategory).trim()    : null
-  };
-}
 
 function buildExpensesMonthly(rows){
   const map = new Map();
@@ -2442,8 +2422,6 @@ arr.forEach(m=>{
     const labels = sorted.map(x => x.k);
     const data   = sorted.map(x => x.v);
 
-    const pieHover = pieColors.map(c => c.replace('0.70', '0.90'));
-
   } catch (e) {
     console.warn('drawExpensesCharts pie error', e);
   }
@@ -2452,26 +2430,16 @@ arr.forEach(m=>{
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
   try{
-    // 1) USD→TRY: Zee.Dog satırları USD; TRY’ye çevir
-    const adjRows = (expensesRowsCache || []).map(r => {
-      const isZee =
-        (r.FinalSubcategory && r.FinalSubcategory.trim() === 'Zee.Dog') ||
-        r.Category === 'Zee.Dog';
-      const amtRaw = +r.Amount || 0; // CSV’deki değer (Zee.Dog için USD kabul)
-      // fxRateUSDPerTRY: 1 TRY kaç USD (USD/TRY). USD → TRY: USD / (USD/TRY)
-      const amtTRY = (isZee && fxRateUSDPerTRY) ? (amtRaw / fxRateUSDPerTRY) : amtRaw;
-      return { ...r, Amount: amtTRY, __currency: isZee ? 'USD→TRY' : 'TRY' };
-    });
-    expensesRowsAdjustedCache = adjRows;
+    // Amount alanları zaten readExpenseAmountTRY() ile TRY’ye normalize edilmiş durumda.
+    expensesRowsAdjustedCache = Array.isArray(expensesRowsCache) ? expensesRowsCache.slice() : [];
 
-    // 2) Aylık agregasyonları ayarla (artık TRY)
-    expensesMonthlyCache = buildExpensesMonthly(adjRows);
+    // Aylık agregasyonları doğrudan bu cache'ten oluştur
+    expensesMonthlyCache = buildExpensesMonthly(expensesRowsAdjustedCache);
 
-    // 3) KPI + chart + tablo
-   // 3) KPI + chart + tablo
+    // KPI + grafik + tablo
     setExpensesKPIs(expensesMonthlyCache);
     drawExpensesCharts(expensesMonthlyCache);
-    renderMainExpenseTable();
+    renderMainExpensesTable();
   }catch(e){
     console.warn('refreshExpenses error', e);
   }
@@ -2509,33 +2477,7 @@ const EXPENSES_CSV_URL =
   };
 })();
 
-async function loadExpensesCsv(url){
-  if (!url) return [];
-  try{
-    // CSV metnini normal fetch ile çek (cache bust ile)
-    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
-    if (!resp.ok) return [];
-    const text = await resp.text();
 
-    // Papa.parse: string'i parse et
-    return await new Promise((resolve) => {
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) => {
-          const rows = (res.data || [])
-            .map(parseExpenseRow)          // senin normalize edicin
-            .filter(r => r.Date && r.Amount !== 0);
-          resolve(rows);
-        },
-        error: () => resolve([])
-      });
-    });
-  }catch(e){
-    // hata durumunda boş dön
-    return [];
-  }
-}
 
 /* ================== Weekly UI ================== */
 let weeklyAgg = [];
@@ -2776,10 +2718,9 @@ function refreshAll(){
 
   // 6) Stok bloğu
   renderStockBlock();
-  // === Expenses (CFO) render ===
+ // === Expenses (CFO) render ===
 try {
   if (Array.isArray(expensesMonthlyCache) && expensesMonthlyCache.length) {
-    renderExpensesOnce();
     drawExpensesCharts(expensesMonthlyCache);
   }
 } catch (e) {
