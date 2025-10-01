@@ -1793,7 +1793,6 @@ function renderMainExpensesTable(){
     }
   });
 })();
-// ===== Expenses Grouping Toggle (chip) =====
 (function(){
   function syncExpGroupChip(){
     const s = document.getElementById('expGroupState');
@@ -1812,6 +1811,62 @@ function renderMainExpensesTable(){
   });
   // also re-sync after visibility change (in case of external updates)
   document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) syncExpGroupChip(); });
+})();
+
+// ===== MAIN DATA LOAD (Revenue + Inventory + Orders) =====
+(function initMainLoad(){
+  if (window.__popdog_main_inited) return; // avoid double init
+  window.__popdog_main_inited = true;
+
+  async function boot(){
+    // 1) SHEET (revenue daily)
+    try{
+      const sheetUrl = localStorage.getItem('popdog_sheet_csv') || DEFAULT_SHEET_CSV;
+      if (sheetUrl){
+        const rows = await loadFromSheet(sheetUrl);
+        loadedRows = Array.isArray(rows) ? rows : [];
+        try { localStorage.setItem('popdog_sheet_cache', JSON.stringify(loadedRows)); } catch(e){}
+        const monthly = buildMonthly(loadedRows);
+        try { setKPIs(monthly); } catch(e) { console.warn('setKPIs error', e); }
+        try { drawCharts(monthly); } catch(e) { console.warn('drawCharts error', e); }
+        try { buildAlerts(monthly); } catch(e) { console.warn('buildAlerts error', e); }
+        try { renderTargets(monthly); } catch(e) { console.warn('renderTargets error', e); }
+        // FX türet: KPIs yazıldıktan sonra TRY/USD oranını çıkar (opsiyonel)
+        try {
+          const tryPerUsd = deriveTryPerUsdFromKPI();
+          if (tryPerUsd) { fxRateUSDPerTRY = 1 / tryPerUsd; }
+        } catch(e){}
+      }
+    }catch(err){ console.warn('Revenue boot error', err); }
+
+    // 2) INVENTORY
+    try{
+      const invUrl = localStorage.getItem('popdog_inv_csv') || DEFAULT_INV_CSV;
+      if (invUrl){
+        const invRows = await loadCSV(invUrl);
+        try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows||[])); } catch(e){}
+      }
+    }catch(err){ console.warn('Inventory load error', err); }
+
+    // 3) ORDERS (raw → mapped)
+    try{
+      const ordersUrl = localStorage.getItem('popdog_orders_csv') || DEFAULT_ORDERS_CSV;
+      if (ordersUrl){
+        const ordersRaw = await loadCSV(ordersUrl);
+        const mapped = (ordersRaw||[]).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+        try { localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped)); } catch(e){}
+      }
+    }catch(err){ console.warn('Orders load error', err); }
+
+    // 4) STOCK BLOCK render (after caches are ready)
+    try { renderStockBlock(); } catch(e) { console.warn('renderStockBlock error', e); }
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    boot();
+  }
 })();
 
 // ===== Ensure Expenses CSV loads on page load (idempotent) =====
