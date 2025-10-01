@@ -57,7 +57,7 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
-/* === Frosted (iOS-like) for main charts === */
+    /* === Frosted (iOS-like) for main charts === */
 #lineTotal,
 #barStack,
 #pieShare{
@@ -66,7 +66,9 @@ th, td { white-space: nowrap; }
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  padding: 8px;
+  /* IMPORTANT: avoid resize feedback loops on Chart.js */
+  box-sizing: border-box;
+  padding: 0 !important;
 }
 
   /* Match chart glass look for tables under charts */
@@ -265,7 +267,8 @@ th, td { white-space: nowrap; }
               -webkit-backdrop-filter: blur(12px) saturate(180%);
               border-radius: 12px;
               box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-              padding: 8px;
+              box-sizing: border-box;
+              padding: 0 !important;
             }
           </style>
         </div>
@@ -1774,6 +1777,7 @@ function drawCharts(monthly){
     type:'line',
     data:{ labels: labels.map(m => m), datasets },
     options:{
+      resizeDelay: 200,
       maintainAspectRatio: false,
       plugins:{
         legend:{display:true, position:'bottom'},
@@ -1816,6 +1820,7 @@ function drawCharts(monthly){
       ]
     },
     options: {
+      resizeDelay: 200,
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: 0 },
