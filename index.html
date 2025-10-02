@@ -1804,36 +1804,74 @@ function drawCharts(monthly){
         const trn = toNum(r.Trendyol);
         const hb  = toNum(r.Hepsiburada);
         const total = toNum(r.Total || (tpt + onl + ckm + trn + hb));
+
         const prevR = i>0 ? (curMonthlyArr[i-1] || {}) : null;
-        const prev  = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
-        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
-        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
-        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
+        const prevT = prevR ? toNum(prevR.Toptan)      : 0;
+        const prevO = prevR ? toNum(prevR.Online)      : 0;
+        const prevC = prevR ? toNum(prevR.CKM)         : 0;
+        const prevTr= prevR ? toNum(prevR.Trendyol)    : 0;
+        const prevH = prevR ? toNum(prevR.Hepsiburada) : 0;
+        const prevTotal = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
+
+        const momPct = (cur, prev) => prev ? ((cur - prev) / prev) * 100 : null;
+        const fmtPct = (v) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(1)}%`;
+        const clsPct = (v) => v==null ? 'hint' : (v>=0 ? 'kpi-up' : 'kpi-down');
+
+        const mT = momPct(tpt, prevT);
+        const mO = momPct(onl, prevO);
+        const mC = momPct(ckm, prevC);
+        const mTr= momPct(trn, prevTr);
+        const mH = momPct(hb,  prevH);
+        const mTot = momPct(total, prevTotal);
+
         return `
           <tr>
             <td class="py-1 pr-3">${m}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(tpt)}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(onl)}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(ckm)}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(trn)}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(hb)}</td>
-            <td class="py-1 pr-3 text-right font-medium">${numberTL(total)}</td>
-            <td class="py-1 text-right ${momCls}">${momStr}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(tpt)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mT)}">${fmtPct(mT)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(onl)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mO)}">${fmtPct(mO)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(ckm)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mC)}">${fmtPct(mC)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(trn)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mTr)}">${fmtPct(mTr)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(hb)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mH)}">${fmtPct(mH)}</td>
+
+            <td class="py-1 pr-2 text-right font-medium">${numberTL(total)}</td>
+            <td class="py-1 text-right ${clsPct(mTot)}">${fmtPct(mTot)}</td>
           </tr>
         `;
       });
+
       wrap.innerHTML = `
         <div class="mt-1 overflow-auto">
           <table class="min-w-full text-xs">
             <thead class="text-slate-600 dark:text-slate-300">
               <tr>
                 <th class="text-left py-1 pr-3">Ay</th>
-                <th class="text-right py-1 pr-3">Toptan</th>
-                <th class="text-right py-1 pr-3">Online</th>
-                <th class="text-right py-1 pr-3">CKM</th>
-                <th class="text-right py-1 pr-3">Trendyol</th>
-                <th class="text-right py-1 pr-3">HB</th>
-                <th class="text-right py-1 pr-3">Toplam</th>
+
+                <th class="text-right py-1 pr-2">Toptan</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Online</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">CKM</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Trendyol</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">HB</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Toplam</th>
                 <th class="text-right py-1 pr-0">MoM</th>
               </tr>
             </thead>
