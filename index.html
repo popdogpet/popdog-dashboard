@@ -133,6 +133,13 @@ th, td { white-space: nowrap; }
         </h1>
         <p class="hint">Google Sheet + CSV + WhatsApp yapıştır · Haftalık mini kartlar · Hedefler (YTD ortalama)</p>
       </div>
+      <!-- Top Nav: Pages -->
+      <div class="w-full mt-2 flex items-center gap-2 flex-wrap">
+        <button id="navSummary" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Özet</button>
+        <button id="navRevenue" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Ciro</button>
+        <button id="navExpenses" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Giderler</button>
+        <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
+      </div>
       <div class="flex items-center gap-3">
         <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
         <input id="fileInput" type="file" accept=".csv" class="hidden">
@@ -145,7 +152,7 @@ th, td { white-space: nowrap; }
 
 
     <!-- KPIs + Alerts -->
-    <div class="grid md:grid-cols-2 gap-4 items-start">
+    <div class="grid md:grid-cols-2 gap-4 items-start" data-page="summary">
       <div class="grid gap-4">
         <div class="glass card-3d rounded-3xl p-5">
           <div class="hint text-sm">Toplam Ciro (YTD)</div>
@@ -196,7 +203,7 @@ th, td { white-space: nowrap; }
     </div>
 
     <!-- Haftalık Mini Kartlar -->
-    <section class="glass card-3d rounded-3xl p-5">
+    <section class="glass card-3d rounded-3xl p-5" data-page="summary">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium flex items-center gap-3">
           Haftalık Görünüm
@@ -217,7 +224,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid lg:grid-cols-2 gap-6" data-page="revenue">
       <div class="glass card-3d rounded-3xl p-5">
         <div class="flex items-center justify-between mb-2">
           <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
@@ -238,7 +245,7 @@ th, td { white-space: nowrap; }
     </div>
 
     <!-- === Expenses (CFO) === -->
-    <section class="glass card-3d rounded-3xl p-5 mt-6">
+    <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
       <div class="flex items-center justify-between mb-3">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Giderler (YTD) & Net Kâr</div>
         <div class="flex items-center gap-3">
@@ -323,7 +330,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Satış / Devir Listeleri -->
-    <div class="mt-6 sales-turnover">
+    <div class="mt-6 sales-turnover" data-page="stock">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Satış &amp; Devir Listeleri</div>
         <div class="flex items-center gap-3">
@@ -378,7 +385,7 @@ th, td { white-space: nowrap; }
     </div>
 
     <!-- === Stock Block: KPI + Tablolar === -->
-    <section id="stockBlock" class="glass card-3d rounded-3xl p-5">
+    <section id="stockBlock" class="glass card-3d rounded-3xl p-5" data-page="stock">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Stok Özeti</div>
         <div class="hint text-xs">Kaynak: inventory_value + orders_raw</div>
@@ -484,7 +491,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Günlük Rapor Yapıştır -->
-    <section class="glass card-3d rounded-3xl p-5">
+    <section class="glass card-3d rounded-3xl p-5" data-page="revenue">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Günlük Rapor Yapıştır → Satır Ekle</div>
         <div class="hint text-sm">Format: Tarih, Kredi Kartı, QNB/İş/Garanti, Nakit, Toplam, Kasa Nakit, Pop Dog Online, Pop Dog Toptan, Trendyol, Hepsiburada</div>
@@ -517,7 +524,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Targets -->
-    <section class="glass card-3d rounded-3xl p-4">
+    <section class="glass card-3d rounded-3xl p-4" data-page="revenue">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Aylık Hedefler (YTD ortalama)</div>
         <div class="hint text-xs">Her ay: aynı yıl o aya kadar ortalama</div>
@@ -530,6 +537,46 @@ th, td { white-space: nowrap; }
       <br>
       <span style="color:#22c55e;">✅ Test deplooooy - 18.09.2025</span>
     </footer>
+  <script>
+    // Simple page router (hide/show data-page sections)
+    (function(){
+      const KEY = 'popdog_active_page';
+      const $all = () => Array.from(document.querySelectorAll('[data-page]'));
+      function showPage(key){
+        $all().forEach(el => {
+          if (el.dataset.page === key) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        });
+        try{ localStorage.setItem(KEY, key); }catch(e){}
+        // set active button look (optional subtle bold)
+        ['navSummary','navRevenue','navExpenses','navStock'].forEach(id=>{
+          const b = document.getElementById(id);
+          if(!b) return;
+          const k = id.replace('nav','').toLowerCase();
+          if((k==='summary' && key==='summary') || (k==='revenue' && key==='revenue') || (k==='expenses' && key==='expenses') || (k==='stock' && key==='stock')){
+            b.classList.add('ring-1','ring-indigo-400');
+          } else {
+            b.classList.remove('ring-1','ring-indigo-400');
+          }
+        });
+      }
+      window.showPage = showPage;
+      // Bind buttons
+      const btnMap = [
+        ['navSummary','summary'],
+        ['navRevenue','revenue'],
+        ['navExpenses','expenses'],
+        ['navStock','stock']
+      ];
+      btnMap.forEach(([id,key])=>{
+        const b = document.getElementById(id);
+        if(b) b.onclick = ()=> showPage(key);
+      });
+      // Initial
+      const start = (function(){ try{ return localStorage.getItem(KEY) || 'summary'; }catch(e){ return 'summary'; } })();
+      showPage(start);
+    })();
+  </script>
   </div>
 
 <script>
