@@ -69,6 +69,10 @@ th, td { white-space: nowrap; }
   /* IMPORTANT: avoid resize feedback loops on Chart.js */
   box-sizing: border-box;
   padding: 0 !important;
+  /* Added spacing so the canvas doesn’t hug the card walls
+     and leaves room above the table below */
+  margin: 12px;           /* uniform breathing room */
+  margin-bottom: 16px;    /* extra gap before the table wrapper */
 }
 
   /* Match chart glass look for tables under charts */
@@ -80,6 +84,7 @@ th, td { white-space: nowrap; }
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     padding: 8px;
+    margin: 0 12px 8px 12px;  /* align with canvas margin and add a little bottom space */
   }
 /* === Unified chart sizing for consistency (mobile-first) === */
 .chart-can{ width:100%; display:block; height: clamp(180px, 40vw, 260px); }
