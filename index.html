@@ -85,7 +85,19 @@ th, td { white-space: nowrap; }
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     padding: 8px;
     margin: 0 12px 8px 12px;  /* align with canvas margin and add a little bottom space */
-  }        
+    /* Prevent endless page growth */
+    max-height: 260px;        /* mobile-first */
+    overflow: auto;           /* scroll inside the wrapper */
+  }
+  
+  @media (min-width: 1024px){
+    #lineTotalTblWrap,
+    #barStackTblWrap{ max-height: 320px; }
+  }
+  @media (min-width: 1536px){
+    #lineTotalTblWrap,
+    #barStackTblWrap{ max-height: 360px; }
+  }
 
   /* Shrink font size of Kanal Bazlı Aylık Ciro table */
   #barStackTblWrap table {
