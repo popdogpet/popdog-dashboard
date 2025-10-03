@@ -876,7 +876,7 @@ if (!window.writeStagedToSheet) {
 
       const resp = await fetch(SHEET_WEBAPP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'appendDaily', rows: cleanRows })
       });
 
@@ -1052,7 +1052,8 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
   try{
     res = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // CORS preflight (OPTIONS) tetiklenmesin diye "simple request"
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
   }catch(netErr){
@@ -1085,7 +1086,7 @@ async function pingSheetWebApp(){
     // Try POST __ping__ (preferred)
     const r = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: '__ping__' })
     });
     if (r && r.ok) return true;
