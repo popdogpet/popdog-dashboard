@@ -9,6 +9,16 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
+    .badge-paid{
+      background: #16a34a1a;
+      color:#16a34a;
+      border:1px solid #16a34a33;
+      padding:.15rem .45rem; border-radius:999px; font-size:10px;
+    }
+    .badge-wait{
+      background:#64748b1a; color:#64748b; border:1px solid #64748b33;
+      padding:.15rem .45rem; border-radius:999px; font-size:10px;
+    }
     :root { color-scheme: light dark; }
     body { background: radial-gradient(1200px 600px at 10% -10%, #ecf2ff, transparent), radial-gradient(1200px 600px at 110% 110%, #f8fafc, transparent); }
     .dark body, .dark .pagebg { background: radial-gradient(1200px 600px at 10% -10%, #0b1220, transparent), radial-gradient(1200px 600px at 110% 110%, #0f172a, transparent) !important; }
@@ -305,6 +315,87 @@ th, td { white-space: nowrap; }
         <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Son 7 Gün Özeti</div>
         <div id="last7Wrap" class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-2"></div>
         <div id="last7Note" class="hint text-xs mt-1"></div>
+      </div>
+    </section>
+    <!-- === Krediler & Bekleyen Ödemeler === -->
+    <section id="loansBlock" class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium flex items-center gap-2">
+          💳 Krediler & Bekleyen Ödemeler
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="hint text-xs">Kaynak: localStorage (popdog_loans_state)</span>
+        </div>
+      </div>
+    
+      <!-- İki kredi -->
+      <div class="grid md:grid-cols-2 gap-4">
+        <!-- Taksitli Ticari Kredi -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Taksitli Ticari Kredi</div>
+            <span id="loanBizPaidBadge" class="badge">5/24</span>
+          </div>
+          <div class="mt-1 text-sm hint">Ödenecek Taksitler Toplamı: <span id="loanBizRemain" class="font-medium">–</span></div>
+          <div class="mt-1 text-sm">Taksit Tutarı: <span id="loanBizInst" class="font-semibold">–</span></div>
+          <div class="mt-1 text-xs hint">Kredi Tutarı: <span id="loanBizPrincipal">–</span> • Aylık Faiz: <span id="loanBizRate">–</span></div>
+          <div class="progress-wrap mt-2"><div id="loanBizBar" class="progress-bar" style="width:0%"></div></div>
+        </div>
+    
+        <!-- Taksitli Araç Kredisi -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Taksitli Araç Kredisi</div>
+            <span id="loanCarPaidBadge" class="badge">9/24</span>
+          </div>
+          <div class="mt-1 text-sm hint">Ödenecek Taksitler Toplamı: <span id="loanCarRemain" class="font-medium">–</span></div>
+          <div class="mt-1 text-sm">Taksit Tutarı: <span id="loanCarInst" class="font-semibold">–</span></div>
+          <div class="mt-1 text-xs hint">Kredi Tutarı: <span id="loanCarPrincipal">–</span> • Aylık Faiz: <span id="loanCarRate">–</span></div>
+          <div class="progress-wrap mt-2"><div id="loanCarBar" class="progress-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    
+      <!-- Zee.Dog Bekleyen Ödemeler -->
+      <div class="mt-5 rounded-2xl p-4 card-glass-pro">
+        <div class="flex items-center justify-between">
+          <div class="font-medium">Zee.Dog Bekleyen Ödemeler</div>
+          <div class="hint text-xs">USD → TRY çeviri için KPI’dan türetilen kur kullanılır</div>
+        </div>
+        <div class="overflow-auto mt-2">
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">ID</th>
+                <th class="text-right py-1 pr-3">Tutar (USD)</th>
+                <th class="text-right py-1 pr-3">≈ TRY</th>
+                <th class="text-left py-1 pr-0">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    
+      <!-- Demoş Bank -->
+      <div class="mt-5 grid md:grid-cols-2 gap-4">
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Demoş Bank — Altın Borç</div>
+            <div class="flex items-center gap-2">
+              <span class="hint text-xs">Gram Fiyatı (TRY)</span>
+              <input id="goldGramInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 2900">
+            </div>
+          </div>
+          <div class="mt-1 text-sm">Miktar: <strong>169 gr</strong></div>
+          <div class="mt-1 text-sm">Toplam (≈): <span id="goldTotal" class="font-semibold">–</span></div>
+          <div class="hint text-xs mt-1" id="goldNote"></div>
+        </div>
+    
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="font-medium">Demoş Bank — FI5</div>
+          <div class="mt-1 text-sm">Tutar: <span id="fi5Total" class="font-semibold">₺ 291.128</span></div>
+          <div class="hint text-xs mt-1">Statik değer — isterseniz düzenlenebilir yaparız</div>
+        </div>
       </div>
     </section>
 
@@ -1292,7 +1383,7 @@ async function initExpenseEntryUI(){
         }
         const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
         setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
-
+        applyExpenseToLoans({ amountTRY, subcat: subVal, note: noteVal });
         // Gerekirse cache’i kirletme & ekrana tazeleme
         try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
         try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
@@ -1307,6 +1398,195 @@ async function initExpenseEntryUI(){
 document.addEventListener('DOMContentLoaded', ()=> {
   try{ initExpenseEntryUI(); }catch(_){}
 });
+
+/* ================== LOANS & PENDING (STATE + UI) ================== */
+/* Kalıcı durum (localStorage) şeması */
+const LOANS_KEY = 'popdog_loans_state';
+const defaultLoansState = {
+  loans: {
+    biz: {                    // Taksitli Ticari
+      remainTRY: 2719938.78,
+      paid: 5, total: 24,
+      instTRY: 143154.67,
+      principalTRY: 2000000,
+      monthlyRate: 0.04640833
+    },
+    car: {                    // Taksitli Araç
+      remainTRY: 1453127.86,
+      paid: 9, total: 24,
+      instTRY: 96875.20,
+      principalTRY: 1500000,
+      monthlyRate: 0.03666666
+    }
+  },
+  zeeAwaitUSD: [
+    { id:'YK#033',   usd: 4626.02,  paid:false },
+    { id:'YK#034',   usd: 39425.33, paid:false },
+    { id:'YK#034.1', usd: 11827.00, paid:false },
+    { id:'YK#034.2', usd: 27597.00, paid:false },
+    { id:'YK#035',   usd: 37589.19, paid:false },
+    { id:'YK#035.1', usd: 11276.76, paid:false },
+    { id:'YK#035.2', usd: 26312.43, paid:false },
+  ],
+  demoBank: {
+    goldGram: 169,
+    gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
+    fi5TRY: 291128
+  }
+};
+
+function getLoansState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
+    if (s && typeof s==='object') return s;
+  }catch(_){}
+  return structuredClone(defaultLoansState);
+}
+function setLoansState(st){
+  try{ localStorage.setItem(LOANS_KEY, JSON.stringify(st)); }catch(_){}
+}
+
+/* Yardımcı: yaklaşık eşleşme (taksit sayısı tahmini) */
+function approxInstallments(paidAmount, instAmount){
+  if (!instAmount) return 1;
+  const k = Math.round(paidAmount / instAmount);
+  return Math.max(1, k);
+}
+
+/* Zee ID yakalama: not metninde YK#... varsa */
+function extractZeeIdFromNote(note){
+  if(!note) return '';
+  const m = String(note).match(/YK#\d+(?:\.\d+)?/i);
+  return m ? m[0].toUpperCase() : '';
+}
+
+/* USD tutarı nottan yakalama: $ 12,345.67 gibi */
+function extractUSDFromNote(note){
+  if(!note) return 0;
+  const m = String(note).match(/\$?\s*([\d,]+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const s = m[1].replace(/,/g,'');
+  const v = Number(s);
+  return isNaN(v) ? 0 : v;
+}
+
+/* TRY↔USD yardımcıları (mevcut koddaki oranları kullanır) */
+function tryPerUsd(){
+  // varsa localStorage tpu, yoksa KPI’dan türetilen
+  const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+  if (tpu>0) return tpu;
+  const derived = deriveTryPerUsdFromKPI();
+  return derived || 0;
+}
+
+/* === Render === */
+function renderLoansBlock(){
+  const st = getLoansState();
+
+  // Biz (ticari)
+  document.getElementById('loanBizRemain').textContent   = numberTL(st.loans.biz.remainTRY);
+  document.getElementById('loanBizInst').textContent     = numberTL(st.loans.biz.instTRY);
+  document.getElementById('loanBizPrincipal').textContent= numberTL(st.loans.biz.principalTRY);
+  document.getElementById('loanBizRate').textContent     = `${(st.loans.biz.monthlyRate*100).toFixed(6)}%`;
+  document.getElementById('loanBizPaidBadge').textContent= `${st.loans.biz.paid}/${st.loans.biz.total}`;
+  document.getElementById('loanBizBar').style.width      = `${Math.min(100, st.loans.biz.paid/st.loans.biz.total*100).toFixed(1)}%`;
+
+  // Car (araç)
+  document.getElementById('loanCarRemain').textContent   = numberTL(st.loans.car.remainTRY);
+  document.getElementById('loanCarInst').textContent     = numberTL(st.loans.car.instTRY);
+  document.getElementById('loanCarPrincipal').textContent= numberTL(st.loans.car.principalTRY);
+  document.getElementById('loanCarRate').textContent     = `${(st.loans.car.monthlyRate*100).toFixed(6)}%`;
+  document.getElementById('loanCarPaidBadge').textContent= `${st.loans.car.paid}/${st.loans.car.total}`;
+  document.getElementById('loanCarBar').style.width      = `${Math.min(100, st.loans.car.paid/st.loans.car.total*100).toFixed(1)}%`;
+
+  // Zee listesi
+  const tbody = document.getElementById('tblZeeAwait');
+  const k = tryPerUsd();
+  tbody.innerHTML = st.zeeAwaitUSD.map(z=>{
+    const tryEq = k ? numberTL(z.usd * k) : '–';
+    const badge = z.paid ? '<span class="badge-paid">paid</span>' : '<span class="badge-wait">waiting</span>';
+    return `
+      <tr>
+        <td class="py-1 pr-3">${z.id}</td>
+        <td class="py-1 pr-3 text-right">$ ${z.usd.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+        <td class="py-1 pr-3 text-right">${tryEq}</td>
+        <td class="py-1 pr-0">${badge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Altın
+  const gInput = document.getElementById('goldGramInput');
+  if (gInput){
+    if (!gInput.value && st.demoBank.gramTRY){ gInput.value = String(st.demoBank.gramTRY); }
+    gInput.onchange = ()=>{
+      const v = parseTL(gInput.value);
+      const s = getLoansState();
+      s.demoBank.gramTRY = v;
+      setLoansState(s);
+      try{ localStorage.setItem('popdog_gold_gram_try', String(v)); }catch(_){}
+      renderLoansBlock();
+    };
+  }
+  const gramPrice = st.demoBank.gramTRY || Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0;
+  const goldTotal = gramPrice ? gramPrice * st.demoBank.goldGram : 0;
+  document.getElementById('goldTotal').textContent = goldTotal ? numberTL(goldTotal) : '–';
+  document.getElementById('goldNote').textContent  = gramPrice ? `Hesap: ${st.demoBank.goldGram} gr × ${numberTL(gramPrice)}` : 'Gram fiyatı girin';
+  document.getElementById('fi5Total').textContent  = numberTL(st.demoBank.fi5TRY);
+}
+
+/* === Otomatik güncelleme: gider eklendiğinde çağırılacak ===
+   - subcat "Taksitli Ticari Kredi" → loans.biz
+   - subcat "Taksitli Araç Kredisi" → loans.car
+   - Zee.Dog ödemesi (not veya kategori) → eşleşen YK# id “paid”
+*/
+function applyExpenseToLoans({ amountTRY, subcat, note }){
+  const st = getLoansState();
+  const s = (subcat||'').toLowerCase();
+
+  // 1) Kredi taksitleri
+  if (s.includes('ticari kredi')){
+    const inst = st.loans.biz.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.biz.remainTRY = Math.max(0, (st.loans.biz.remainTRY || 0) - amountTRY);
+    st.loans.biz.paid = Math.min(st.loans.biz.total, (st.loans.biz.paid || 0) + n);
+  } else if (s.includes('araç kredi') || s.includes('arac kredi')){
+    const inst = st.loans.car.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.car.remainTRY = Math.max(0, (st.loans.car.remainTRY || 0) - amountTRY);
+    st.loans.car.paid = Math.min(st.loans.car.total, (st.loans.car.paid || 0) + n);
+  }
+
+  // 2) Zee.Dog ödemesi: not içinde YK#xxx varsa doğrudan işaretle
+  let marked = false;
+  const idFromNote = extractZeeIdFromNote(note);
+  if (idFromNote){
+    st.zeeAwaitUSD.forEach(z => {
+      if (z.id.toUpperCase() === idFromNote) { z.paid = true; marked = true; }
+    });
+  } else {
+    // notta $ tutar varsa veya TRY tutarı USD’ye bölününce yaklaşık eşleşiyorsa
+    const usdNote = extractUSDFromNote(note);
+    const tpu = tryPerUsd();
+    const usdFromTry = tpu ? (amountTRY / tpu) : 0;
+    const candidates = st.zeeAwaitUSD.filter(z => !z.paid);
+    const matchBy = (val)=> candidates.find(z => Math.abs(z.usd - val) <= Math.max(5, z.usd*0.02)); // ±2% veya min $5
+    let hit = null;
+    if (usdNote) hit = matchBy(usdNote);
+    if (!hit && usdFromTry) hit = matchBy(usdFromTry);
+    if (hit){ hit.paid = true; marked = true; }
+  }
+
+  setLoansState(st);
+  renderLoansBlock();
+  return true;
+}
+
+/* === Başlat === */
+(function initLoans(){
+  // İlk render
+  try{ if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', renderLoansBlock, { once:true }); } else { renderLoansBlock(); } }catch(_){}
+})();
 
 /* ================== INVENTORY & ORDERS HELPERS ================== */
 const SALES_WINDOW_OPTIONS = [30,90,120,180];
