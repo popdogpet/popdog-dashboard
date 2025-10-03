@@ -57,7 +57,6 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
-    /* === Frosted (iOS-like) for main charts === */
 #lineTotal,
 #barStack,
 #pieShare{
@@ -132,6 +131,80 @@ th, td { white-space: nowrap; }
 #kpiShareTbl{ width:100%; margin-top:.35rem; border-collapse:collapse; }
 #kpiShareTbl td{ font-size:11px; padding:.15rem .25rem; }
 #kpiShareTbl td:first-child{ opacity:.85; }
+  /* === Pro glass cards, inputs and buttons === */
+  .card-glass-pro{
+    position: relative;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.28));
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.65);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.55),
+      0 10px 28px rgba(15,23,42,0.12);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .dark .card-glass-pro{
+    background: linear-gradient(180deg, rgba(2,6,23,0.55), rgba(2,6,23,0.35));
+    border-color: rgba(255,255,255,0.10);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 12px 28px rgba(0,0,0,0.35);
+  }
+  .card-glass-pro:hover{
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.6),
+      0 16px 36px rgba(15,23,42,0.16);
+  }
+
+  .input-pro{
+    width: 100%;
+    border-radius: .75rem;
+    padding: .5rem .75rem;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .dark .input-pro{
+    background: rgba(2,6,23,0.45);
+    border-color: rgba(255,255,255,0.10);
+  }
+  .input-pro:focus{
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.35), 0 10px 24px rgba(15,23,42,.12);
+    border-color: rgba(99,102,241,.55);
+  }
+
+  .btn-primary{
+    display: inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    border-radius: 1rem;
+    padding: .55rem 1rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    color: white;
+    box-shadow: 0 10px 22px rgba(99,102,241,.28);
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    border: 1px solid rgba(255,255,255,0.35);
+  }
+  .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 14px 26px rgba(99,102,241,.32); }
+  .btn-primary:active{ transform: translateY(0); filter: brightness(.98); }
+
+  .soft-badge{
+    font-size: 11px;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    background: rgba(99,102,241,0.10);
+    color: #334155;
+    border: 1px solid rgba(99,102,241,0.18);
+  }
+  .dark .soft-badge{
+    background: rgba(99,102,241,0.14);
+    color: #cbd5e1;
+    border-color: rgba(255,255,255,0.08);
+  }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -308,43 +381,48 @@ th, td { white-space: nowrap; }
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
-      <div class="glass card-3d rounded-2xl p-4 mt-4" data-page="expenses">
+      <div class="glass card-3d card-glass-pro rounded-2xl p-4 mt-4" data-page="expenses">
         <div class="flex items-center justify-between mb-3">
-          <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Aylık Gider Ekle</div>
-          <div class="hint text-xs">Veri: expenses (Sheet)</div>
+          <div class="text-slate-700 dark:text-slate-200 text-lg font-medium flex items-center gap-2">
+            <span aria-hidden="true">🧾</span>
+            Aylık Gider Ekle
+          </div>
+          <span class="soft-badge">Veri: expenses_master</span>
         </div>
 
         <div class="grid sm:grid-cols-4 gap-3 items-end">
           <div>
             <label class="hint text-xs block mb-1">Tarih</label>
             <input id="expDate" type="date"
-                   class="glass rounded-xl px-3 py-2 w-full"
+                   class="input-pro"
                    title="Tarih seçin">
           </div>
           <div class="sm:col-span-2">
             <label class="hint text-xs block mb-1">Alt Kategori</label>
-            <select id="expSubSel" class="glass rounded-xl px-3 py-2 w-full">
+            <select id="expSubSel" class="input-pro">
               <option value="">Yükleniyor…</option>
             </select>
           </div>
           <div>
             <label class="hint text-xs block mb-1">Tutar (₺)</label>
             <input id="expAmount" type="text" inputmode="decimal" placeholder="ör. 12.345,67"
-                   class="glass rounded-xl px-3 py-2 w-full">
+                   class="input-pro">
           </div>
         </div>
+
+        <hr class="hidden lg:block my-4 border-t border-dashed border-slate-300/60 dark:border-slate-600/50">
 
         <div class="grid sm:grid-cols-4 gap-3 items-end mt-3">
           <div class="sm:col-span-3">
             <label class="hint text-xs block mb-1">Not (opsiyonel)</label>
-            <input id="expNote" type="text" class="glass rounded-xl px-3 py-2 w-full" placeholder="açıklama…">
+            <input id="expNote" type="text" class="input-pro" placeholder="açıklama…">
           </div>
           <div>
-            <button id="expAddBtn" class="glass card-3d rounded-2xl px-4 py-2 w-full">Gideri Ekle</button>
+            <button id="expAddBtn" class="btn-primary w-full rounded-2xl">Gideri Ekle</button>
           </div>
         </div>
 
-        <div id="expAddInfo" class="hint text-xs mt-2">Alt kategoriler CSV’den çekiliyor…</div>
+        <div id="expAddInfo" class="hint text-xs mt-2 pt-2 border-t border-white/50 dark:border-slate-700/40">Alt kategoriler CSV’den çekiliyor…</div>
       </div>
       <div class="grid lg:grid-cols-2 gap-4 mt-4">
         <div class="glass card-3d rounded-2xl p-4">
