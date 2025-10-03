@@ -636,11 +636,12 @@ th, td { white-space: nowrap; }
 const SHEET_WEBAPP_URL = (()=>{
   try{
     const u = localStorage.getItem('popdog_sheet_webapp_url');
-    return (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) ? u : 'https://script.google.com/macros/s/AKfycby3JkWBmr_EIjyD7o6D7vwnqu3CBUAfbQkKYKMqGvPjc2V6UM8dAJjaq_OP6UkDF6IX/exec';
+    return (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) ? u : 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec';
   }catch(_){
-    return 'https://script.google.com/macros/s/AKfycby3JkWBmr_EIjyD7o6D7vwnqu3CBUAfbQkKYKMqGvPjc2V6UM8dAJjaq_OP6UkDF6IX/exec';
+    return 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec';
   }
 })();
+try{ localStorage.setItem('popdog_sheet_webapp_url','https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec'); }catch(_){}
 // === Hardcoded default CSV URLs (fallbacks if nothing set) ===
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
