@@ -307,6 +307,45 @@ th, td { white-space: nowrap; }
           </style>
         </div>
       </div>
+      <!-- Gider Ekle — Hızlı Form -->
+      <div class="glass card-3d rounded-2xl p-4 mt-4" data-page="expenses">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Aylık Gider Ekle</div>
+          <div class="hint text-xs">Veri: expenses (Sheet)</div>
+        </div>
+
+        <div class="grid sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="hint text-xs block mb-1">Tarih</label>
+            <input id="expDate" type="month"
+                   class="glass rounded-xl px-3 py-2 w-full"
+                   title="Ay seçin (gün otomatik 01 olur)">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="hint text-xs block mb-1">Alt Kategori</label>
+            <select id="expSubSel" class="glass rounded-xl px-3 py-2 w-full">
+              <option value="">Yükleniyor…</option>
+            </select>
+          </div>
+          <div>
+            <label class="hint text-xs block mb-1">Tutar (₺)</label>
+            <input id="expAmount" type="text" inputmode="decimal" placeholder="ör. 12.345,67"
+                   class="glass rounded-xl px-3 py-2 w-full">
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-4 gap-3 items-end mt-3">
+          <div class="sm:col-span-3">
+            <label class="hint text-xs block mb-1">Not (opsiyonel)</label>
+            <input id="expNote" type="text" class="glass rounded-xl px-3 py-2 w-full" placeholder="açıklama…">
+          </div>
+          <div>
+            <button id="expAddBtn" class="glass card-3d rounded-2xl px-4 py-2 w-full">Gideri Ekle</button>
+          </div>
+        </div>
+
+        <div id="expAddInfo" class="hint text-xs mt-2">Alt kategoriler CSV’den çekiliyor…</div>
+      </div>
       <div class="grid lg:grid-cols-2 gap-4 mt-4">
         <div class="glass card-3d rounded-2xl p-4">
           <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD) — Detay</div>
@@ -949,6 +988,129 @@ const rows = (res.data || [])
     return [];
   }
 }
+
+/* ========= Gider Ekle (UI + Sheet yazma) ========= */
+// Alt kategori kolon isimleri için olası başlıklar
+const SUBCAT_KEYS = ['Subcategory', 'Sub-Category', 'Subcat', 'Alt Kategori', 'AltKategori', 'Detail', 'Kalem'];
+
+// Mevcut expenses CSV’den benzersiz alt kategorileri topla
+async function loadExpenseSubcategories(){
+  try{
+    // 1) Önce localStorage cache varsa kullan
+    let rows = [];
+    try{ rows = JSON.parse(localStorage.getItem('popdog_expenses_cache') || '[]'); }catch(_){}
+    // 2) Yoksa CSV’den yükle
+    if(!Array.isArray(rows) || rows.length===0){
+      rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+      try{ localStorage.setItem('popdog_expenses_cache', JSON.stringify(rows||[])); }catch(_){}
+    }
+    // 3) Key tespit + set’e ekle
+    const set = new Set();
+    (rows||[]).forEach(r=>{
+      for(const k of SUBCAT_KEYS){
+        if(r && r[k]!=null && String(r[k]).trim()!==''){
+          set.add(String(r[k]).trim());
+          break;
+        }
+      }
+    });
+    // Boşsa en azından bir kaç öneri bırak
+    if(set.size===0){
+      ['Kira','Elektrik','Personel','Kargo','Reklam','Sarf','Diğer'].forEach(x=>set.add(x));
+    }
+    return Array.from(set).sort((a,b)=> a.localeCompare(b,'tr'));
+  }catch(e){ return ['Diğer']; }
+}
+
+// Tarih: <input type="month"> → YYYY-MM-01
+function monthToISO(d){
+  if(!d) return '';
+  const m = String(d).trim();
+  if(!/^\d{4}-\d{2}$/.test(m)) return '';
+  return `${m}-01`;
+}
+
+// Sheet’e gider satırı yaz
+async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
+  const payload = {
+    action: 'appendExpense',
+    row: {
+      Date: dateISO,               // YYYY-MM-DD (01)
+      Subcategory: subcat,         // alt kategori
+      AmountTRY: Math.round(amountTRY || 0), // tamsayıya yuvarla
+      Note: note || ''
+    }
+  };
+  const res = await fetch(SHEET_WEBAPP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=> '');
+    throw new Error(`HTTP ${res.status}${t ? ' • ' + t : ''}`);
+  }
+  // Opsiyonel: JSON mesajı
+  let msg = '';
+  try { const j = await res.json(); if(j && (j.message||j.msg)) msg = String(j.message||j.msg); } catch(_){}
+  return msg;
+}
+
+// UI init
+async function initExpenseEntryUI(){
+  const sel = document.getElementById('expSubSel');
+  const info = document.getElementById('expAddInfo');
+  const btn = document.getElementById('expAddBtn');
+
+  // Alt kategorileri doldur
+  try{
+    const subs = await loadExpenseSubcategories();
+    if(sel){
+      sel.innerHTML = `<option value="">Seçiniz…</option>` + subs.map(s=>`<option>${s}</option>`).join('');
+    }
+    if(info) info.textContent = `Alt kategori sayısı: ${subs.length}`;
+  }catch(e){
+    if(sel) sel.innerHTML = `<option value="">(yüklenemedi)</option>`;
+    if(info) info.textContent = `⚠️ Alt kategoriler yüklenemedi: ${e.message||e}`;
+  }
+
+  // Ekle butonu
+  if(btn){
+    btn.onclick = async ()=>{
+      const dateVal = document.getElementById('expDate')?.value || '';
+      const subVal  = document.getElementById('expSubSel')?.value || '';
+      const amtVal  = document.getElementById('expAmount')?.value || '';
+      const noteVal = document.getElementById('expNote')?.value || '';
+
+      const infoEl = document.getElementById('expAddInfo');
+      function setInfo(t){ if(infoEl) infoEl.textContent = t; }
+
+      // Validasyon
+      const dateISO = monthToISO(dateVal);
+      if(!dateISO){ setInfo('Lütfen bir AY seçin (YYYY-AA).'); return; }
+      if(!subVal){ setInfo('Alt kategori seçin.'); return; }
+      const amountTRY = parseTL(amtVal);
+      if(!amountTRY || amountTRY<=0){ setInfo('Tutar (₺) girin.'); return; }
+
+      try{
+        setInfo('Gönderiliyor…');
+        const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
+        setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
+
+        // Gerekirse cache’i kirletme & ekrana tazeleme
+        try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+        try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
+      }catch(err){
+        setInfo(`⚠️ Hata: ${err.message||err}`);
+      }
+    };
+  }
+}
+
+// Sayfa yüklenince hazırla (router çalıştıktan sonra da çağrılırsa sorun yok)
+document.addEventListener('DOMContentLoaded', ()=> {
+  try{ initExpenseEntryUI(); }catch(_){}
+});
 
 /* ================== INVENTORY & ORDERS HELPERS ================== */
 const SALES_WINDOW_OPTIONS = [30,90,120,180];
