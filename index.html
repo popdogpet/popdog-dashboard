@@ -633,7 +633,14 @@ th, td { white-space: nowrap; }
 <script>
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
-const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby3JkWBmr_EIjyD7o6D7vwnqu3CBUAfbQkKYKMqGvPjc2V6UM8dAJjaq_OP6UkDF6IX/exec';
+const SHEET_WEBAPP_URL = (()=>{
+  try{
+    const u = localStorage.getItem('popdog_sheet_webapp_url');
+    return (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) ? u : 'https://script.google.com/macros/s/AKfycby3JkWBmr_EIjyD7o6D7vwnqu3CBUAfbQkKYKMqGvPjc2V6UM8dAJjaq_OP6UkDF6IX/exec';
+  }catch(_){
+    return 'https://script.google.com/macros/s/AKfycby3JkWBmr_EIjyD7o6D7vwnqu3CBUAfbQkKYKMqGvPjc2V6UM8dAJjaq_OP6UkDF6IX/exec';
+  }
+})();
 // === Hardcoded default CSV URLs (fallbacks if nothing set) ===
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
@@ -1075,13 +1082,21 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
 // Web App bağlantı testi (opsiyonel)
 async function pingSheetWebApp(){
   try{
+    // Try POST __ping__ (preferred)
     const r = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: '__ping__' })
     });
-    return r.ok;
-  }catch(_){ return false; }
+    if (r && r.ok) return true;
+  }catch(_){}
+  try{
+    // Fallback: simple GET
+    const g = await fetch(SHEET_WEBAPP_URL, { method: 'GET' });
+    return !!(g && g.ok);
+  }catch(_){
+    return false;
+  }
 }
 
 // UI init
@@ -1095,7 +1110,7 @@ async function initExpenseEntryUI(){
     if(info) info.textContent = 'Bağlantı kontrol ediliyor…';
     const ok = await pingSheetWebApp();
     if(!ok && info){
-      info.textContent = '⚠️ Sheet bağlantısı yok. Lütfen Apps Script Web App yayın/izinlerini kontrol edin (Deploy → Anyone).';
+      info.textContent = '⚠️ Sheet bağlantısı yok. Apps Script Web App: Deploy→Web app → Execute as: Me · Access: Anyone (link). Ardından kendi /exec URL\'nizi localStorage\'a kaydedin: localStorage.setItem("popdog_sheet_webapp_url","https://script.google.com/macros/s/XXX/exec")';
     }
   }catch(_){ /* sessiz */ }
 
