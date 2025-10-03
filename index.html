@@ -317,9 +317,9 @@ th, td { white-space: nowrap; }
         <div class="grid sm:grid-cols-4 gap-3 items-end">
           <div>
             <label class="hint text-xs block mb-1">Tarih</label>
-            <input id="expDate" type="month"
+            <input id="expDate" type="date"
                    class="glass rounded-xl px-3 py-2 w-full"
-                   title="Ay seçin (gün otomatik 01 olur)">
+                   title="Tarih seçin">
           </div>
           <div class="sm:col-span-2">
             <label class="hint text-xs block mb-1">Alt Kategori</label>
@@ -1069,12 +1069,12 @@ async function loadExpenseSubcategories(){
   }
 }
 
-// Tarih: <input type="month"> → YYYY-MM-01
-function monthToISO(d){
+// Tarih: <input type="date"> → YYYY-MM-DD
+function dateToISO(d){
   if(!d) return '';
-  const m = String(d).trim();
-  if(!/^\d{4}-\d{2}$/.test(m)) return '';
-  return `${m}-01`;
+  const s = String(d).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+  return s; // already ISO-like from <input type="date">
 }
 
 // Sheet’e gider satırı yaz (daha sağlam hata yakalama + JSON kontrol)
@@ -1176,6 +1176,18 @@ async function initExpenseEntryUI(){
     if(info) info.textContent = `⚠️ Alt kategoriler yüklenemedi: ${e.message||e}`;
   }
 
+  // Varsayılan: bugün seçili gelsin
+  try{
+    const dateInput = document.getElementById('expDate');
+    if(dateInput && !dateInput.value){
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth()+1).padStart(2,'0');
+      const d = String(today.getDate()).padStart(2,'0');
+      dateInput.value = `${y}-${m}-${d}`;
+    }
+  }catch(_){/* sessiz */}
+
   // Ekle butonu
   if(btn){
     btn.onclick = async ()=>{
@@ -1188,8 +1200,8 @@ async function initExpenseEntryUI(){
       function setInfo(t){ if(infoEl) infoEl.textContent = t; }
 
       // Validasyon
-      const dateISO = monthToISO(dateVal);
-      if(!dateISO){ setInfo('Lütfen bir AY seçin (YYYY-AA).'); return; }
+      const dateISO = dateToISO(dateVal);
+      if(!dateISO){ setInfo('Lütfen bir tarih seçin (YYYY-AA-GG).'); return; }
       if(!subVal){ setInfo('Alt kategori seçin.'); return; }
       const amountTRY = parseTL(amtVal);
       if(!amountTRY || amountTRY<=0){ setInfo('Tutar (₺) girin.'); return; }
