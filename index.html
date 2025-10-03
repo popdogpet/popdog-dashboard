@@ -998,10 +998,15 @@ const rows = (res.data || [])
 }
 
 /* ========= Gider Ekle (UI + Sheet yazma) ========= */
+// Ek kolon alias'ları
+const CATEGORY_KEYS = ['Category','Kategori','Main Category','Ana Kategori','Cat'];
+const FINALSUB_KEYS = ['FinalSubcategory','Final Subcategory','FinalSubcat','Final Sub-Category','Nihai Alt Kategori','Final','FinalSub'];
+// Subcategory → { category, final } eşlemesi (CSV'den türetilir)
+let EXP_SUBMAP = {};  // ör: { "Kargo": { category:"Lojistik", final:"Kargo" } }
 // Alt kategori kolon isimleri için olası başlıklar
 const SUBCAT_KEYS = ['Subcategory', 'Sub-Category', 'Subcat', 'Alt Kategori', 'AltKategori', 'Detail', 'Kalem'];
 
-// Mevcut expenses CSV’den benzersiz alt kategorileri topla
+// Mevcut expenses CSV’den benzersiz alt kategorileri topla + kategori/final eşlemesi
 async function loadExpenseSubcategories(){
   try{
     // 1) Önce localStorage cache varsa kullan
@@ -1012,22 +1017,56 @@ async function loadExpenseSubcategories(){
       rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
       try{ localStorage.setItem('popdog_expenses_cache', JSON.stringify(rows||[])); }catch(_){}
     }
-    // 3) Key tespit + set’e ekle
+
+    // 3) Set + eşleme (subcategory → {category, final})
     const set = new Set();
+    const map = {};
+
     (rows||[]).forEach(r=>{
+      if(!r) return;
+
+      // Subcategory value
+      let sub = '';
       for(const k of SUBCAT_KEYS){
-        if(r && r[k]!=null && String(r[k]).trim()!==''){
-          set.add(String(r[k]).trim());
-          break;
-        }
+        if(r[k]!=null && String(r[k]).trim()!==''){ sub = String(r[k]).trim(); break; }
       }
+      if(!sub) return;
+
+      // Category value
+      let cat = '';
+      for(const k of CATEGORY_KEYS){
+        if(r[k]!=null && String(r[k]).trim()!==''){ cat = String(r[k]).trim(); break; }
+      }
+
+      // FinalSubcategory value
+      let fin = '';
+      for(const k of FINALSUB_KEYS){
+        if(r[k]!=null && String(r[k]).trim()!==''){ fin = String(r[k]).trim(); break; }
+      }
+
+      set.add(sub);
+      // İlk geleni koru, boşsa doldur
+      if(!map[sub]) map[sub] = { category: cat || '', final: fin || sub };
     });
+
     // Boşsa en azından bir kaç öneri bırak
     if(set.size===0){
-      ['Kira','Elektrik','Personel','Kargo','Reklam','Sarf','Diğer'].forEach(x=>set.add(x));
+      ['Kira','Elektrik','Personel','Kargo','Reklam','Sarf','Diğer'].forEach(x=>{
+        set.add(x);
+        if(!map[x]) map[x] = { category:'', final:x };
+      });
     }
+
+    // Global ve localStorage'a yaz
+    EXP_SUBMAP = map;
+    try{ localStorage.setItem('popdog_expenses_submap', JSON.stringify(map)); }catch(_){}
+
     return Array.from(set).sort((a,b)=> a.localeCompare(b,'tr'));
-  }catch(e){ return ['Diğer']; }
+  }catch(e){
+    // Map fallback
+    EXP_SUBMAP = {};
+    return ['Diğer'];
+  }
 }
 
 // Tarih: <input type="month"> → YYYY-MM-01
@@ -1040,11 +1079,20 @@ function monthToISO(d){
 
 // Sheet’e gider satırı yaz (daha sağlam hata yakalama + JSON kontrol)
 async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
+  // Subcategory eşleşmesinden kategori/final çek
+  let cat = '', fin = '';
+  try{
+    const m = EXP_SUBMAP && EXP_SUBMAP[subcat] ? EXP_SUBMAP[subcat] : JSON.parse(localStorage.getItem('popdog_expenses_submap')||'{}')[subcat];
+    if(m){ cat = m.category || ''; fin = m.final || subcat; } else { fin = subcat; }
+  }catch(_){ fin = subcat; }
+
   const payload = {
     action: 'appendExpense',
     row: {
-      Date: dateISO,               // YYYY-MM-DD (01)
-      Subcategory: subcat,         // alt kategori
+      Date: dateISO,                       // YYYY-MM-DD (01)
+      Subcategory: subcat,                 // alt kategori
+      Category: cat,                       // ana kategori (varsa)
+      FinalSubcategory: fin,               // nihai alt kategori (varsa)
       AmountTRY: Math.round(amountTRY || 0), // tamsayıya yuvarla
       Note: note || ''
     }
@@ -1148,6 +1196,10 @@ async function initExpenseEntryUI(){
 
       try{
         setInfo('Gönderiliyor…');
+        // Optional UX: kategori eşleşmesi yoksa bilgi ver
+        if(!EXP_SUBMAP[subVal]){
+          setInfo('Gönderiliyor… (kategori eşleşmesi bulunamadı, FinalSubcategory=subcat yazılacak)');
+        }
         const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
         setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
 
