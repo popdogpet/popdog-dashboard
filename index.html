@@ -1030,7 +1030,7 @@ function monthToISO(d){
   return `${m}-01`;
 }
 
-// Sheet’e gider satırı yaz
+// Sheet’e gider satırı yaz (daha sağlam hata yakalama + JSON kontrol)
 async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
   const payload = {
     action: 'appendExpense',
@@ -1041,19 +1041,47 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
       Note: note || ''
     }
   };
-  const res = await fetch(SHEET_WEBAPP_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  let res;
+  try{
+    res = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }catch(netErr){
+    // Tarayıcı bazlı generic mesajlar: "Failed to fetch" / "Load failed" vs.
+    throw new Error(`NETWORK_FAIL • ${netErr && netErr.message ? netErr.message : netErr}`);
+  }
+
   if(!res.ok){
     const t = await res.text().catch(()=> '');
     throw new Error(`HTTP ${res.status}${t ? ' • ' + t : ''}`);
   }
-  // Opsiyonel: JSON mesajı
-  let msg = '';
-  try { const j = await res.json(); if(j && (j.message||j.msg)) msg = String(j.message||j.msg); } catch(_){}
-  return msg;
+
+  // Beklenen: JSON { ok:true, ... } veya { ok:false, error:"..." }
+  let j = null;
+  try{ j = await res.json(); }catch(_){ /* düz metin dönmüş olabilir */ }
+
+  if (j && j.ok === false){
+    throw new Error(`Server • ${j.error || j.message || 'unknown error'}`);
+  }
+  if (j && (j.error || j.message)){
+    // ok:true olsa da mesajı geçir
+    return String(j.message || j.error);
+  }
+  return 'Sheet güncellendi';
+}
+
+// Web App bağlantı testi (opsiyonel)
+async function pingSheetWebApp(){
+  try{
+    const r = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: '__ping__' })
+    });
+    return r.ok;
+  }catch(_){ return false; }
 }
 
 // UI init
@@ -1061,6 +1089,15 @@ async function initExpenseEntryUI(){
   const sel = document.getElementById('expSubSel');
   const info = document.getElementById('expAddInfo');
   const btn = document.getElementById('expAddBtn');
+
+  // Bağlantı uyarısı (erken)
+  try{
+    if(info) info.textContent = 'Bağlantı kontrol ediliyor…';
+    const ok = await pingSheetWebApp();
+    if(!ok && info){
+      info.textContent = '⚠️ Sheet bağlantısı yok. Lütfen Apps Script Web App yayın/izinlerini kontrol edin (Deploy → Anyone).';
+    }
+  }catch(_){ /* sessiz */ }
 
   // Alt kategorileri doldur
   try{
@@ -1101,7 +1138,7 @@ async function initExpenseEntryUI(){
         try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
         try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
       }catch(err){
-        setInfo(`⚠️ Hata: ${err.message||err}`);
+        setInfo(`⚠️ Hata: ${err && err.message ? err.message : err}\n— Olası nedenler: Web App URL hatalı, yayın yapılmadı/yeni versiyon seçilmedi veya erişim izni (Anyone) kapalı.`);
       }
     };
   }
