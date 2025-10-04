@@ -1111,25 +1111,54 @@ if (!window.writeStagedToSheet) {
 
       if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
 
-      const resp = await fetch(WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'appendDaily', rows: cleanRows })
-      });
-
-      if (!resp.ok) {
-        const t = await resp.text().catch(() => '');
-        throw new Error(`HTTP ${resp.status} ${t ? '• ' + t : ''}`);
+      async function postOnce(body){
+        const r = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body)
+        });
+        if (!r.ok) {
+          const t = await r.text().catch(() => '');
+          throw new Error(`HTTP ${r.status}${t ? ' • ' + t : ''}`);
+        }
+        let j = null; let raw = '';
+        try { raw = await r.text(); j = JSON.parse(raw); } catch(_) { /* keep raw */ }
+        return { json: j, raw };
       }
 
-      // Try to read a JSON message if provided
-      let msg = '';
-      try {
-        const data = await resp.json();
-        if (data && (data.message || data.msg)) msg = String(data.message || data.msg);
-      } catch (_) { /* response might not be JSON; ignore */ }
+      // Try primary action first, then fall back to legacy names
+      const attempts = [
+        { action: 'appendDaily', rows: cleanRows },
+        { action: 'appendRows',  rows: cleanRows },
+        { action: 'append',      rows: cleanRows },
+        // bare rows (some very old scripts accept only {rows:[...]})
+        { rows: cleanRows }
+      ];
 
-      if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${msg ? ' • ' + msg : ''}`;
+      let finalMsg = '';
+      let sent = false;
+      for (const body of attempts){
+        try{
+          const { json, raw } = await postOnce(body);
+          if (json && json.ok === false && /unknown_action|unknown\s*action/i.test(String(json.error||json.message||''))){
+            // try next attempt
+            continue;
+          }
+          // Success path (ok true or no explicit failure)
+          sent = true;
+          finalMsg = json && (json.message || json.msg) ? String(json.message || json.msg) : (raw ? String(raw).slice(0,120) : '');
+          break;
+        }catch(e){
+          // If server responded 4xx with UNKNOWN_ACTION text, keep trying
+          const s = String(e && e.message || '');
+          if (/UNKNOWN_ACTION/i.test(s)) continue;
+          // Otherwise rethrow
+          throw e;
+        }
+      }
+
+      if (!sent) throw new Error('UNKNOWN_ACTION: Sunucu bu işlemi tanımıyor. (appendDaily/appendRows/append)');
+      if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${finalMsg ? ' • ' + finalMsg : ''}`;
 
       // Clear staged rows and re-render the temp table
       window.stagedRows = [];
@@ -1333,36 +1362,53 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
       Note: note || ''
     }
   };
-  let res;
-  try{
-    res = await fetch(SHEET_WEBAPP_URL, {
+  const WEBAPP_URL = getSheetWebAppURL();
+  async function postOnce(body){
+    const r = await fetch(WEBAPP_URL, {
       method: 'POST',
-      // CORS preflight (OPTIONS) tetiklenmesin diye "simple request"
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
-  }catch(netErr){
-    // Tarayıcı bazlı generic mesajlar: "Failed to fetch" / "Load failed" vs.
-    throw new Error(`NETWORK_FAIL • ${netErr && netErr.message ? netErr.message : netErr}`);
+    if (!r.ok){
+      const t = await r.text().catch(()=> '');
+      throw new Error(`HTTP ${r.status}${t ? ' • ' + t : ''}`);
+    }
+    let j = null; let raw = '';
+    try { raw = await r.text(); j = JSON.parse(raw); } catch(_) { /* non-JSON ok */ }
+    return { json: j, raw };
   }
 
-  if(!res.ok){
-    const t = await res.text().catch(()=> '');
-    throw new Error(`HTTP ${res.status}${t ? ' • ' + t : ''}`);
-  }
+  const attempts = [
+    { action: 'appendExpense', row: payload.row },
+    { action: 'append_expense', row: payload.row },
+    { action: 'expenseAppend',  row: payload.row },
+    { action: 'appendRow',      row: payload.row },
+    { action: 'append',         row: payload.row },
+    // very old handlers: flat payload
+    payload.row
+  ];
 
-  // Beklenen: JSON { ok:true, ... } veya { ok:false, error:"..." }
-  let j = null;
-  try{ j = await res.json(); }catch(_){ /* düz metin dönmüş olabilir */ }
-
-  if (j && j.ok === false){
-    throw new Error(`Server • ${j.error || j.message || 'unknown error'}`);
+  for (const body of attempts){
+    try{
+      const { json, raw } = await postOnce(body);
+      if (json && json.ok === false && /unknown_action|unknown\s*action/i.test(String(json.error||json.message||''))){
+        continue; // try next
+      }
+      if (json && json.ok === false){
+        throw new Error(`Server • ${json.error || json.message || 'unknown error'}`);
+      }
+      if (json && (json.error || json.message)){
+        return String(json.message || json.error);
+      }
+      return 'Sheet güncellendi';
+    }catch(e){
+      const s = String(e && e.message || '');
+      if (/UNKNOWN_ACTION/i.test(s)) continue;
+      // network or other errors → bubble up
+      throw e;
+    }
   }
-  if (j && (j.error || j.message)){
-    // ok:true olsa da mesajı geçir
-    return String(j.message || j.error);
-  }
-  return 'Sheet güncellendi';
+  throw new Error('UNKNOWN_ACTION: Sunucu appendExpense işlemini tanımıyor. (appendExpense/appendRow/append)');
 }
 
 // Web App bağlantı testi (opsiyonel)
