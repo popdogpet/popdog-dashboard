@@ -844,6 +844,32 @@ const SHEET_WEBAPP_URL = (()=>{
   }
 })();
 try{ localStorage.setItem('popdog_sheet_webapp_url','https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec'); }catch(_){}
+
+// Always read the latest URL from localStorage at call time
+function getSheetWebAppURL(){
+  try{
+    const u = localStorage.getItem('popdog_sheet_webapp_url');
+    if (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) return u;
+  }catch(_){ }
+  return SHEET_WEBAPP_URL; // boot-time fallback
+}
+
+// Simple interactive setter for the Web App URL
+async function setupSheetWebAppURL(infoEl){
+  try{
+    const cur = getSheetWebAppURL() || '';
+    const hint = '(Örn: https://script.google.com/macros/s/AKfyc.../exec)';
+    const pasted = prompt('Apps Script Web App URL’nizi yapıştırın\n' + hint, cur);
+    if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
+    const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
+    if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
+    localStorage.setItem('popdog_sheet_webapp_url', pasted.trim());
+    if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
+    setTimeout(()=> location.reload(), 400);
+  }catch(e){
+    if(infoEl) infoEl.textContent = '⚠️ URL kaydedilemedi: ' + (e?.message || e);
+  }
+}
 // === Hardcoded default CSV URLs (fallbacks if nothing set) ===
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
@@ -1075,9 +1101,17 @@ if (!window.writeStagedToSheet) {
         Total: Number(r.Total || 0),
       }));
 
+      // --- Ensure a valid Apps Script Web App URL exists; if not, prompt the user and bail out
+      const WEBAPP_URL = getSheetWebAppURL();
+      if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(WEBAPP_URL)){
+        if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
+        await setupSheetWebAppURL(infoEl);
+        return;
+      }
+
       if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
 
-      const resp = await fetch(SHEET_WEBAPP_URL, {
+      const resp = await fetch(WEBAPP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'appendDaily', rows: cleanRows })
@@ -1335,7 +1369,7 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
 async function pingSheetWebApp(){
   try{
     // Try POST __ping__ (preferred)
-    const r = await fetch(SHEET_WEBAPP_URL, {
+    const r = await fetch(getSheetWebAppURL(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: '__ping__' })
@@ -1344,7 +1378,7 @@ async function pingSheetWebApp(){
   }catch(_){}
   try{
     // Fallback: simple GET
-    const g = await fetch(SHEET_WEBAPP_URL, { method: 'GET' });
+    const g = await fetch(getSheetWebAppURL(), { method: 'GET' });
     return !!(g && g.ok);
   }catch(_){
     return false;
@@ -1364,6 +1398,10 @@ async function initExpenseEntryUI(){
     if(!ok && info){
       info.textContent = '⚠️ Sheet bağlantısı yok. Apps Script Web App: Deploy→Web app → Execute as: Me · Access: Anyone (link). Ardından kendi /exec URL\'nizi localStorage\'a kaydedin: localStorage.setItem("popdog_sheet_webapp_url","https://script.google.com/macros/s/XXX/exec")';
     }
+    try{
+      const b = document.getElementById('writeSheetBtn');
+      if(!ok && b){ b.onclick = ()=> setupSheetWebAppURL(info); }
+    }catch(_){}
   }catch(_){ /* sessiz */ }
 
   // Alt kategorileri doldur
