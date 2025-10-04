@@ -862,7 +862,7 @@ async function setupSheetWebAppURL(infoEl){
     if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
     const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
     if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
-    localStorage.setItem('popdog_sheet_webapp_url', pasted.trim());
+    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec');
     if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
     setTimeout(()=> location.reload(), 400);
   }catch(e){
