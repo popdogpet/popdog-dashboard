@@ -1111,47 +1111,91 @@ if (!window.writeStagedToSheet) {
 
       if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
 
-      async function postOnce(body){
-        const r = await fetch(WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(body)
+      async function postOnceFlexible(body){
+        const url = WEBAPP_URL;
+
+        // Strategy A: JSON POST
+        try{
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json;charset=utf-8' },
+            body: JSON.stringify(body)
+          });
+          if (r.ok){
+            const raw = await r.text().catch(()=> '');
+            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+            return { json, raw };
+          }
+          // If 400/unknown action text is present, bubble for fallback
+          const raw = await r.text().catch(()=> '');
+          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        }catch(e){ /* fall through to Strategy B */ }
+
+        // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
+        try{
+          const form = new URLSearchParams();
+          Object.keys(body||{}).forEach(k=>{
+            const v = body[k];
+            form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+          });
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+            body: form.toString()
+          });
+          if (r.ok){
+            const raw = await r.text().catch(()=> '');
+            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+            return { json, raw };
+          }
+          const raw = await r.text().catch(()=> '');
+          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        }catch(e){ /* fall through to Strategy C */ }
+
+        // Strategy C: GET with query params (very legacy handlers; beware URL length)
+        const params = new URLSearchParams();
+        Object.keys(body||{}).forEach(k=>{
+          const v = body[k];
+          params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
         });
-        if (!r.ok) {
-          const t = await r.text().catch(() => '');
-          throw new Error(`HTTP ${r.status}${t ? ' • ' + t : ''}`);
-        }
-        let j = null; let raw = '';
-        try { raw = await r.text(); j = JSON.parse(raw); } catch(_) { /* keep raw */ }
-        return { json: j, raw };
+        const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        return { json, raw };
       }
 
-      // Try primary action first, then fall back to legacy names
+      // Try primary action first, then fall back to legacy names and parameter aliases
       const attempts = [
         { action: 'appendDaily', rows: cleanRows },
         { action: 'appendRows',  rows: cleanRows },
         { action: 'append',      rows: cleanRows },
-        // bare rows (some very old scripts accept only {rows:[...]})
-        { rows: cleanRows }
+        // common legacy keys
+        { action: 'appendDaily', data: cleanRows },
+        { action: 'appendRows',  data: cleanRows },
+        { mode:   'appendDaily', rows: cleanRows },
+        // bare rows
+        { rows: cleanRows },
       ];
 
       let finalMsg = '';
       let sent = false;
       for (const body of attempts){
         try{
-          const { json, raw } = await postOnce(body);
-          if (json && json.ok === false && /unknown_action|unknown\s*action/i.test(String(json.error||json.message||''))){
+          const { json, raw } = await postOnceFlexible(body);
+          if (json && json.ok === false && /UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(String(json.error||json.message||''))){
             // try next attempt
             continue;
           }
           // Success path (ok true or no explicit failure)
           sent = true;
           finalMsg = json && (json.message || json.msg) ? String(json.message || json.msg) : (raw ? String(raw).slice(0,120) : '');
+          if(!finalMsg) finalMsg = 'OK (legacy handler)';
           break;
         }catch(e){
           // If server responded 4xx with UNKNOWN_ACTION text, keep trying
           const s = String(e && e.message || '');
-          if (/UNKNOWN_ACTION/i.test(s)) continue;
+          if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
           // Otherwise rethrow
           throw e;
         }
@@ -1343,7 +1387,7 @@ function dateToISO(d){
 }
 
 // Sheet’e gider satırı yaz (daha sağlam hata yakalama + JSON kontrol)
-async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
+  async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
   // Subcategory eşleşmesinden kategori/final çek
   let cat = '', fin = '';
   try{
@@ -1363,19 +1407,58 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
     }
   };
   const WEBAPP_URL = getSheetWebAppURL();
-  async function postOnce(body){
-    const r = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
+  async function postOnceFlexible(body){
+    const url = WEBAPP_URL;
+
+    // Strategy A: JSON POST
+    try{
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        body: JSON.stringify(body)
+      });
+      if (r.ok){
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        return { json, raw };
+      }
+      // If 400/unknown action text is present, bubble for fallback
+      const raw = await r.text().catch(()=> '');
+      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    }catch(e){ /* fall through to Strategy B */ }
+
+    // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
+    try{
+      const form = new URLSearchParams();
+      Object.keys(body||{}).forEach(k=>{
+        const v = body[k];
+        form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: form.toString()
+      });
+      if (r.ok){
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        return { json, raw };
+      }
+      const raw = await r.text().catch(()=> '');
+      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    }catch(e){ /* fall through to Strategy C */ }
+
+    // Strategy C: GET with query params (very legacy handlers; beware URL length)
+    const params = new URLSearchParams();
+    Object.keys(body||{}).forEach(k=>{
+      const v = body[k];
+      params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
     });
-    if (!r.ok){
-      const t = await r.text().catch(()=> '');
-      throw new Error(`HTTP ${r.status}${t ? ' • ' + t : ''}`);
-    }
-    let j = null; let raw = '';
-    try { raw = await r.text(); j = JSON.parse(raw); } catch(_) { /* non-JSON ok */ }
-    return { json: j, raw };
+    const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
+    const raw = await r.text().catch(()=> '');
+    let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+    if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    return { json, raw };
   }
 
   const attempts = [
@@ -1384,14 +1467,17 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
     { action: 'expenseAppend',  row: payload.row },
     { action: 'appendRow',      row: payload.row },
     { action: 'append',         row: payload.row },
+    // legacy: rowJson / data
+    { action: 'appendExpense', rowJson: JSON.stringify(payload.row) },
+    { action: 'appendExpense', data: payload.row },
     // very old handlers: flat payload
     payload.row
   ];
 
   for (const body of attempts){
     try{
-      const { json, raw } = await postOnce(body);
-      if (json && json.ok === false && /unknown_action|unknown\s*action/i.test(String(json.error||json.message||''))){
+      const { json, raw } = await postOnceFlexible(body);
+      if (json && json.ok === false && /UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(String(json.error||json.message||''))){
         continue; // try next
       }
       if (json && json.ok === false){
@@ -1403,7 +1489,7 @@ async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
       return 'Sheet güncellendi';
     }catch(e){
       const s = String(e && e.message || '');
-      if (/UNKNOWN_ACTION/i.test(s)) continue;
+      if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
       // network or other errors → bubble up
       throw e;
     }
