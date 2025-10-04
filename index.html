@@ -870,6 +870,38 @@ async function setupSheetWebAppURL(infoEl){
     if(infoEl) infoEl.textContent = '⚠️ URL kaydedilemedi: ' + (e?.message || e);
   }
 }
+/* === Apps Script WebApp Compatibility (action/rows keys) === */
+const WEBAPP_COMPAT_KEY = 'popdog_webapp_compat';
+
+function getWebAppCompat(){
+  try{
+    const j = JSON.parse(localStorage.getItem(WEBAPP_COMPAT_KEY) || '{}');
+    return (j && typeof j === 'object') ? j : {};
+  }catch(_){ return {}; }
+}
+
+/* Quick interactive compat setup:
+   - rowsKey (default: 'rows')
+   - actionKey (default: 'action')
+   - dailyAction (default: 'appendDaily')
+   - expenseAction (default: 'appendExpense')
+*/
+async function setupWebAppCompat(infoEl){
+  try{
+    const cur = getWebAppCompat();
+    const rowsKey = prompt('Web App: satır listesinin parametre adı nedir?\n(örn. rows, data, values, payload)', cur.rowsKey || 'rows') || '';
+    const actionKey = prompt('Web App: aksiyon parametresi adı?\n(örn. action, mode, type — boş bırakabilirsiniz)', cur.actionKey || 'action') || '';
+    const dailyAction = prompt('Günlük rapor yazma aksiyon değeri?', cur.dailyAction || 'appendDaily') || '';
+    const expenseAction = prompt('Gider ekleme aksiyon değeri?', cur.expenseAction || 'appendExpense') || '';
+    const cfg = { rowsKey: rowsKey.trim(), actionKey: actionKey.trim(), dailyAction: dailyAction.trim(), expenseAction: expenseAction.trim() };
+    localStorage.setItem(WEBAPP_COMPAT_KEY, JSON.stringify(cfg));
+    if(infoEl) infoEl.textContent = '✓ Uyumluluk kaydedildi. Tekrar deneyebilirsiniz.';
+    return cfg;
+  }catch(e){
+    if(infoEl) infoEl.textContent = '⚠️ Uyumluluk ayarı kaydedilemedi: ' + (e?.message || e);
+    return null;
+  }
+}
 // === Hardcoded default CSV URLs (fallbacks if nothing set) ===
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
@@ -1166,7 +1198,16 @@ if (!window.writeStagedToSheet) {
       }
 
       // Try primary action first, then fall back to legacy names and parameter aliases
-      const attempts = [
+      const attempts = [];
+      const compat = getWebAppCompat();
+      if (compat && (compat.rowsKey || compat.actionKey || compat.dailyAction)){
+        const rk = compat.rowsKey || 'rows';
+        const ak = compat.actionKey || 'action';
+        const av = compat.dailyAction || 'appendDaily';
+        const b1 = {}; b1[rk] = cleanRows; if (ak) b1[ak] = av; attempts.push(b1);
+        const b2 = {}; b2[rk] = JSON.stringify(cleanRows); if (ak) b2[ak] = av; attempts.push(b2);
+      }
+      attempts.push(
         { action: 'appendDaily', rows: cleanRows },
         { action: 'appendRows',  rows: cleanRows },
         { action: 'append',      rows: cleanRows },
@@ -1174,9 +1215,13 @@ if (!window.writeStagedToSheet) {
         { action: 'appendDaily', data: cleanRows },
         { action: 'appendRows',  data: cleanRows },
         { mode:   'appendDaily', rows: cleanRows },
+        // other legacy shapes
+        { payload: JSON.stringify(cleanRows) },
+        { data: JSON.stringify(cleanRows) },
+        { rowsJson: JSON.stringify(cleanRows) },
         // bare rows
         { rows: cleanRows },
-      ];
+      );
 
       let finalMsg = '';
       let sent = false;
@@ -1201,7 +1246,14 @@ if (!window.writeStagedToSheet) {
         }
       }
 
-      if (!sent) throw new Error('UNKNOWN_ACTION: Sunucu bu işlemi tanımıyor. (appendDaily/appendRows/append)');
+      if (!sent){
+        if (infoEl){
+          infoEl.innerHTML = '⚠️ Sunucu bu işlemi tanımıyor. <button id="compatBtn" class="glass card-3d px-2 py-1 rounded-xl text-xs">Uyumluluğu Ayarla</button>';
+          const b = document.getElementById('compatBtn');
+          if (b) b.onclick = ()=> setupWebAppCompat(infoEl);
+        }
+        return;
+      }
       if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${finalMsg ? ' • ' + finalMsg : ''}`;
 
       // Clear staged rows and re-render the temp table
@@ -1461,7 +1513,19 @@ function dateToISO(d){
     return { json, raw };
   }
 
-  const attempts = [
+  const attempts = [];
+  {
+    const compat = getWebAppCompat();
+    if (compat && (compat.rowsKey || compat.actionKey || compat.expenseAction)){
+      const ak = compat.actionKey || 'action';
+      const av = compat.expenseAction || 'appendExpense';
+      // prefer 'row' for single; fallback to compat.rowsKey if provided
+      const rk = compat.rowsKey || 'row';
+      const b1 = {}; b1[rk] = payload.row; if (ak) b1[ak] = av; attempts.push(b1);
+      const b2 = {}; b2[rk] = JSON.stringify(payload.row); if (ak) b2[ak] = av; attempts.push(b2);
+    }
+  }
+  attempts.push(
     { action: 'appendExpense', row: payload.row },
     { action: 'append_expense', row: payload.row },
     { action: 'expenseAppend',  row: payload.row },
@@ -1470,9 +1534,10 @@ function dateToISO(d){
     // legacy: rowJson / data
     { action: 'appendExpense', rowJson: JSON.stringify(payload.row) },
     { action: 'appendExpense', data: payload.row },
+    { data: JSON.stringify(payload.row) },
     // very old handlers: flat payload
     payload.row
-  ];
+  );
 
   for (const body of attempts){
     try{
@@ -1535,6 +1600,10 @@ async function initExpenseEntryUI(){
       if(!ok && b){ b.onclick = ()=> setupSheetWebAppURL(info); }
     }catch(_){}
   }catch(_){ /* sessiz */ }
+  try{
+    const w = document.getElementById('writeSheetBtn');
+    if (w) w.addEventListener('contextmenu', (e)=>{ e.preventDefault(); setupWebAppCompat(info); });
+  }catch(_){}
 
   // Alt kategorileri doldur
   try{
