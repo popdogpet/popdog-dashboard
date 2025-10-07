@@ -1256,11 +1256,22 @@ window._revCharts = window._revCharts || { line:null, bar:null };
 
 function renderLineRevenueChart(monthly, canvas){
   if (!window.Chart || !canvas || !canvas.getContext) return;
+  // Ensure canvas has measurable size even if created while hidden
+  try {
+    const w = canvas.clientWidth || canvas.offsetWidth || 0;
+    const h = canvas.clientHeight || canvas.offsetHeight || 0;
+    if (!w) canvas.style.width = '100%';
+    if (!h) canvas.style.height = '300px';
+    if (!canvas.width)  canvas.width  = canvas.clientWidth || 600;
+    if (!canvas.height) canvas.height = canvas.clientHeight || 300;
+  } catch(_){}
   const ctx = canvas.getContext('2d');
   try{ if (window._revCharts.line) { window._revCharts.line.destroy(); } }catch(_){}
   if (!Array.isArray(monthly) || !monthly.length) return;
   const labels = monthly.map(r=> r.month);
   const data   = monthly.map(r=> +r.Total || 0);
+  // Plugin registration guard (Safari bug workaround)
+  try { if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); } } catch(_) {}
   window._revCharts.line = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1292,10 +1303,21 @@ function renderLineRevenueChart(monthly, canvas){
       elements: { line: { borderWidth:2 }, point:{ radius:0 } }
     }
   });
+  // Post-resize to paint if section became visible
+  try { setTimeout(() => { if (window._revCharts && window._revCharts.line) window._revCharts.line.resize(); }, 120); } catch(_) {}
 }
 
 function renderBarRevenueChart(monthly, canvas){
   if (!window.Chart || !canvas || !canvas.getContext) return;
+  // Ensure canvas has measurable size even if created while hidden
+  try {
+    const w = canvas.clientWidth || canvas.offsetWidth || 0;
+    const h = canvas.clientHeight || canvas.offsetHeight || 0;
+    if (!w) canvas.style.width = '100%';
+    if (!h) canvas.style.height = '300px';
+    if (!canvas.width)  canvas.width  = canvas.clientWidth || 600;
+    if (!canvas.height) canvas.height = canvas.clientHeight || 300;
+  } catch(_){}
   const ctx = canvas.getContext('2d');
   try{ if (window._revCharts.bar) { window._revCharts.bar.destroy(); } }catch(_){}
   if (!Array.isArray(monthly) || !monthly.length) return;
@@ -1306,6 +1328,8 @@ function renderBarRevenueChart(monthly, canvas){
     borderWidth: 1,
     borderRadius: 6
   }));
+  // Plugin registration guard (Safari bug workaround)
+  try { if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); } } catch(_) {}
   window._revCharts.bar = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: ds },
@@ -1330,6 +1354,8 @@ function renderBarRevenueChart(monthly, canvas){
       }
     }
   });
+  // Post-resize to paint if section became visible
+  try { setTimeout(() => { if (window._revCharts && window._revCharts.bar) window._revCharts.bar.resize(); }, 120); } catch(_) {}
 }
 
 // Render on load (with a retry loop that never clobbers good UI with empty, and re-renders if data arrives)
@@ -1338,9 +1364,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const tick = ()=>{
     tries++;
     try { renderRevenueTables(); } catch(_){}
-    // Stop after a reasonable window if we have rendered at least once
-    if (_revHasRendered || tries >= 20) return;
-    setTimeout(tick, 600);
+    // Stop after a reasonable window if we have rendered at least once AND charts are present
+    const hasCharts = !!(window._revCharts && (window._revCharts.line || window._revCharts.bar));
+    if ((_revHasRendered && hasCharts) || tries >= 30) return;
+    setTimeout(tick, 700);
   };
   tick();
 });
