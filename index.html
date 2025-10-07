@@ -68,32 +68,6 @@
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
 
-    /* Keep table wrappers aligned below the canvases */
-    #lineTotalTblWrap,
-    #barStackTblWrap{
-      background: rgba(255,255,255,0.25);
-      backdrop-filter: blur(12px) saturate(180%);
-      -webkit-backdrop-filter: blur(12px) saturate(180%);
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-      padding: 8px;
-      margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
-      max-height: 320px;
-      overflow: auto;
-    }
-    @media (min-width: 1280px){
-      #lineTotalTblWrap,
-      #barStackTblWrap{ max-height: 380px; }
-    }
-    @media (min-width: 1536px){
-      #lineTotalTblWrap,
-      #barStackTblWrap{ max-height: 420px; }
-    }
-
-  /* Shrink font size of Kanal Bazlı Aylık Ciro table */
-  #barStackTblWrap table {
-    font-size: 60%;
-  }
   /* Shrink font size of Ana Kategoriler (YTD) tables */
   #tblMainExpensesDetail,
   #tblMainExpensesGrouped {
@@ -195,8 +169,7 @@ th, td { white-space: nowrap; }
     border-color: rgba(255,255,255,0.08);
   }
     /* === Revenue tables (simple & readable) === */
-#barStackTblWrap .rev-table,
-#lineTotalTblWrap .rev-table{ font-size:12px !important; }
+
 .rev-table-wrap{ overflow:auto; border-radius:12px; padding:8px; }
 .rev-table{ width:100%; border-collapse:separate; border-spacing:0; }
 .rev-table th, .rev-table td{ white-space:nowrap; padding:.35rem .5rem; }
@@ -209,20 +182,6 @@ th, td { white-space: nowrap; }
 .rev-table .neg{ color:#ef4444; }
   .rev-table tfoot td{ font-weight:600; border-top:1px dashed rgba(15,23,42,.15); }
 
-  /* === Revenue charts: glass container + responsive height === */
-  .chart-glass{
-    background: rgba(255,255,255,0.25);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-    padding: 8px;
-    margin-top: 8px;
-  }
-  .dark .chart-glass{ background: rgba(2,6,23,0.45); }
-  .chart-glass canvas{ width:100%; height:280px; display:block; }
-  @media (min-width:1280px){ .chart-glass canvas{ height:320px; } }
-  @media (min-width:1536px){ .chart-glass canvas{ height:360px; } }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -889,26 +848,6 @@ th, td { white-space: nowrap; }
   }catch(_){}
 })();
 
-function readyCanvas(canvas){
-  if (!canvas) return null;
-  const cs = getComputedStyle(canvas);
-  const cssH = parseInt(cs.height || '0', 10) || 300;
-  const cssW = canvas.clientWidth || canvas.parentElement?.clientWidth || 600;
-
-  if (!canvas.width || canvas.width === 0)  canvas.width  = Math.max(320, Math.floor(cssW));
-  if (!canvas.height || canvas.height === 0) canvas.height = Math.max(220, Math.floor(cssH));
-
-  // iPad/Safari DPR abartısını sakinleştir (opsiyonel)
-  try {
-    if (window.devicePixelRatio > 2) {
-      const ctx = canvas.getContext('2d');
-      ctx.scale(2 / window.devicePixelRatio, 2 / window.devicePixelRatio);
-      return ctx;
-    }
-  } catch(_){}
-
-  return canvas.getContext('2d');
-}
 
 function ensureCanvasSize(canvas, defaultHeight = 320){
   if (!canvas) return null;
@@ -954,8 +893,7 @@ async function setupSheetWebAppURL(infoEl){
     if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
     const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
     if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
-    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec');
-    if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
+localStorage.setItem('popdog_sheet_webapp_url', pasted.trim());    if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
     setTimeout(()=> location.reload(), 400);
   }catch(e){
     if(infoEl) infoEl.textContent = '⚠️ URL kaydedilemedi: ' + (e?.message || e);
@@ -1436,6 +1374,19 @@ function loadCSV(url){
   });
 }
 
+// Normalize Date field for Expenses CSV rows (supports ISO and TR formats)
+function getExpenseISODate(r){
+  try{
+    const raw = ((r && (r.Date || r.date)) || '').toString().trim();
+    // If already ISO-like (YYYY-MM-DD...), keep the first 10 chars
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0,10);
+    // Try Turkish style dates like DD.MM.YYYY or DD/MM/YYYY
+    const fromTR = parseTRDateString(raw); // helper already defined above
+    return fromTR || '';
+  }catch(_){
+    return '';
+  }
+}
 // Robust normalizer so Papa.parse output always has Date normalized.
 function parseExpenseRow(r){
   try{
@@ -1861,11 +1812,7 @@ function extractUSDFromNote(note){
 
 /* TRY↔USD yardımcıları (mevcut koddaki oranları kullanır) */
 function tryPerUsd(){
-  // varsa localStorage tpu, yoksa KPI’dan türetilen
-  const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
-  if (tpu>0) return tpu;
-  const derived = deriveTryPerUsdFromKPI();
-  return derived || 0;
+  return getTryPerUsd() || 0;
 }
 
 /* === Render === */
