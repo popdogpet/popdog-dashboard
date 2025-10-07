@@ -1824,16 +1824,18 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
   const s = (subcat||'').toLowerCase();
 
   // 1) Kredi taksitleri
-  if (s.includes('ticari kredi')){
-    const inst = st.loans.biz.instTRY || 0;
-    const n = approxInstallments(amountTRY, inst);
-    st.loans.biz.remainTRY = Math.max(0, (st.loans.biz.remainTRY || 0) - amountTRY);
-    st.loans.biz.paid = Math.min(st.loans.biz.total, (st.loans.biz.paid || 0) + n);
-  } else if (s.includes('araç kredi') || s.includes('arac kredi')){
+  if (s.includes('araç kredi') || s.includes('arac kredi')) {
+    // Araç Kredisi
     const inst = st.loans.car.instTRY || 0;
     const n = approxInstallments(amountTRY, inst);
     st.loans.car.remainTRY = Math.max(0, (st.loans.car.remainTRY || 0) - amountTRY);
     st.loans.car.paid = Math.min(st.loans.car.total, (st.loans.car.paid || 0) + n);
+  } else if (s.includes('kredi')) {
+    // "Kredi" (araç harici) → Ticari Kredi
+    const inst = st.loans.biz.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.biz.remainTRY = Math.max(0, (st.loans.biz.remainTRY || 0) - amountTRY);
+    st.loans.biz.paid = Math.min(st.loans.biz.total, (st.loans.biz.paid || 0) + n);
   }
 
   // 2) Zee.Dog ödemesi: not içinde YK#xxx varsa doğrudan işaretle
