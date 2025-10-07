@@ -70,7 +70,8 @@ th, td { white-space: nowrap; }
 /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
 #lineTotal,
 #barStack,
-#pieShare{
+#pieShare,
+#lineExpenses{
   background: rgba(255,255,255,0.25);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -89,7 +90,8 @@ th, td { white-space: nowrap; }
 /* Desktop override for a bit more headroom */
 @media (min-width:1024px){
   #lineTotal,
-  #barStack{
+  #barStack,
+  #lineExpenses{
     height: 220px !important;
   }
 }
@@ -133,7 +135,8 @@ th, td { white-space: nowrap; }
 @supports not (height: clamp(10px, 10vw, 300px)){
   #lineTotal,
   #barStack,
-  #pieShare{ height: 220px !important; }
+  #pieShare,
+  #lineExpenses{ height: 220px !important; }
 }
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
@@ -473,17 +476,6 @@ th, td { white-space: nowrap; }
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
           <canvas id="lineExpenses" height="160"></canvas>
-          <style>
-            #lineExpenses {
-              background: rgba(255,255,255,0.25);
-              backdrop-filter: blur(12px) saturate(180%);
-              -webkit-backdrop-filter: blur(12px) saturate(180%);
-              border-radius: 12px;
-              box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-              box-sizing: border-box;
-              padding: 0 !important;
-            }
-          </style>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -827,7 +819,7 @@ th, td { white-space: nowrap; }
   try { Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1); } catch(_) {}
   // Ensure enclosing cards don’t balloon due to canvas reflow
   document.addEventListener('DOMContentLoaded', ()=>{
-    ['lineTotal','barStack','pieShare'].forEach(id=>{
+    ['lineTotal','barStack','pieShare','lineExpenses'].forEach(id=>{
       const c = document.getElementById(id);
       if (c && c.parentElement) c.parentElement.style.overflow = 'hidden';
     });
