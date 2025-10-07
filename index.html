@@ -410,9 +410,16 @@ th, td { white-space: nowrap; }
         </div>
     
         <div class="rounded-2xl p-4 card-glass-pro">
-          <div class="font-medium">Demoş Bank — FI5</div>
-          <div class="mt-1 text-sm">Tutar: <span id="fi5Total" class="font-semibold">₺ 291.128</span></div>
-          <div class="hint text-xs mt-1">Statik değer — isterseniz düzenlenebilir yaparız</div>
+          <div class="flex items-center justify-between">
+            <div class="font-medium">QNB Portföy Para Piyasası (FI5)</div>
+            <div class="flex items-center gap-2">
+              <span class="hint text-xs">Birim Fiyatı (TRY)</span>
+              <input id="fi5UnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,0198">
+            </div>
+          </div>
+          <div class="mt-1 text-sm">Adet: <strong>665</strong></div>
+          <div class="mt-1 text-sm">Toplam (≈): <span id="fi5Total" class="font-semibold">–</span></div>
+          <div class="hint text-xs mt-1" id="fi5Note"></div>
         </div>
       </div>
     </section>
@@ -1694,7 +1701,8 @@ const defaultLoansState = {
   demoBank: {
     goldGram: 169,
     gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
-    fi5TRY: 291128
+    fi5Units: 665,
+    fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0  // kullanıcı girecek (birim fiyat)
   }
 };
 
@@ -1803,7 +1811,35 @@ function renderLoansBlock(){
       ? `Hesap: ${st.demoBank.goldGram} gr × ${numberTL(gramPrice)}${suffix}`
       : 'Gram fiyatı girin';
   }
-  document.getElementById('fi5Total').textContent  = numberTL(st.demoBank.fi5TRY);
+  // FI5 (QNB Portföy Para Piyasası) — birim fiyat × adet
+  const fInput = document.getElementById('fi5UnitInput');
+  if (fInput){
+    if (!fInput.value && st.demoBank.fi5UnitTRY){ fInput.value = String(st.demoBank.fi5UnitTRY); }
+    fInput.onchange = ()=>{
+      const v = parseTL(fInput.value);
+      const s = getLoansState();
+      s.demoBank.fi5UnitTRY = v;
+      setLoansState(s);
+      try{
+        localStorage.setItem('popdog_fi5_unit_try', String(v));
+        localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
+      }catch(_){}
+      renderLoansBlock();
+    };
+  }
+  const fi5Unit = st.demoBank.fi5UnitTRY || Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0;
+  const fi5Qty  = st.demoBank.fi5Units || 0;
+  const fi5Sum  = fi5Unit ? (fi5Unit * fi5Qty) : 0;
+  document.getElementById('fi5Total').textContent = fi5Sum ? numberTL(fi5Sum) : '–';
+  {
+    const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
+    const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+    const suffix = when ? ` • Güncellendi: ${when}` : '';
+    const noteEl = document.getElementById('fi5Note');
+    if (noteEl) noteEl.textContent = fi5Unit
+      ? `Hesap: ${fi5Qty} adet × ${numberTL(fi5Unit)}${suffix}`
+      : 'Birim fiyat girin';
+  }
 }
 
 /* === Otomatik güncelleme: gider eklendiğinde çağırılacak ===
