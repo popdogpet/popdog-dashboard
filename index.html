@@ -1176,12 +1176,11 @@ function renderRevenueTables(){
   // --- Prevent empty overwrites ---
   if (window._revLock) return;
   const curRows = Array.isArray(window.loadedRows) ? window.loadedRows : [];
-  if (curRows.length) {
+  if (curRows.length > 0) {
     window._revHasRendered = true;
-    window._revLastNonEmptyRows = curRows;
+    window._revLastNonEmptyRows = curRows.slice();
   } else if (window._revHasRendered) {
-    // block further empty renders after first success
-    window._revLock = true;
+    // After first successful render, ignore empty calls entirely
     return;
   }
   const rows = window._revLastNonEmptyRows && window._revLastNonEmptyRows.length
@@ -1189,6 +1188,10 @@ function renderRevenueTables(){
     : curRows;
 
   const monthly = aggMonthly(rows || []);
+  // If we still don't have monthly data, don't touch the UI.
+  if (!monthly || monthly.length === 0) {
+    return;
+  }
 
   // 1) Monthly summary table (Ay, Toplam, MoM)
   const wrap1 = document.getElementById('lineTotalTblWrap');
@@ -1200,7 +1203,7 @@ function renderRevenueTables(){
     </tr>`).join('');
     wrap1.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
       <thead><tr><th>Ay</th><th class="num">Toplam</th><th class="num">MoM</th></tr></thead>
-      <tbody>${rowsHtml || '<tr><td class="hint" colspan="3">Henüz veri yok.</td></tr>'}</tbody>
+      <tbody>${rowsHtml}</tbody>
     </table></div>`;
   }
 
@@ -1217,8 +1220,8 @@ function renderRevenueTables(){
     const ftRow = `<tr><td><strong>Toplam</strong></td>${ft.map(v=>`<td class="num"><strong>${numberTL(v)}</strong></td>`).join('')}<td class="num"><strong>${numberTL(monthly.reduce((a,b)=>a+(+b.Total||0),0))}</strong></td></tr>`;
     wrap2.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
       <thead>${head}</thead>
-      <tbody>${body || '<tr><td class="hint" colspan="8">Henüz veri yok.</td></tr>'}</tbody>
-      <tfoot>${monthly.length?ftRow:''}</tfoot>
+      <tbody>${body}</tbody>
+      <tfoot>${ftRow}</tfoot>
     </table></div>`;
   }
 }
@@ -1453,20 +1456,19 @@ async function refreshAll(){
   try{
     const url = DEFAULT_SHEET_CSV;
     const rows = await loadFromSheet(url);
-    // Keep a copy in memory and render
-    window.loadedRows = Array.isArray(rows) ? rows : [];
-    try{ renderRevenueTables(); }catch(_){}
+    // Only accept non-empty loads; never clobber a good UI with empty data
+    if (Array.isArray(rows) && rows.length > 0) {
+      window.loadedRows = rows.slice();
+      window._revHasRendered = true;
+      window._revLastNonEmptyRows = rows.slice();
+      try { renderRevenueTables(); } catch(_) {}
+    } else {
+      console.warn('refreshAll: empty rows received — keeping previous UI/state');
+      return;
+    }
     // (Optional) You can extend this later to refresh KPIs/stock using other CSVs
   }catch(e){
     console.error('refreshAll error:', e);
-    // do not clobber UI; just show a subtle note if wrappers exist
-    try{
-      const w1 = document.getElementById('lineTotalTblWrap');
-      const w2 = document.getElementById('barStackTblWrap');
-      const msg = `<div class="rev-table-wrap"><div class="hint text-sm">⚠️ Gelir CSV yüklenemedi.</div></div>`;
-      if (w1 && !w1.innerHTML) w1.innerHTML = msg;
-      if (w2 && !w2.innerHTML) w2.innerHTML = msg;
-    }catch(_){}
   }
 }
 
