@@ -1607,6 +1607,8 @@ async function refreshAll(){
       console.warn('refreshAll: empty rows received — keeping previous UI/state');
       return;
     }
+    // Ensure charts/tables render after async loads (second safe call)
+    try { renderRevenueTables(); } catch(_) {}
     // (Optional) You can extend this later to refresh KPIs/stock using other CSVs
   }catch(e){
     console.error('refreshAll error:', e);
