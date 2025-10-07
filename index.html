@@ -67,54 +67,60 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
-/* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
-#lineTotal,
-#barStack,
-#pieShare{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  box-sizing: border-box;
-  padding: 0 !important;
-  /* FIX: avoid responsive resize feedback loops on iPad Safari */
-  contain: layout size;
-  display: block;
-  width: 100% !important;
-  /* Force a stable height controlled purely by CSS (not content size) */
-  height: clamp(180px, 40vw, 260px) !important;
-}
+    /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
+    #lineTotal,
+    #barStack,
+    #pieShare{
+      background: rgba(255,255,255,0.25);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      box-sizing: border-box;
+      padding: 0 !important;
+      /* FIX: avoid responsive resize feedback loops on iPad Safari */
+      contain: layout size;
+      display: block;
+      width: 100% !important;
+      /* Force a stable height controlled purely by CSS (not content size) */
+      height: clamp(220px, 45vw, 320px) !important;
+    }
 
-/* Desktop override for a bit more headroom */
-@media (min-width:1024px){
-  #lineTotal,
-  #barStack{
-    height: 220px !important;
-  }
-}
+    /* Desktop override for a bit more headroom on larger screens */
+    @media (min-width:1280px){
+      #lineTotal,
+      #barStack{
+        height: 280px !important;
+      }
+    }
+    @media (min-width:1536px){
+      #lineTotal,
+      #barStack{
+        height: 320px !important;
+      }
+    }
 
-/* Keep table wrappers aligned below the canvases */
-#lineTotalTblWrap,
-#barStackTblWrap{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  padding: 8px;
-  margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
-  max-height: 260px;
-  overflow: auto;
-}
-@media (min-width: 1024px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 320px; }
-}
-@media (min-width: 1536px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 360px; }
-}
+    /* Keep table wrappers aligned below the canvases */
+    #lineTotalTblWrap,
+    #barStackTblWrap{
+      background: rgba(255,255,255,0.25);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      padding: 8px;
+      margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
+      max-height: 320px;
+      overflow: auto;
+    }
+    @media (min-width: 1280px){
+      #lineTotalTblWrap,
+      #barStackTblWrap{ max-height: 380px; }
+    }
+    @media (min-width: 1536px){
+      #lineTotalTblWrap,
+      #barStackTblWrap{ max-height: 420px; }
+    }
 
   /* Shrink font size of Kanal Bazlı Aylık Ciro table */
   #barStackTblWrap table {
@@ -126,8 +132,9 @@ th, td { white-space: nowrap; }
     font-size: 60%;
   }
 /* === Unified chart sizing for consistency (mobile-first) === */
-.chart-can{ width:100%; display:block; height: clamp(180px, 40vw, 260px); }
-@media (min-width:1024px){ .chart-can{ height: 220px; } }
+.chart-can{ width:100%; display:block; height: clamp(220px, 45vw, 320px); }
+@media (min-width:1280px){ .chart-can{ height: 280px; } }
+@media (min-width:1536px){ .chart-can{ height: 320px; } }
 
 /* Fallback for older Safari that doesn’t support clamp() on height */
 @supports not (height: clamp(10px, 10vw, 300px)){
@@ -415,7 +422,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid lg:grid-cols-2 gap-6" data-page="revenue">
+    <div class="grid xl:grid-cols-2 gap-6" data-page="revenue">
       <div class="glass card-3d rounded-3xl p-5">
         <div class="flex items-center justify-between mb-2">
           <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
