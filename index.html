@@ -734,7 +734,9 @@ th, td { white-space: nowrap; }
         if (key === 'expenses') {
           try {
             const c = document.getElementById('lineExpenses');
-            if (c) { ensureCanvasSize(c, 260); }
+            if (c) { ensureCanvasSize(c, 260);
+              try { refreshExpensesLineChart(); } catch(_){}
+             }
           } catch(_) {}
         }
       }
@@ -1734,6 +1736,7 @@ async function initExpenseEntryUI(){
         const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
         setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
         applyExpenseToLoans({ amountTRY, subcat: subVal, note: noteVal });
+        try{ refreshExpensesLineChart(); }catch(_){}
         // Gerekirse cache’i kirletme & ekrana tazeleme
         try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
         try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
@@ -1748,6 +1751,7 @@ async function initExpenseEntryUI(){
 document.addEventListener('DOMContentLoaded', ()=> {
   try{ initExpenseEntryUI(); }catch(_){}
   try{ refreshAll(); }catch(_){}
+  try{ refreshExpensesLineChart(); }catch(_){}
 });
 
 /* ================== LOANS & PENDING (STATE + UI) ================== */
@@ -3487,28 +3491,125 @@ function expenseCats(r){
   return { main, sub: r.Subcategory || r.FinalSubcategory || main };
 }
 
-function readExpenseAmountTRY(r){
-  try{
-    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
-    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
-    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
-    if (!amtNum) return 0;
+function loadExpensesCsv(url){
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        resolve(res.data || []);
+      },
+      error: (err) => reject(err)
+    });
+  });
+}
+/* ========= Expenses → Monthly aggregate + Line Chart (safe add) ========= */
+/* Single Chart instance (reuse across renders) */
+if (!window._expChart) { window._expChart = null; }
 
-    if (cur === 'USD'){
-      let tryPerUsd = 0;
-      tryPerUsd = getTryPerUsd();
-      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
-        tryPerUsd = 1 / fxRateUSDPerTRY;
+/* Group expenses by YYYY-MM
+   - Uses existing readExpenseAmountTRY if available; otherwise falls back to a simple parser */
+function groupExpensesMonthly(rows){
+  const readAmt = (typeof readExpenseAmountTRY === 'function')
+    ? readExpenseAmountTRY
+    : function(r){
+        if(!r) return 0;
+        const keys = ['AmountTRY','Amount (TRY)','TRY','Amount','Tutar','Tutar (TRY)','Total'];
+        for (const k of keys){
+          if (r[k] != null && String(r[k]).trim() !== '') return parseTL(r[k]);
+        }
+        return 0;
+      };
+
+  const map = new Map();
+  (rows||[]).forEach(r=>{
+    const iso = (typeof getExpenseISODate === 'function') ? (getExpenseISODate(r) || '') : (String(r.Date||'').slice(0,10));
+    if(!iso) return;
+    const key = iso.slice(0,7);
+    const amt = readAmt(r);
+    if(!amt || amt<=0) return;
+    map.set(key, (map.get(key)||0) + amt);
+  });
+  const keys = Array.from(map.keys()).sort();
+  return keys.map(k => ({ key:k, total: map.get(k) }));
+}
+
+/* Ensure canvas has a sensible size (reuse if project already has ensureCanvasSize) */
+function ensureCanvasSizeSafe(canvas, fallbackH){
+  try{
+    if (typeof ensureCanvasSize === 'function') { ensureCanvasSize(canvas, fallbackH); return; }
+  }catch(_){}
+  if (!canvas) return;
+  const cs = getComputedStyle(canvas);
+  const cssH = parseInt(cs.height||'0',10) || fallbackH || 260;
+  const cssW = canvas.clientWidth || canvas.parentElement?.clientWidth || 600;
+  if (!canvas.width  || canvas.width===0)  canvas.width  = Math.max(320, Math.floor(cssW));
+  if (!canvas.height || canvas.height===0) canvas.height = Math.max(220, Math.floor(cssH));
+}
+
+/* Render a minimalist line chart for monthly expenses (defines only if missing) */
+if (typeof renderLineExpensesChart !== 'function') {
+  function renderLineExpensesChart(monthly, canvas){
+    if(!canvas) return;
+    ensureCanvasSizeSafe(canvas, 260);
+    const ctx = canvas.getContext('2d');
+
+    try{ if(window._expChart) window._expChart.destroy(); }catch(_){}
+
+    const labels = monthly.map(d => d.key);
+    const data   = monthly.map(d => Math.round(d.total));
+
+    window._expChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Aylık Gider (₺)',
+          data,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,.18)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode:'index', intersect:false },
+        plugins: {
+          legend: { display:false },
+          tooltip: { callbacks: { label: (c)=> ' ' + numberTL(c.parsed.y) } }
+        },
+        scales: {
+          x: { grid:{ display:false } },
+          y: { beginAtZero:true, ticks:{ callback:v=> numberTL(v).replace('₺','₺ ') } }
+        }
       }
-      if (!tryPerUsd){
-        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
+    });
+  }
+}
+
+/* Public refresher (uses DEFAULT_EXPENSES_CSV) — defines only if missing */
+if (typeof refreshExpensesLineChart !== 'function') {
+  async function refreshExpensesLineChart(){
+    try{
+      const url = (typeof DEFAULT_EXPENSES_CSV!=='undefined' && DEFAULT_EXPENSES_CSV) ? DEFAULT_EXPENSES_CSV
+                 : (localStorage.getItem('popdog_expenses_csv') || localStorage.getItem('popdog_expenses_csv_url') || '');
+      if (!url) return;
+      const rows = await loadExpensesCsv(url);
+      const monthly = groupExpensesMonthly(rows);
+      const c = document.getElementById('lineExpenses');
+      if(!c) return;
+      if(monthly.length===0){
+        try{ c.getContext('2d').clearRect(0,0,c.width||600,c.height||260);}catch(_){}
+        return;
       }
-      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
-      return amtNum * tryPerUsd;
+      renderLineExpensesChart(monthly, c);
+    }catch(e){
+      console.warn('refreshExpensesLineChart error:', e);
     }
-    return parseTL(amtNum);
-  }catch(e){
-    return 0;
   }
 }
 function readExpenseAmountTRY(r){
