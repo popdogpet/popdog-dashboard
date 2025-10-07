@@ -404,8 +404,12 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <canvas id="lineExpenses" height="160"></canvas>
+          <div id="expLineWrap" class="relative" style="height:260px; min-height:220px; max-height:360px;">
+            <canvas id="lineExpenses"></canvas>
+          </div>
           <style>
+            #expLineWrap{ height:260px; min-height:220px; max-height:360px; }
+            #expLineWrap canvas{ width:100% !important; height:100% !important; display:block; }
             #lineExpenses {
               background: rgba(255,255,255,0.25);
               backdrop-filter: blur(12px) saturate(180%);
@@ -726,6 +730,13 @@ th, td { white-space: nowrap; }
             b.classList.remove('ring-1','ring-indigo-400');
           }
         });
+        // Ensure "Aylık Giderler" canvas has bounded size when this page is shown
+        if (key === 'expenses') {
+          try {
+            const c = document.getElementById('lineExpenses');
+            if (c) { ensureCanvasSize(c, 260); }
+          } catch(_) {}
+        }
       }
       window.showPage = showPage;
       // Bind buttons
