@@ -67,12 +67,74 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
+/* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
+#lineTotal,
+#barStack,
+#pieShare{
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  box-sizing: border-box;
+  padding: 0 !important;
+  /* FIX: avoid responsive resize feedback loops on iPad Safari */
+  contain: layout size;
+  display: block;
+  width: 100% !important;
+  /* Force a stable height controlled purely by CSS (not content size) */
+  height: clamp(180px, 40vw, 260px) !important;
+}
 
+/* Desktop override for a bit more headroom */
+@media (min-width:1024px){
+  #lineTotal,
+  #barStack{
+    height: 220px !important;
+  }
+}
+
+/* Keep table wrappers aligned below the canvases */
+#lineTotalTblWrap,
+#barStackTblWrap{
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  padding: 8px;
+  margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
+  max-height: 260px;
+  overflow: auto;
+}
+@media (min-width: 1024px){
+  #lineTotalTblWrap,
+  #barStackTblWrap{ max-height: 320px; }
+}
+@media (min-width: 1536px){
+  #lineTotalTblWrap,
+  #barStackTblWrap{ max-height: 360px; }
+}
+
+  /* Shrink font size of Kanal Bazlı Aylık Ciro table */
+  #barStackTblWrap table {
+    font-size: 60%;
+  }
   /* Shrink font size of Ana Kategoriler (YTD) tables */
   #tblMainExpensesDetail,
   #tblMainExpensesGrouped {
     font-size: 60%;
   }
+/* === Unified chart sizing for consistency (mobile-first) === */
+.chart-can{ width:100%; display:block; height: clamp(180px, 40vw, 260px); }
+@media (min-width:1024px){ .chart-can{ height: 220px; } }
+
+/* Fallback for older Safari that doesn’t support clamp() on height */
+@supports not (height: clamp(10px, 10vw, 300px)){
+  #lineTotal,
+  #barStack,
+  #pieShare{ height: 220px !important; }
+}
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
 .sales-turnover table td,
@@ -168,20 +230,6 @@ th, td { white-space: nowrap; }
     color: #cbd5e1;
     border-color: rgba(255,255,255,0.08);
   }
-    /* === Revenue tables (simple & readable) === */
-
-.rev-table-wrap{ overflow:auto; border-radius:12px; padding:8px; }
-.rev-table{ width:100%; border-collapse:separate; border-spacing:0; }
-.rev-table th, .rev-table td{ white-space:nowrap; padding:.35rem .5rem; }
-.rev-table thead th{ position:sticky; top:0; z-index:1; backdrop-filter:blur(8px) saturate(160%); -webkit-backdrop-filter:blur(8px) saturate(160%); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(15,23,42,.08); }
-.dark .rev-table thead th{ background:rgba(2,6,23,.6); border-bottom-color:rgba(255,255,255,.08); }
-.rev-table tbody tr:nth-child(even){ background:rgba(15,23,42,.02); }
-.dark .rev-table tbody tr:nth-child(even){ background:rgba(255,255,255,.03); }
-.rev-table .num{ text-align:right; }
-.rev-table .pos{ color:#10b981; }
-.rev-table .neg{ color:#ef4444; }
-  .rev-table tfoot td{ font-weight:600; border-top:1px dashed rgba(15,23,42,.15); }
-
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -366,6 +414,26 @@ th, td { white-space: nowrap; }
       </div>
     </section>
 
+    <!-- Charts -->
+    <div class="grid lg:grid-cols-2 gap-6" data-page="revenue">
+      <div class="glass card-3d rounded-3xl p-5">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
+            <span class="label">YoY</span>
+            <span id="yoyState" class="val">Açık</span>
+          </button>
+        </div>
+        <canvas id="lineTotal" class="chart-can"></canvas>
+        <div id="lineTotalTblWrap"></div>
+      </div>
+
+      <div class="glass card-3d rounded-3xl p-5">
+        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
+        <canvas id="barStack" class="chart-can"></canvas>
+        <div id="barStackTblWrap"></div>
+      </div>
+    </div>
 
     <!-- === Expenses (CFO) === -->
     <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
@@ -404,12 +472,8 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <div id="expLineWrap" class="relative" style="height:260px; min-height:220px; max-height:360px;">
-            <canvas id="lineExpenses"></canvas>
-          </div>
+          <canvas id="lineExpenses" height="160"></canvas>
           <style>
-            #expLineWrap{ height:260px; min-height:220px; max-height:360px; }
-            #expLineWrap canvas{ width:100% !important; height:100% !important; display:block; }
             #lineExpenses {
               background: rgba(255,255,255,0.25);
               backdrop-filter: blur(12px) saturate(180%);
@@ -730,15 +794,6 @@ th, td { white-space: nowrap; }
             b.classList.remove('ring-1','ring-indigo-400');
           }
         });
-        // Ensure "Aylık Giderler" canvas has bounded size when this page is shown
-        if (key === 'expenses') {
-          try {
-            const c = document.getElementById('lineExpenses');
-            if (c) { ensureCanvasSize(c, 260);
-              try { refreshExpensesLineChart(); } catch(_){}
-             }
-          } catch(_) {}
-        }
       }
       window.showPage = showPage;
       // Bind buttons
@@ -763,8 +818,6 @@ th, td { white-space: nowrap; }
 /* === Chart.js global safe defaults (iPad/Safari) === */
 (function(){
   if (!window.Chart) return;
-
-  // ----- Core sizing defaults -----
   // Prevent aspect-ratio oscillations; size is driven by CSS height
   Chart.defaults.responsive = true;
   Chart.defaults.maintainAspectRatio = false;
@@ -772,111 +825,14 @@ th, td { white-space: nowrap; }
   Chart.defaults.resizeDelay = 180;
   // Tame DPR thrash on Safari zoom/orientation changes
   try { Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1); } catch(_) {}
-
-  // ----- Readable, non-squished typography (mobile / iPad aware) -----
-  // Base font by viewport width (phones → iPad → desktop)
-  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-  const baseFont = (vw <= 400) ? 11 : (vw <= 900 ? 12 : 13);
-
-  // Global font
-  Chart.defaults.font = {
-    family: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"',
-    size: baseFont,
-    weight: '500',
-    lineHeight: 1.2
-  };
-
-  // Scales (axes) — chunkier ticks + no tilt
-  // category = x axis for our monthly labels
-  const catTicks = Chart.defaults.scales.category.ticks || {};
-  Chart.defaults.scales = Chart.defaults.scales || {};
-  Chart.defaults.scales.category = Chart.defaults.scales.category || {};
-  Chart.defaults.scales.linear = Chart.defaults.scales.linear || {};
-
-  Chart.defaults.scales.category.ticks = {
-    ...catTicks,
-        font: { size: baseFont },
-    maxRotation: 0,
-    autoSkip: true,
-    autoSkipPadding: 8,
-    padding: 6
-  };
-  // y axis — a touch larger so numbers are readable
-  const linTicks = Chart.defaults.scales.linear.ticks || {};
-  Chart.defaults.scales.linear.ticks = {
-    ...linTicks,
-        font: { size: baseFont + 1 },
-    padding: 6
-  };
-
-  // Legend / tooltip
-  Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
-  Chart.defaults.plugins.legend.labels = {
-    boxWidth: 10,
-    boxHeight: 10,
-    padding: 10,
-    usePointStyle: true,
-    font: { size: baseFont }
-  };
-  Chart.defaults.plugins.tooltip = {
-    padding: 10,
-    titleFont: { size: baseFont + 1, weight: '600' },
-    bodyFont: { size: baseFont },
-    footerFont: { size: baseFont }
-  };
-
-  // Datalabels plugin (if loaded) — avoid clutter, keep readable
-  if (window.ChartDataLabels) {
-    Chart.defaults.plugins.datalabels = {
-      clamp: true,
-      clip: true,
-      anchor: 'end',
-      align: 'top',
-      offset: 4,
-      formatter: (v) => '',
-      font: { size: baseFont - 1 }
-    };
-  }
-
-  // Elements — smoother lines, no noisy points by default
-  Chart.defaults.elements = Chart.defaults.elements || {};
-  Chart.defaults.elements.point = { radius: 0, hitRadius: 6, hoverRadius: 3 };
-  Chart.defaults.elements.line = { borderWidth: 2, tension: 0.25 };
-
-  // Layout padding so labels don't kiss the edges
-  Chart.defaults.layout = { padding: { top: 8, right: 10, bottom: 8, left: 8 } };
-
   // Ensure enclosing cards don’t balloon due to canvas reflow
   document.addEventListener('DOMContentLoaded', ()=>{
-    [].forEach(() => {});
+    ['lineTotal','barStack','pieShare'].forEach(id=>{
+      const c = document.getElementById(id);
+      if (c && c.parentElement) c.parentElement.style.overflow = 'hidden';
+    });
   }, { once:true });
 })();
-
-// ---- Chart.js plugin register (safe) + canvas ölçü düzeltici ----
-(function safeRegisterPlugins(){
-  try{
-    if (window.Chart && window.ChartDataLabels) {
-      Chart.register(window.ChartDataLabels); // v4'te bir kez register yeter
-    }
-  }catch(_){}
-})();
-
-
-function ensureCanvasSize(canvas, defaultHeight = 320){
-  if (!canvas) return null;
-  // CSS height 0 dönerse makul bir default ver
-  const cs = getComputedStyle(canvas);
-  const h = parseInt(cs.height || '0', 10);
-  if (!h) {
-    canvas.style.height = defaultHeight + 'px';
-  }
-  // Chart.js'in gerçek px görmesi için width/height attribute da ver
-  const w = canvas.clientWidth || canvas.parentElement?.clientWidth || 640;
-  const hh = parseInt((canvas.style.height || '').replace('px',''), 10) || defaultHeight;
-  if (!canvas.width || canvas.width === 0)  canvas.width  = Math.max(320, Math.floor(w));
-  if (!canvas.height || canvas.height === 0) canvas.height = Math.max(220, Math.floor(hh));
-  return canvas;
-}
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -906,7 +862,8 @@ async function setupSheetWebAppURL(infoEl){
     if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
     const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
     if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
-localStorage.setItem('popdog_sheet_webapp_url', pasted.trim());    if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
+    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec');
+    if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
     setTimeout(()=> location.reload(), 400);
   }catch(e){
     if(infoEl) infoEl.textContent = '⚠️ URL kaydedilemedi: ' + (e?.message || e);
@@ -1139,7 +1096,6 @@ function renderStagedTable(){
 }
 
 
-
 // Bind the writer to the button in the Daily Paste section
 (function(){
   const btn = document.getElementById('pushRowsBtn');
@@ -1315,7 +1271,6 @@ if (!window.writeStagedToSheet) {
 }
 
 /* ================== CSV LOADERS ================== */
-
 async function loadFromSheet(url){
   const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
   if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
@@ -1352,29 +1307,6 @@ async function loadFromSheet(url){
   });
 }
 
-// === Global refresh: load revenue CSV and render tables ===
-async function refreshAll(){
-  try{
-    const url = DEFAULT_SHEET_CSV;
-    const rows = await loadFromSheet(url);
-    // Only accept non-empty loads; never clobber a good UI with empty data
-    if (Array.isArray(rows) && rows.length > 0) {
-      window.loadedRows = rows.slice();
-      window._revHasRendered = true;
-      window._revLastNonEmptyRows = rows.slice();
-      try { renderRevenueTables(); } catch(_) {}
-    } else {
-      console.warn('refreshAll: empty rows received — keeping previous UI/state');
-      return;
-    }
-    // Ensure charts/tables render after async loads (second safe call)
-    try { renderRevenueTables(); } catch(_) {}
-    // (Optional) You can extend this later to refresh KPIs/stock using other CSVs
-  }catch(e){
-    console.error('refreshAll error:', e);
-  }
-}
-
 function loadCSV(url){
   return new Promise((resolve,reject)=>{
     if(!url) return resolve([]);
@@ -1387,19 +1319,6 @@ function loadCSV(url){
   });
 }
 
-// Normalize Date field for Expenses CSV rows (supports ISO and TR formats)
-function getExpenseISODate(r){
-  try{
-    const raw = ((r && (r.Date || r.date)) || '').toString().trim();
-    // If already ISO-like (YYYY-MM-DD...), keep the first 10 chars
-    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0,10);
-    // Try Turkish style dates like DD.MM.YYYY or DD/MM/YYYY
-    const fromTR = parseTRDateString(raw); // helper already defined above
-    return fromTR || '';
-  }catch(_){
-    return '';
-  }
-}
 // Robust normalizer so Papa.parse output always has Date normalized.
 function parseExpenseRow(r){
   try{
@@ -1736,7 +1655,6 @@ async function initExpenseEntryUI(){
         const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
         setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
         applyExpenseToLoans({ amountTRY, subcat: subVal, note: noteVal });
-        try{ refreshExpensesLineChart(); }catch(_){}
         // Gerekirse cache’i kirletme & ekrana tazeleme
         try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
         try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
@@ -1750,8 +1668,6 @@ async function initExpenseEntryUI(){
 // Sayfa yüklenince hazırla (router çalıştıktan sonra da çağrılırsa sorun yok)
 document.addEventListener('DOMContentLoaded', ()=> {
   try{ initExpenseEntryUI(); }catch(_){}
-  try{ refreshAll(); }catch(_){}
-  try{ refreshExpensesLineChart(); }catch(_){}
 });
 
 /* ================== LOANS & PENDING (STATE + UI) ================== */
@@ -1827,7 +1743,11 @@ function extractUSDFromNote(note){
 
 /* TRY↔USD yardımcıları (mevcut koddaki oranları kullanır) */
 function tryPerUsd(){
-  return getTryPerUsd() || 0;
+  // varsa localStorage tpu, yoksa KPI’dan türetilen
+  const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+  if (tpu>0) return tpu;
+  const derived = deriveTryPerUsdFromKPI();
+  return derived || 0;
 }
 
 /* === Render === */
@@ -3491,125 +3411,28 @@ function expenseCats(r){
   return { main, sub: r.Subcategory || r.FinalSubcategory || main };
 }
 
-function loadExpensesCsv(url){
-  return new Promise((resolve, reject) => {
-    Papa.parse(url, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        resolve(res.data || []);
-      },
-      error: (err) => reject(err)
-    });
-  });
-}
-/* ========= Expenses → Monthly aggregate + Line Chart (safe add) ========= */
-/* Single Chart instance (reuse across renders) */
-if (!window._expChart) { window._expChart = null; }
-
-/* Group expenses by YYYY-MM
-   - Uses existing readExpenseAmountTRY if available; otherwise falls back to a simple parser */
-function groupExpensesMonthly(rows){
-  const readAmt = (typeof readExpenseAmountTRY === 'function')
-    ? readExpenseAmountTRY
-    : function(r){
-        if(!r) return 0;
-        const keys = ['AmountTRY','Amount (TRY)','TRY','Amount','Tutar','Tutar (TRY)','Total'];
-        for (const k of keys){
-          if (r[k] != null && String(r[k]).trim() !== '') return parseTL(r[k]);
-        }
-        return 0;
-      };
-
-  const map = new Map();
-  (rows||[]).forEach(r=>{
-    const iso = (typeof getExpenseISODate === 'function') ? (getExpenseISODate(r) || '') : (String(r.Date||'').slice(0,10));
-    if(!iso) return;
-    const key = iso.slice(0,7);
-    const amt = readAmt(r);
-    if(!amt || amt<=0) return;
-    map.set(key, (map.get(key)||0) + amt);
-  });
-  const keys = Array.from(map.keys()).sort();
-  return keys.map(k => ({ key:k, total: map.get(k) }));
-}
-
-/* Ensure canvas has a sensible size (reuse if project already has ensureCanvasSize) */
-function ensureCanvasSizeSafe(canvas, fallbackH){
+function readExpenseAmountTRY(r){
   try{
-    if (typeof ensureCanvasSize === 'function') { ensureCanvasSize(canvas, fallbackH); return; }
-  }catch(_){}
-  if (!canvas) return;
-  const cs = getComputedStyle(canvas);
-  const cssH = parseInt(cs.height||'0',10) || fallbackH || 260;
-  const cssW = canvas.clientWidth || canvas.parentElement?.clientWidth || 600;
-  if (!canvas.width  || canvas.width===0)  canvas.width  = Math.max(320, Math.floor(cssW));
-  if (!canvas.height || canvas.height===0) canvas.height = Math.max(220, Math.floor(cssH));
-}
+    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
+    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
+    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
+    if (!amtNum) return 0;
 
-/* Render a minimalist line chart for monthly expenses (defines only if missing) */
-if (typeof renderLineExpensesChart !== 'function') {
-  function renderLineExpensesChart(monthly, canvas){
-    if(!canvas) return;
-    ensureCanvasSizeSafe(canvas, 260);
-    const ctx = canvas.getContext('2d');
-
-    try{ if(window._expChart) window._expChart.destroy(); }catch(_){}
-
-    const labels = monthly.map(d => d.key);
-    const data   = monthly.map(d => Math.round(d.total));
-
-    window._expChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Aylık Gider (₺)',
-          data,
-          borderColor: '#6366f1',
-          backgroundColor: 'rgba(99,102,241,.18)',
-          fill: true,
-          tension: 0.25,
-          pointRadius: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode:'index', intersect:false },
-        plugins: {
-          legend: { display:false },
-          tooltip: { callbacks: { label: (c)=> ' ' + numberTL(c.parsed.y) } }
-        },
-        scales: {
-          x: { grid:{ display:false } },
-          y: { beginAtZero:true, ticks:{ callback:v=> numberTL(v).replace('₺','₺ ') } }
-        }
+    if (cur === 'USD'){
+      let tryPerUsd = 0;
+      tryPerUsd = getTryPerUsd();
+      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
+        tryPerUsd = 1 / fxRateUSDPerTRY;
       }
-    });
-  }
-}
-
-/* Public refresher (uses DEFAULT_EXPENSES_CSV) — defines only if missing */
-if (typeof refreshExpensesLineChart !== 'function') {
-  async function refreshExpensesLineChart(){
-    try{
-      const url = (typeof DEFAULT_EXPENSES_CSV!=='undefined' && DEFAULT_EXPENSES_CSV) ? DEFAULT_EXPENSES_CSV
-                 : (localStorage.getItem('popdog_expenses_csv') || localStorage.getItem('popdog_expenses_csv_url') || '');
-      if (!url) return;
-      const rows = await loadExpensesCsv(url);
-      const monthly = groupExpensesMonthly(rows);
-      const c = document.getElementById('lineExpenses');
-      if(!c) return;
-      if(monthly.length===0){
-        try{ c.getContext('2d').clearRect(0,0,c.width||600,c.height||260);}catch(_){}
-        return;
+      if (!tryPerUsd){
+        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
       }
-      renderLineExpensesChart(monthly, c);
-    }catch(e){
-      console.warn('refreshExpensesLineChart error:', e);
+      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
+      return amtNum * tryPerUsd;
     }
+    return parseTL(amtNum);
+  }catch(e){
+    return 0;
   }
 }
 function readExpenseAmountTRY(r){
