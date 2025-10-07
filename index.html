@@ -207,7 +207,22 @@ th, td { white-space: nowrap; }
 .rev-table .num{ text-align:right; }
 .rev-table .pos{ color:#10b981; }
 .rev-table .neg{ color:#ef4444; }
-.rev-table tfoot td{ font-weight:600; border-top:1px dashed rgba(15,23,42,.15); }
+  .rev-table tfoot td{ font-weight:600; border-top:1px dashed rgba(15,23,42,.15); }
+
+  /* === Revenue charts: glass container + responsive height === */
+  .chart-glass{
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    padding: 8px;
+    margin-top: 8px;
+  }
+  .dark .chart-glass{ background: rgba(2,6,23,0.45); }
+  .chart-glass canvas{ width:100%; height:280px; display:block; }
+  @media (min-width:1280px){ .chart-glass canvas{ height:320px; } }
+  @media (min-width:1536px){ .chart-glass canvas{ height:360px; } }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -1205,6 +1220,18 @@ function renderRevenueTables(){
       <thead><tr><th>Ay</th><th class="num">Toplam</th><th class="num">MoM</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`;
+    // --- Chart under Monthly Total table ---
+    if (wrap1){
+      let box = wrap1.querySelector('#lineTotalChartBox');
+      if (!box){
+        box = document.createElement('div');
+        box.id = 'lineTotalChartBox';
+        box.className = 'chart-glass';
+        box.innerHTML = '<canvas id="lineTotalChart"></canvas>';
+        wrap1.appendChild(box);
+      }
+      try { renderLineRevenueChart(monthly, box.querySelector('canvas')); } catch(_){}
+    }
   }
 
   // 2) Kanal bazlı aylık ciro matrisi
@@ -1223,7 +1250,98 @@ function renderRevenueTables(){
       <tbody>${body}</tbody>
       <tfoot>${ftRow}</tfoot>
     </table></div>`;
+    // --- Chart under Channel Matrix table (stacked bars) ---
+    if (wrap2){
+      let box = wrap2.querySelector('#barStackChartBox');
+      if (!box){
+        box = document.createElement('div');
+        box.id = 'barStackChartBox';
+        box.className = 'chart-glass';
+        box.innerHTML = '<canvas id="barStackChart"></canvas>';
+        wrap2.appendChild(box);
+      }
+      try { renderBarRevenueChart(monthly, box.querySelector('canvas')); } catch(_){}
+    }
   }
+}
+
+// ====== Charts for Revenue Tables ======
+window._revCharts = window._revCharts || { line:null, bar:null };
+
+function renderLineRevenueChart(monthly, canvas){
+  if (!window.Chart || !canvas || !Array.isArray(monthly) || !monthly.length) return;
+  try{ if (window._revCharts.line) { window._revCharts.line.destroy(); } }catch(_){}
+  const labels = monthly.map(r=> r.month);
+  const data   = monthly.map(r=> +r.Total || 0);
+  const ctx = canvas.getContext('2d');
+  window._revCharts.line = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Toplam Ciro',
+        data,
+        borderWidth: 2,
+        tension: 0.25,
+        fill: true,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      scales: {
+        x: { grid: { display:false } },
+        y: { grid: { color: 'rgba(148,163,184,0.15)' }, ticks: { callback: v => new Intl.NumberFormat('tr-TR').format(v) } }
+      },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:0}).format(ctx.parsed.y||0)
+          }
+        }
+      },
+      elements: { line: { borderWidth:2 }, point:{ radius:0 } }
+    }
+  });
+}
+
+function renderBarRevenueChart(monthly, canvas){
+  if (!window.Chart || !canvas || !Array.isArray(monthly) || !monthly.length) return;
+  try{ if (window._revCharts.bar) { window._revCharts.bar.destroy(); } }catch(_){}
+  const labels = monthly.map(r=> r.month);
+  const ds = (window.REV_CHANNELS || ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada']).map((key)=> ({
+    label: key,
+    data: monthly.map(r=> +r[key] || 0),
+    borderWidth: 1,
+    borderRadius: 6
+  }));
+  const ctx = canvas.getContext('2d');
+  window._revCharts.bar = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: ds },
+    options: {
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      scales: {
+        x: { stacked: true, grid: { display:false } },
+        y: { stacked: true, grid: { color: 'rgba(148,163,184,0.15)' }, ticks: { callback: v => new Intl.NumberFormat('tr-TR').format(v) } }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ` + new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:0}).format(ctx.parsed.y||0),
+            footer: (items)=> {
+              const sum = items.reduce((a,i)=> a + (i.parsed.y||0), 0);
+              return ' Toplam: ' + new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:0}).format(sum);
+            }
+          }
+        }
+      }
+    }
+  });
 }
 // Render on load (with a retry loop that never clobbers good UI with empty, and re-renders if data arrives)
 document.addEventListener('DOMContentLoaded', ()=>{
