@@ -825,6 +825,8 @@ th, td { white-space: nowrap; }
 /* === Chart.js global safe defaults (iPad/Safari) === */
 (function(){
   if (!window.Chart) return;
+
+  // ----- Core sizing defaults -----
   // Prevent aspect-ratio oscillations; size is driven by CSS height
   Chart.defaults.responsive = true;
   Chart.defaults.maintainAspectRatio = false;
@@ -832,6 +834,80 @@ th, td { white-space: nowrap; }
   Chart.defaults.resizeDelay = 180;
   // Tame DPR thrash on Safari zoom/orientation changes
   try { Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1); } catch(_) {}
+
+  // ----- Readable, non-squished typography (mobile / iPad aware) -----
+  // Base font by viewport width (phones → iPad → desktop)
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const baseFont = (vw <= 400) ? 11 : (vw <= 900 ? 12 : 13);
+
+  // Global font
+  Chart.defaults.font = {
+    family: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"',
+    size: baseFont,
+    weight: '500',
+    lineHeight: 1.2
+  };
+
+  // Scales (axes) — chunkier ticks + no tilt
+  // category = x axis for our monthly labels
+  const catTicks = Chart.defaults.scales.category.ticks || {};
+  Chart.defaults.scales = Chart.defaults.scales || {};
+  Chart.defaults.scales.category = Chart.defaults.scales.category || {};
+  Chart.defaults.scales.linear = Chart.defaults.scales.linear || {};
+
+  Chart.defaults.scales.category.ticks = {
+    ...catTicks,
+        font: { size: baseFont },
+    maxRotation: 0,
+    autoSkip: true,
+    autoSkipPadding: 8,
+    padding: 6
+  };
+  // y axis — a touch larger so numbers are readable
+  const linTicks = Chart.defaults.scales.linear.ticks || {};
+  Chart.defaults.scales.linear.ticks = {
+    ...linTicks,
+        font: { size: baseFont + 1 },
+    padding: 6
+  };
+
+  // Legend / tooltip
+  Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
+  Chart.defaults.plugins.legend.labels = {
+    boxWidth: 10,
+    boxHeight: 10,
+    padding: 10,
+    usePointStyle: true,
+    font: { size: baseFont }
+  };
+  Chart.defaults.plugins.tooltip = {
+    padding: 10,
+    titleFont: { size: baseFont + 1, weight: '600' },
+    bodyFont: { size: baseFont },
+    footerFont: { size: baseFont }
+  };
+
+  // Datalabels plugin (if loaded) — avoid clutter, keep readable
+  if (window.ChartDataLabels) {
+    Chart.defaults.plugins.datalabels = {
+      clamp: true,
+      clip: true,
+      anchor: 'end',
+      align: 'top',
+      offset: 4,
+      formatter: (v) => '',
+      font: { size: baseFont - 1 }
+    };
+  }
+
+  // Elements — smoother lines, no noisy points by default
+  Chart.defaults.elements = Chart.defaults.elements || {};
+  Chart.defaults.elements.point = { radius: 0, hitRadius: 6, hoverRadius: 3 };
+  Chart.defaults.elements.line = { borderWidth: 2, tension: 0.25 };
+
+  // Layout padding so labels don't kiss the edges
+  Chart.defaults.layout = { padding: { top: 8, right: 10, bottom: 8, left: 8 } };
+
   // Ensure enclosing cards don’t balloon due to canvas reflow
   document.addEventListener('DOMContentLoaded', ()=>{
     ['lineTotal','barStack','pieShare'].forEach(id=>{
