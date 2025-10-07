@@ -1343,6 +1343,7 @@ function renderBarRevenueChart(monthly, canvas){
     }
   });
 }
+
 // Render on load (with a retry loop that never clobbers good UI with empty, and re-renders if data arrives)
 document.addEventListener('DOMContentLoaded', ()=>{
   let tries = 0;
@@ -1355,6 +1356,28 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
   tick();
 });
+
+// Keep charts crisp on orientation / resize and when returning to Revenue page
+(function(){
+  function safeRender(){
+    try {
+      renderRevenueTables();
+      if (window._revCharts && window._revCharts.line) { window._revCharts.line.resize(); }
+      if (window._revCharts && window._revCharts.bar)  { window._revCharts.bar.resize(); }
+    } catch(_){}
+  }
+  // iPad/iOS orientation changes can collapse canvas temporarily; repaint after a short delay
+  window.addEventListener('orientationchange', ()=> setTimeout(safeRender, 350), { passive:true });
+  window.addEventListener('resize',            ()=> setTimeout(safeRender, 200), { passive:true });
+  // Re-render when user switches to the Revenue page
+  const origShowPage = window.showPage;
+  if (typeof origShowPage === 'function') {
+    window.showPage = function(k){
+      try { origShowPage(k); } catch(_){}
+      if (k === 'revenue') setTimeout(safeRender, 120);
+    };
+  }
+})();
 
 
 // Bind the writer to the button in the Daily Paste section
