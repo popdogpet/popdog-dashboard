@@ -933,6 +933,22 @@ function readyCanvas(canvas){
 
   return canvas.getContext('2d');
 }
+
+function ensureCanvasSize(canvas, defaultHeight = 320){
+  if (!canvas) return null;
+  // CSS height 0 dönerse makul bir default ver
+  const cs = getComputedStyle(canvas);
+  const h = parseInt(cs.height || '0', 10);
+  if (!h) {
+    canvas.style.height = defaultHeight + 'px';
+  }
+  // Chart.js'in gerçek px görmesi için width/height attribute da ver
+  const w = canvas.clientWidth || canvas.parentElement?.clientWidth || 640;
+  const hh = parseInt((canvas.style.height || '').replace('px',''), 10) || defaultHeight;
+  if (!canvas.width || canvas.width === 0)  canvas.width  = Math.max(320, Math.floor(w));
+  if (!canvas.height || canvas.height === 0) canvas.height = Math.max(220, Math.floor(hh));
+  return canvas;
+}
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1258,6 +1274,7 @@ function renderRevenueTables(){
     </table></div>`;
     // --- Chart under Monthly Total table (static canvas) ---
     try { renderLineRevenueChart(monthly, document.getElementById('lineTotalChart')); } catch(_) {}
+    setTimeout(nudgeCharts, 60);
   }
 
   // 2) Kanal bazlı aylık ciro matrisi
@@ -1278,6 +1295,7 @@ function renderRevenueTables(){
     </table></div>`;
     // --- Chart under Channel Matrix table (static canvas) ---
     try { renderBarRevenueChart(monthly, document.getElementById('barStackChart')); } catch(_) {}
+    setTimeout(nudgeCharts, 60);
   }
 }
 
@@ -1286,8 +1304,8 @@ window._revCharts = window._revCharts || { line:null, bar:null };
 
 function renderLineRevenueChart(monthly, canvas){
   if (!window.Chart || !canvas) return;
-  const ctx = readyCanvas(canvas);
-  if (!ctx) return;
+const el = ensureCanvasSize(canvas, 320);
+if (!el) return;
 
   try{ if (window._revCharts.line) { window._revCharts.line.destroy(); } }catch(_){}
   if (!Array.isArray(monthly) || !monthly.length) return;
@@ -1295,7 +1313,7 @@ function renderLineRevenueChart(monthly, canvas){
   const labels = monthly.map(r=> r.month);
   const data   = monthly.map(r=> +r.Total || 0);
 
-  window._revCharts.line = new Chart(ctx, {
+  window._revCharts.line = new Chart(el, {
     type: 'line',
     data: {
       labels,
@@ -1336,11 +1354,11 @@ function renderLineRevenueChart(monthly, canvas){
 
 function renderBarRevenueChart(monthly, canvas){
   if (!window.Chart || !canvas) return;
-  const ctx = readyCanvas(canvas);
-  if (!ctx) return;
+const el = ensureCanvasSize(canvas, 340);
+if (!el) return;
 
-  try{ if (window._revCharts.bar) { window._revCharts.bar.destroy(); } }catch(_){}
-  if (!Array.isArray(monthly) || !monthly.length) return;
+try{ if (window._revCharts.bar) { window._revCharts.bar.destroy(); } }catch(_){}
+if (!Array.isArray(monthly) || !monthly.length) return;
 
   const labels = monthly.map(r=> r.month);
   const channels = (window.REV_CHANNELS || ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada']);
@@ -1351,7 +1369,7 @@ function renderBarRevenueChart(monthly, canvas){
     borderRadius: 6
   }));
 
-  window._revCharts.bar = new Chart(ctx, {
+  window._revCharts.bar = new Chart(el, {
     type: 'bar',
     data: { labels, datasets: ds },
     options: {
@@ -1384,6 +1402,13 @@ function renderBarRevenueChart(monthly, canvas){
   try{ window._revCharts.bar.resize(); }catch(_){}
 }
 
+function nudgeCharts(){
+  try{
+    if (window._revCharts && window._revCharts.line) window._revCharts.line.resize();
+    if (window._revCharts && window._revCharts.bar)  window._revCharts.bar.resize();
+  }catch(_){}
+}
+
 // Render on load (with a retry loop that never clobbers good UI with empty, and re-renders if data arrives)
 document.addEventListener('DOMContentLoaded', ()=>{
   let tries = 0;
@@ -1391,9 +1416,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     tries++;
     try { renderRevenueTables(); } catch(_){}
     // Stop after a reasonable window if we have rendered at least once AND charts are present
-    const hasCharts = !!(window._revCharts && (window._revCharts.line || window._revCharts.bar));
-    if ((_revHasRendered && hasCharts) || tries >= 30) return;
-    setTimeout(tick, 700);
+    const hasLine = !!(window._revCharts && window._revCharts.line);
+const hasBar  = !!(window._revCharts && window._revCharts.bar);
+if ((_revHasRendered && hasLine && hasBar) || tries >= 40) return; setTimeout(tick, 700);
   };
   tick();
 });
