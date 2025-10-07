@@ -4748,6 +4748,92 @@ boot();
     setInterval(()=> ['fi5','sas','isy'].forEach(maybeRefreshFund), 6*HOUR);
   });
 })();
+// ===== Auto fund unit price fetchers (FI5 / SAS / ISY) =====
+async function fetchFundQuote_(kind){
+  const base = getSheetWebAppURL();
+  const url = `${base}?action=${encodeURIComponent(kind + 'Quote')}`; // expects doPost/doGet handler fi5Quote/sasQuote/isyQuote
+  try{
+    const r = await fetch(url, { method:'GET', cache:'no-store' });
+    if(!r.ok) return null;
+    const j = await r.json().catch(()=>null);
+    if (!j || j.ok === false) return null;
+    const v = Number(j.unitTRY || j.unit || j.price || 0);
+    return (v && v>0) ? { unitTRY: v, source: j.source || kind } : null;
+  }catch(_){ return null; }
+}
+
+async function autoUpdateFI5(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.fi5UnitTRY || Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0;
+    const input = document.getElementById('fi5UnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return; // don't overwrite user-entered value
+    const q = await fetchFundQuote_('fi5');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.fi5UnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_fi5_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateSAS(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.sasUnitTRY || Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0;
+    const input = document.getElementById('sasUnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return;
+    const q = await fetchFundQuote_('sas');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.sasUnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_sas_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_sas_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateISY(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.isyUnitTRY || Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0;
+    const input = document.getElementById('isyUnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return;
+    const q = await fetchFundQuote_('isy');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.isyUnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_isy_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_isy_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateFunds(){
+  await Promise.all([ autoUpdateFI5(), autoUpdateSAS(), autoUpdateISY() ]);
+}
+
+// Run once on load; do not overwrite user input if present
+try{ document.addEventListener('DOMContentLoaded', ()=>{ autoUpdateFunds(); }, { once:true }); }catch(_){ }
+
+// Optional: refresh quotes every 6h if fields are still empty
+try{ setInterval(()=>{ autoUpdateFunds(); }, 6*60*60*1000); }catch(_){ }
 </script>
 </body>
 </html>
