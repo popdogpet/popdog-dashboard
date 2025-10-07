@@ -1173,15 +1173,20 @@ let _revHasRendered = false;
 let _revLastNonEmptyRows = [];
 
 function renderRevenueTables(){
-  // Use the freshest non-empty rows; if empty and we already rendered once, keep current UI
+  // --- Prevent empty overwrites ---
+  if (window._revLock) return;
   const curRows = Array.isArray(window.loadedRows) ? window.loadedRows : [];
-  if (!curRows.length) {
-    if (_revHasRendered) return; // don't overwrite good UI with "no data"
-  } else {
-    _revLastNonEmptyRows = curRows;
-    _revHasRendered = true;
+  if (curRows.length) {
+    window._revHasRendered = true;
+    window._revLastNonEmptyRows = curRows;
+  } else if (window._revHasRendered) {
+    // block further empty renders after first success
+    window._revLock = true;
+    return;
   }
-  const rows = _revLastNonEmptyRows.length ? _revLastNonEmptyRows : curRows;
+  const rows = window._revLastNonEmptyRows && window._revLastNonEmptyRows.length
+    ? window._revLastNonEmptyRows
+    : curRows;
 
   const monthly = aggMonthly(rows || []);
 
