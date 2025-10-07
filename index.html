@@ -1406,6 +1406,7 @@ if (!window.writeStagedToSheet) {
 }
 
 /* ================== CSV LOADERS ================== */
+
 async function loadFromSheet(url){
   const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
   if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
@@ -1440,6 +1441,28 @@ async function loadFromSheet(url){
       error: reject
     });
   });
+}
+
+// === Global refresh: load revenue CSV and render tables ===
+async function refreshAll(){
+  try{
+    const url = DEFAULT_SHEET_CSV;
+    const rows = await loadFromSheet(url);
+    // Keep a copy in memory and render
+    window.loadedRows = Array.isArray(rows) ? rows : [];
+    try{ renderRevenueTables(); }catch(_){}
+    // (Optional) You can extend this later to refresh KPIs/stock using other CSVs
+  }catch(e){
+    console.error('refreshAll error:', e);
+    // do not clobber UI; just show a subtle note if wrappers exist
+    try{
+      const w1 = document.getElementById('lineTotalTblWrap');
+      const w2 = document.getElementById('barStackTblWrap');
+      const msg = `<div class="rev-table-wrap"><div class="hint text-sm">⚠️ Gelir CSV yüklenemedi.</div></div>`;
+      if (w1 && !w1.innerHTML) w1.innerHTML = msg;
+      if (w2 && !w2.innerHTML) w2.innerHTML = msg;
+    }catch(_){}
+  }
 }
 
 function loadCSV(url){
@@ -1803,6 +1826,7 @@ async function initExpenseEntryUI(){
 // Sayfa yüklenince hazırla (router çalıştıktan sonra da çağrılırsa sorun yok)
 document.addEventListener('DOMContentLoaded', ()=> {
   try{ initExpenseEntryUI(); }catch(_){}
+  try{ refreshAll(); }catch(_){}
 });
 
 /* ================== LOANS & PENDING (STATE + UI) ================== */
