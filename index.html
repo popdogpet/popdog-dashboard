@@ -1167,21 +1167,38 @@ function aggMonthly(rows){
   return out;
 }
 function fmtPerc(x){ if(x==null || !isFinite(x)) return '—'; const p = (x*100).toFixed(1).replace('.',','); return (x>=0?'+':'') + p + '%'; }
+
+/* Preserve last non-empty revenue rows to avoid flicker/clear when late async writes set [] */
+let _revHasRendered = false;
+let _revLastNonEmptyRows = [];
+
 function renderRevenueTables(){
-  const monthly = aggMonthly(window.loadedRows||[]);
+  // Use the freshest non-empty rows; if empty and we already rendered once, keep current UI
+  const curRows = Array.isArray(window.loadedRows) ? window.loadedRows : [];
+  if (!curRows.length) {
+    if (_revHasRendered) return; // don't overwrite good UI with "no data"
+  } else {
+    _revLastNonEmptyRows = curRows;
+    _revHasRendered = true;
+  }
+  const rows = _revLastNonEmptyRows.length ? _revLastNonEmptyRows : curRows;
+
+  const monthly = aggMonthly(rows || []);
+
   // 1) Monthly summary table (Ay, Toplam, MoM)
   const wrap1 = document.getElementById('lineTotalTblWrap');
   if (wrap1){
-    const rows = monthly.map(r=>`<tr>
+    const rowsHtml = monthly.map(r=>`<tr>
       <td>${r.month}</td>
       <td class="num">${numberTL(r.Total||0)}</td>
       <td class="${r.MoM>0?'pos':'neg'} num">${fmtPerc(r.MoM)}</td>
     </tr>`).join('');
     wrap1.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
       <thead><tr><th>Ay</th><th class="num">Toplam</th><th class="num">MoM</th></tr></thead>
-      <tbody>${rows || '<tr><td class="hint" colspan="3">Henüz veri yok.</td></tr>'}</tbody>
+      <tbody>${rowsHtml || '<tr><td class="hint" colspan="3">Henüz veri yok.</td></tr>'}</tbody>
     </table></div>`;
   }
+
   // 2) Kanal bazlı aylık ciro matrisi
   const wrap2 = document.getElementById('barStackTblWrap');
   if (wrap2){
@@ -1191,7 +1208,6 @@ function renderRevenueTables(){
       ${REV_CHANNELS.map(k=>`<td class="num">${numberTL(r[k]||0)}</td>`).join('')}
       <td class="num"><strong>${numberTL(r.Total||0)}</strong></td>
     </tr>`).join('');
-    // footer totals
     const ft = REV_CHANNELS.map(k=> monthly.reduce((a,b)=>a+(+b[k]||0),0));
     const ftRow = `<tr><td><strong>Toplam</strong></td>${ft.map(v=>`<td class="num"><strong>${numberTL(v)}</strong></td>`).join('')}<td class="num"><strong>${numberTL(monthly.reduce((a,b)=>a+(+b.Total||0),0))}</strong></td></tr>`;
     wrap2.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
@@ -1201,9 +1217,17 @@ function renderRevenueTables(){
     </table></div>`;
   }
 }
-// Render on load (with a light retry until data arrives)
+// Render on load (with a retry loop that never clobbers good UI with empty, and re-renders if data arrives)
 document.addEventListener('DOMContentLoaded', ()=>{
-  let tries = 0; const tick = ()=>{ tries++; if(Array.isArray(window.loadedRows) && window.loadedRows.length){ try{ renderRevenueTables(); }catch(_){} return; } if(tries<12) setTimeout(tick, 700); else try{ renderRevenueTables(); }catch(_){} }; tick();
+  let tries = 0;
+  const tick = ()=>{
+    tries++;
+    try { renderRevenueTables(); } catch(_){}
+    // Stop after a reasonable window if we have rendered at least once
+    if (_revHasRendered || tries >= 20) return;
+    setTimeout(tick, 600);
+  };
+  tick();
 });
 
 
