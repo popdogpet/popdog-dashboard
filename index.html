@@ -100,37 +100,11 @@ th, td { white-space: nowrap; }
       }
     }
 
-    /* Keep table wrappers aligned below the canvases */
-    #lineTotalTblWrap,
-    #barStackTblWrap{
-      background: rgba(255,255,255,0.25);
-      backdrop-filter: blur(12px) saturate(180%);
-      -webkit-backdrop-filter: blur(12px) saturate(180%);
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-      padding: 8px;
-      margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
-      max-height: 320px;
-      overflow: auto;
+    /* Shrink font size of Ana Kategoriler (YTD) tables */
+    #tblMainExpensesDetail,
+    #tblMainExpensesGrouped {
+      font-size: 60%;
     }
-    @media (min-width: 1280px){
-      #lineTotalTblWrap,
-      #barStackTblWrap{ max-height: 380px; }
-    }
-    @media (min-width: 1536px){
-      #lineTotalTblWrap,
-      #barStackTblWrap{ max-height: 420px; }
-    }
-
-  /* Shrink font size of Kanal Bazlı Aylık Ciro table */
-  #barStackTblWrap table {
-    font-size: 60%;
-  }
-  /* Shrink font size of Ana Kategoriler (YTD) tables */
-  #tblMainExpensesDetail,
-  #tblMainExpensesGrouped {
-    font-size: 60%;
-  }
 /* === Unified chart sizing for consistency (mobile-first) === */
 .chart-can{ width:100%; display:block; height: clamp(220px, 45vw, 320px); }
 @media (min-width:1280px){ .chart-can{ height: 280px; } }
@@ -237,20 +211,7 @@ th, td { white-space: nowrap; }
     color: #cbd5e1;
     border-color: rgba(255,255,255,0.08);
   }
-    /* === Revenue tables (simple & readable) === */
-#barStackTblWrap .rev-table,
-#lineTotalTblWrap .rev-table{ font-size:12px !important; }
-.rev-table-wrap{ overflow:auto; border-radius:12px; padding:8px; }
-.rev-table{ width:100%; border-collapse:separate; border-spacing:0; }
-.rev-table th, .rev-table td{ white-space:nowrap; padding:.35rem .5rem; }
-.rev-table thead th{ position:sticky; top:0; z-index:1; backdrop-filter:blur(8px) saturate(160%); -webkit-backdrop-filter:blur(8px) saturate(160%); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(15,23,42,.08); }
-.dark .rev-table thead th{ background:rgba(2,6,23,.6); border-bottom-color:rgba(255,255,255,.08); }
-.rev-table tbody tr:nth-child(even){ background:rgba(15,23,42,.02); }
-.dark .rev-table tbody tr:nth-child(even){ background:rgba(255,255,255,.03); }
-.rev-table .num{ text-align:right; }
-.rev-table .pos{ color:#10b981; }
-.rev-table .neg{ color:#ef4444; }
-.rev-table tfoot td{ font-weight:600; border-top:1px dashed rgba(15,23,42,.15); }
+
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -446,13 +407,11 @@ th, td { white-space: nowrap; }
           </button>
         </div>
         <canvas id="lineTotal" class="chart-can"></canvas>
-        <div id="lineTotalTblWrap"></div>
       </div>
 
       <div class="glass card-3d rounded-3xl p-5">
         <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
         <canvas id="barStack" class="chart-can"></canvas>
-        <div id="barStackTblWrap"></div>
       </div>
     </div>
 
@@ -1192,67 +1151,7 @@ function renderStagedTable(){
   `).join('');
 }
 
-// ---- Revenue tables (fresh render, zero coupling with charts) ----
-const REV_CHANNELS = ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada'];
-function aggMonthly(rows){
-  const map = new Map();
-  (rows||[]).forEach(r=>{
-    const m = (r && r.Date) ? String(r.Date).slice(0,7) : '';
-    if(!m) return;
-    let o = map.get(m); if(!o){ o = {month:m}; REV_CHANNELS.forEach(k=>o[k]=0); o.Total=0; map.set(m,o); }
-    REV_CHANNELS.forEach(k=>{ o[k] += +r[k]||0; });
-    o.Total += +r.Total||0;
-  });
-  const keys = Array.from(map.keys()).sort();
-  const out = [];
-  for (let i=0;i<keys.length;i++){
-    const m = keys[i];
-    const cur = map.get(m);
-    const prev = i>0 ? map.get(keys[i-1]) : null;
-    const mom = prev && prev.Total>0 ? (cur.Total - prev.Total) / prev.Total : null;
-    out.push({...cur, MoM: mom});
-  }
-  return out;
-}
-function fmtPerc(x){ if(x==null || !isFinite(x)) return '—'; const p = (x*100).toFixed(1).replace('.',','); return (x>=0?'+':'') + p + '%'; }
-function renderRevenueTables(){
-  const monthly = aggMonthly(window.loadedRows||[]);
-  // 1) Monthly summary table (Ay, Toplam, MoM)
-  const wrap1 = document.getElementById('lineTotalTblWrap');
-  if (wrap1){
-    const rows = monthly.map(r=>`<tr>
-      <td>${r.month}</td>
-      <td class="num">${numberTL(r.Total||0)}</td>
-      <td class="${r.MoM>0?'pos':'neg'} num">${fmtPerc(r.MoM)}</td>
-    </tr>`).join('');
-    wrap1.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
-      <thead><tr><th>Ay</th><th class="num">Toplam</th><th class="num">MoM</th></tr></thead>
-      <tbody>${rows || '<tr><td class="hint" colspan="3">Henüz veri yok.</td></tr>'}</tbody>
-    </table></div>`;
-  }
-  // 2) Kanal bazlı aylık ciro matrisi
-  const wrap2 = document.getElementById('barStackTblWrap');
-  if (wrap2){
-    const head = `<tr><th>Ay</th>${REV_CHANNELS.map(k=>`<th class="num">${k}</th>`).join('')}<th class="num">Toplam</th></tr>`;
-    const body = monthly.map(r=>`<tr>
-      <td>${r.month}</td>
-      ${REV_CHANNELS.map(k=>`<td class="num">${numberTL(r[k]||0)}</td>`).join('')}
-      <td class="num"><strong>${numberTL(r.Total||0)}</strong></td>
-    </tr>`).join('');
-    // footer totals
-    const ft = REV_CHANNELS.map(k=> monthly.reduce((a,b)=>a+(+b[k]||0),0));
-    const ftRow = `<tr><td><strong>Toplam</strong></td>${ft.map(v=>`<td class="num"><strong>${numberTL(v)}</strong></td>`).join('')}<td class="num"><strong>${numberTL(monthly.reduce((a,b)=>a+(+b.Total||0),0))}</strong></td></tr>`;
-    wrap2.innerHTML = `<div class="rev-table-wrap"><table class="rev-table">
-      <thead>${head}</thead>
-      <tbody>${body || '<tr><td class="hint" colspan="8">Henüz veri yok.</td></tr>'}</tbody>
-      <tfoot>${monthly.length?ftRow:''}</tfoot>
-    </table></div>`;
-  }
-}
-// Render on load (with a light retry until data arrives)
-document.addEventListener('DOMContentLoaded', ()=>{
-  let tries = 0; const tick = ()=>{ tries++; if(Array.isArray(window.loadedRows) && window.loadedRows.length){ try{ renderRevenueTables(); }catch(_){} return; } if(tries<12) setTimeout(tick, 700); else try{ renderRevenueTables(); }catch(_){} }; tick();
-});
+
 
 
 // Bind the writer to the button in the Daily Paste section
