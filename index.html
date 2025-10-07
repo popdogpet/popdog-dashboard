@@ -4673,6 +4673,81 @@ document.getElementById('pushRowsBtn').onclick  = writeStagedToSheet;
 
 /* ================== BOOT! ================== */
 boot();
+// === FUND AUTO QUOTES (FI5 / SAS / ISY) — frontend fetch to Apps Script ===
+(function(){
+  const HOUR = 60*60*1000;
+  const STALE_MS = 22*HOUR;
+
+  const FUND = {
+    fi5: { inputId:'fi5UnitInput', unitKey:'popdog_fi5_unit_try', tsKey:'popdog_fi5_updated_at', stateKey:'fi5UnitTRY' },
+    sas: { inputId:'sasUnitInput', unitKey:'popdog_sas_unit_try', tsKey:'popdog_sas_updated_at', stateKey:'sasUnitTRY' },
+    isy: { inputId:'isyUnitInput', unitKey:'popdog_isy_unit_try', tsKey:'popdog_isy_updated_at', stateKey:'isyUnitTRY' },
+  };
+
+  function now(){ return Date.now(); }
+  function isStale(ts){ if(!ts) return true; const age = now() - Number(ts||0); return !(age>0) || age > STALE_MS; }
+
+  async function fetchFundQuote(type){
+    const url = getSheetWebAppURL();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) throw new Error('Apps Script URL geçersiz.');
+    const req = `${url}?action=fundQuote&type=${encodeURIComponent(type)}`;
+    const r = await fetch(req, { method:'GET', cache:'no-store' });
+    let j = null; try{ j = await r.json(); }catch(_){}
+    if (!r.ok || !j || j.ok === false) throw new Error(`HTTP ${r.status}`);
+    const val = Number(j.unitTRY ?? j.price ?? j.value ?? 0);
+    if (!val || isNaN(val)) throw new Error('Geçersiz değer');
+    return { unit: val, source: j.source || 'server' };
+  }
+
+  function applyFundUnit(type, unit, source){
+    const cfg = FUND[type]; if(!cfg) return;
+    try{
+      localStorage.setItem(cfg.unitKey, String(unit));
+      localStorage.setItem(cfg.tsKey, String(now()));
+    }catch(_){}
+    try{
+      const st = getLoansState();
+      if (st && st.demoBank){ st.demoBank[cfg.stateKey] = unit; setLoansState(st); }
+    }catch(_){}
+    try{
+      const inp = document.getElementById(cfg.inputId);
+      if (inp && !inp.value) inp.value = String(unit);
+      if (typeof renderLoansBlock === 'function') renderLoansBlock();
+    }catch(_){}
+    console.log(`[fundQuote] ${type.toUpperCase()} = ${unit} (${source||'server'})`);
+  }
+
+  async function maybeRefreshFund(type){
+    const cfg = FUND[type]; if(!cfg) return;
+
+    // If user has entered a value into the input, don't override
+    const manual = (function(){
+      try{
+        const el = document.getElementById(cfg.inputId);
+        return parseTL(el && el.value ? el.value : 0);
+      }catch(_){ return 0; }
+    })();
+    if (manual > 0) return;
+
+    const cached = Number(localStorage.getItem(cfg.unitKey) || 0);
+    const ts     = Number(localStorage.getItem(cfg.tsKey)   || 0);
+    if (cached > 0 && !isStale(ts)) return; // fresh enough
+
+    try{
+      const { unit, source } = await fetchFundQuote(type);
+      if (unit && unit > 0) applyFundUnit(type, unit, source);
+    }catch(e){
+      console.warn('fundQuote fetch failed:', type, e && e.message ? e.message : e);
+    }
+  }
+
+  // Run after DOM is ready so inputs exist
+  document.addEventListener('DOMContentLoaded', ()=>{
+    ['fi5','sas','isy'].forEach(maybeRefreshFund);
+    // periodic gentle refresh
+    setInterval(()=> ['fi5','sas','isy'].forEach(maybeRefreshFund), 6*HOUR);
+  });
+})();
 </script>
 </body>
 </html>
