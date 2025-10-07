@@ -418,11 +418,17 @@ th, td { white-space: nowrap; }
           </button>
         </div>
         <div id="lineTotalTblWrap"></div>
+        <div class="chart-glass mt-2">
+          <canvas id="lineTotalChart"></canvas>
+        </div>
       </div>
 
       <div class="glass card-3d rounded-3xl p-5">
         <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
         <div id="barStackTblWrap"></div>
+        <div class="chart-glass mt-2">
+          <canvas id="barStackChart"></canvas>
+        </div>
       </div>
     </div>
 
@@ -1220,18 +1226,8 @@ function renderRevenueTables(){
       <thead><tr><th>Ay</th><th class="num">Toplam</th><th class="num">MoM</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`;
-    // --- Chart under Monthly Total table ---
-    if (wrap1){
-      let box = wrap1.querySelector('#lineTotalChartBox');
-      if (!box){
-        box = document.createElement('div');
-        box.id = 'lineTotalChartBox';
-        box.className = 'chart-glass';
-        box.innerHTML = '<canvas id="lineTotalChart"></canvas>';
-        wrap1.appendChild(box);
-      }
-      try { renderLineRevenueChart(monthly, box.querySelector('canvas')); } catch(_){}
-    }
+    // --- Chart under Monthly Total table (static canvas) ---
+    try { renderLineRevenueChart(monthly, document.getElementById('lineTotalChart')); } catch(_) {}
   }
 
   // 2) Kanal bazlı aylık ciro matrisi
@@ -1250,18 +1246,8 @@ function renderRevenueTables(){
       <tbody>${body}</tbody>
       <tfoot>${ftRow}</tfoot>
     </table></div>`;
-    // --- Chart under Channel Matrix table (stacked bars) ---
-    if (wrap2){
-      let box = wrap2.querySelector('#barStackChartBox');
-      if (!box){
-        box = document.createElement('div');
-        box.id = 'barStackChartBox';
-        box.className = 'chart-glass';
-        box.innerHTML = '<canvas id="barStackChart"></canvas>';
-        wrap2.appendChild(box);
-      }
-      try { renderBarRevenueChart(monthly, box.querySelector('canvas')); } catch(_){}
-    }
+    // --- Chart under Channel Matrix table (static canvas) ---
+    try { renderBarRevenueChart(monthly, document.getElementById('barStackChart')); } catch(_) {}
   }
 }
 
@@ -1269,11 +1255,12 @@ function renderRevenueTables(){
 window._revCharts = window._revCharts || { line:null, bar:null };
 
 function renderLineRevenueChart(monthly, canvas){
-  if (!window.Chart || !canvas || !Array.isArray(monthly) || !monthly.length) return;
+  if (!window.Chart || !canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
   try{ if (window._revCharts.line) { window._revCharts.line.destroy(); } }catch(_){}
+  if (!Array.isArray(monthly) || !monthly.length) return;
   const labels = monthly.map(r=> r.month);
   const data   = monthly.map(r=> +r.Total || 0);
-  const ctx = canvas.getContext('2d');
   window._revCharts.line = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1308,8 +1295,10 @@ function renderLineRevenueChart(monthly, canvas){
 }
 
 function renderBarRevenueChart(monthly, canvas){
-  if (!window.Chart || !canvas || !Array.isArray(monthly) || !monthly.length) return;
+  if (!window.Chart || !canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
   try{ if (window._revCharts.bar) { window._revCharts.bar.destroy(); } }catch(_){}
+  if (!Array.isArray(monthly) || !monthly.length) return;
   const labels = monthly.map(r=> r.month);
   const ds = (window.REV_CHANNELS || ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada']).map((key)=> ({
     label: key,
@@ -1317,7 +1306,6 @@ function renderBarRevenueChart(monthly, canvas){
     borderWidth: 1,
     borderRadius: 6
   }));
-  const ctx = canvas.getContext('2d');
   window._revCharts.bar = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: ds },
