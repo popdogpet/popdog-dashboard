@@ -2094,6 +2094,102 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
   window.refreshGoldNow = ()=> updateGold(true);
 })();
 
+<!-- === FUND AUTO QUOTES (FI5 / SAS / ISY) =========================== -->
+<script>
+/*
+  Otomatik fon birim fiyatları:
+  - Backend (Apps Script) endpoint'leri hazır: fi5Quote(), sasQuote(), isyQuote()
+  - Endpoint: getSheetWebAppURL()?action=fundQuote&amp;type=fi5|sas|isy
+  - Mantık: Kullanıcı manuel değer girdiyse üzerine yazmıyoruz; değer 22 saatten eskiyse yeniliyoruz.
+*/
+
+(function(){
+  const HOUR = 60*60*1000;
+  const STALE_MS = 22*HOUR;
+
+  const FUND = {
+    fi5: { unitKey: 'popdog_fi5_unit_try', tsKey: 'popdog_fi5_updated_at', stateKey:'fi5UnitTRY', inputId:'fi5UnitInput' },
+    sas: { unitKey: 'popdog_sas_unit_try', tsKey: 'popdog_sas_updated_at', stateKey:'sasUnitTRY', inputId:'sasUnitInput' },
+    isy: { unitKey: 'popdog_isy_unit_try', tsKey: 'popdog_isy_updated_at', stateKey:'isyUnitTRY', inputId:'isyUnitInput' }
+  };
+
+  function now(){ return Date.now(); }
+  function isStale(ts){ if(!ts) return true; const age = now() - Number(ts); return !(age &gt; 0) || age &gt; STALE_MS; }
+
+  async function fetchFundQuote(type){
+    const url = getSheetWebAppURL();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) throw new Error('Apps Script URL geçersiz.');
+    const u = `${url}?action=fundQuote&amp;type=${encodeURIComponent(type)}`;
+    const r = await fetch(u, { method:'GET', cache:'no-store' });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    let j = null; try { j = await r.json(); } catch(_){}
+    const val = Number(j &amp;&amp; (j.unitTRY ?? j.price ?? j.value));
+    if (!j || j.ok === false || !val || isNaN(val)) throw new Error('Geçersiz yanıt');
+    return { unit: val, source: j.source || 'server' };
+  }
+
+  function applyFundUnit(type, unit, source){
+    const cfg = FUND[type]; if(!cfg) return;
+    try {
+      // localStorage
+      localStorage.setItem(cfg.unitKey, String(unit));
+      localStorage.setItem(cfg.tsKey,   String(now()));
+      // state
+      const st = getLoansState();
+      if (st &amp;&amp; st.demoBank) { st.demoBank[cfg.stateKey] = unit; setLoansState(st); }
+      // input alanını güncelle
+      const inp = document.getElementById(cfg.inputId);
+      if (inp) inp.value = String(unit);
+      // not alanları ve toplamlar için yeniden çiz
+      try { renderLoansBlock(); } catch(_){}
+      // küçük log
+      console.log(`[fundQuote] ${type.toUpperCase()} = ${unit} (${source})`);
+    } catch(e) {
+      console.warn('applyFundUnit error', e);
+    }
+  }
+
+  // Aynı anda birden fazla çağrıyı engelle
+  const _inflight = new Set();
+
+  async function updateFundUnit(type, force=false){
+    const cfg = FUND[type]; if(!cfg) return false;
+    if (_inflight.has(type)) return false;
+    try {
+      const ts = Number(localStorage.getItem(cfg.tsKey) || 0);
+      const current = Number(localStorage.getItem(cfg.unitKey) || 0);
+      if (!force &amp;&amp; current &gt; 0 &amp;&amp; !isStale(ts)) return true; // taze değer
+
+      _inflight.add(type);
+      const { unit, source } = await fetchFundQuote(type);
+      if (unit &amp;&amp; !isNaN(unit)) { applyFundUnit(type, unit, source); return true; }
+      return false;
+    } catch(e){
+      console.warn(`updateFundUnit(${type}) hata:`, e &amp;&amp; e.message ? e.message : e);
+      return false;
+    } finally {
+      _inflight.delete(type);
+    }
+  }
+
+  // Başlangıç: sayfa yüklendiğinde hepsini dene (yalnızca "eskimiş" ise günceller)
+  function boot(){
+    ['fi5','sas','isy'].forEach(t =&gt; { try{ updateFundUnit(t, false); }catch(_){ } });
+    // Periyodik tazeleme (6 saatte bir)
+    setInterval(() =&gt; { ['fi5','sas','isy'].forEach(t =&gt; updateFundUnit(t, false)); }, 6*HOUR);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    boot();
+  }
+
+  // Manuel tetikleme (debug)
+  window.refreshFundsNow = function(){ return Promise.all(['fi5','sas','isy'].map(t =&gt; updateFundUnit(t, true))); }
+})();
+</script>
+
 /* ================== INVENTORY & ORDERS HELPERS ================== */
 const SALES_WINDOW_OPTIONS = [30,90,120,180];
 let salesWindowDays = Number(localStorage.getItem('popdog_sales_window_days') || '90');
