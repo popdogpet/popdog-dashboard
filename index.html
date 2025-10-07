@@ -421,6 +421,34 @@ th, td { white-space: nowrap; }
           <div class="mt-1 text-sm">Toplam (≈): <span id="fi5Total" class="font-semibold">–</span></div>
           <div class="hint text-xs mt-1" id="fi5Note"></div>
         </div>
+
+        <!-- Ak Portföy SAS -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Ak Portföy Sabancı Topluluğu Şirketleri (SAS)</div>
+            <div class="flex items-center gap-2">
+              <span class="hint text-xs">Birim Fiyatı (TRY)</span>
+              <input id="sasUnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,0321">
+            </div>
+          </div>
+          <div class="mt-1 text-sm">Adet: <strong>850</strong></div>
+          <div class="mt-1 text-sm">Toplam (≈): <span id="sasTotal" class="font-semibold">–</span></div>
+          <div class="hint text-xs mt-1" id="sasNote"></div>
+        </div>
+
+        <!-- İş Portföy İştirakler -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">İş Portföy İş Bankası İştirakleri (İŞY)</div>
+            <div class="flex items-center gap-2">
+              <span class="hint text-xs">Birim Fiyatı (TRY)</span>
+              <input id="isyUnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,5267">
+            </div>
+          </div>
+          <div class="mt-1 text-sm">Adet: <strong>1300</strong></div>
+          <div class="mt-1 text-sm">Toplam (≈): <span id="isyTotal" class="font-semibold">–</span></div>
+          <div class="hint text-xs mt-1" id="isyNote"></div>
+        </div>
       </div>
     </section>
 
@@ -861,7 +889,7 @@ async function setupSheetWebAppURL(infoEl){
     if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
     const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
     if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
-    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbz0FNMj9jT33KBesK4WHgo_Y2z4LczfI8rIh8ViMRYt3lVbixohS9XFRIkQnmmCHceV/exec');
+    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbzNeuuOCC436r47AXEO2EEzD-PB6zo1dvxfO0U1d6_DZrjbPrc9pmQVsWSc-FZA6B-3/exec');
     if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
     setTimeout(()=> location.reload(), 400);
   }catch(e){
@@ -1699,11 +1727,17 @@ const defaultLoansState = {
     { id:'YK#035.2', usd: 26312.43, paid:false },
   ],
   demoBank: {
-    goldGram: 169,
-    gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
-    fi5Units: 665,
-    fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0  // kullanıcı girecek (birim fiyat)
-  }
+  goldGram: 169,
+  gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
+  fi5Units: 565,
+  fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0,  // kullanıcı girecek (birim fiyat)
+
+  // 👇 yeni fonlar
+  sasUnits: 114236,
+  sasUnitTRY: Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0,
+  isyUnits: 2530000,
+  isyUnitTRY: Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0
+}
 };
 
 function getLoansState(){
@@ -1840,6 +1874,63 @@ function renderLoansBlock(){
       ? `Hesap: ${fi5Qty} adet × ${numberTL(fi5Unit)}${suffix}`
       : 'Birim fiyat girin';
   }
+  // SAS Fonu
+const sasInput = document.getElementById('sasUnitInput');
+if (sasInput){
+  if (!sasInput.value && st.demoBank.sasUnitTRY){ sasInput.value = String(st.demoBank.sasUnitTRY); }
+  sasInput.onchange = ()=>{
+    const v = parseTL(sasInput.value);
+    const s = getLoansState();
+    s.demoBank.sasUnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_sas_unit_try', String(v));
+    localStorage.setItem('popdog_sas_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+}
+const sasUnit = st.demoBank.sasUnitTRY || Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0;
+const sasQty  = st.demoBank.sasUnits || 850;
+const sasSum  = sasUnit ? (sasUnit * sasQty) : 0;
+const sasTotalEl = document.getElementById('sasTotal');
+if (sasTotalEl) sasTotalEl.textContent = sasSum ? numberTL(sasSum) : '–';
+{
+  const ts = Number(localStorage.getItem('popdog_sas_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('sasNote');
+  if (noteEl) noteEl.textContent = sasUnit
+    ? `Hesap: ${sasQty} adet × ${numberTL(sasUnit)}${suffix}`
+    : 'Birim fiyat girin';
+}
+
+// İŞY Fonu
+const isyInput = document.getElementById('isyUnitInput');
+if (isyInput){
+  if (!isyInput.value && st.demoBank.isyUnitTRY){ isyInput.value = String(st.demoBank.isyUnitTRY); }
+  isyInput.onchange = ()=>{
+    const v = parseTL(isyInput.value);
+    const s = getLoansState();
+    s.demoBank.isyUnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_isy_unit_try', String(v));
+    localStorage.setItem('popdog_isy_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+}
+const isyUnit = st.demoBank.isyUnitTRY || Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0;
+const isyQty  = st.demoBank.isyUnits || 1300;
+const isySum  = isyUnit ? (isyUnit * isyQty) : 0;
+const isyTotalEl = document.getElementById('isyTotal');
+if (isyTotalEl) isyTotalEl.textContent = isySum ? numberTL(isySum) : '–';
+{
+  const ts = Number(localStorage.getItem('popdog_isy_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('isyNote');
+  if (noteEl) noteEl.textContent = isyUnit
+    ? `Hesap: ${isyQty} adet × ${numberTL(isyUnit)}${suffix}`
+    : 'Birim fiyat girin';
+}
 }
 
 /* === Otomatik güncelleme: gider eklendiğinde çağırılacak ===
