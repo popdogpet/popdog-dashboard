@@ -892,13 +892,13 @@ async function refreshFundQuotes(){
 
     for (const f of funds){
       try{
-        const r = await fetch(`${url}?action=fundQuote&amp;code=${encodeURIComponent(f.code)}`, { method:'GET', cache:'no-store' });
+        const r = await fetch(`${url}?action=fundQuote&code=${encodeURIComponent(f.code)}`, { method:'GET', cache:'no-store' });
         const j = await r.json().catch(()=>null);
-        if (!j || !j.ok || !(j.unitTRY &gt; 0)) {
+        if (!j || !j.ok || !(j.unitTRY > 0)) {
           console.warn('fundQuote failed:', f.code, j);
           continue;
         }
-        // State &amp; UI güncelle
+        // State & UI güncelle
         localStorage.setItem(f.lsUnit, String(j.unitTRY));
         localStorage.setItem(f.lsAt, String(Date.now()));
 
@@ -925,7 +925,7 @@ async function setupSheetWebAppURL(infoEl){
     if(!pasted){ if(infoEl) infoEl.textContent = 'İptal edildi.'; return; }
     const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(pasted.trim());
     if(!ok){ if(infoEl) infoEl.textContent = '⚠️ Geçerli bir /exec URL girin.'; return; }
-    localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbzNeuuOCC436r47AXEO2EEzD-PB6zo1dvxfO0U1d6_DZrjbPrc9pmQVsWSc-FZA6B-3/exec');
+    localStorage.setItem('popdog_sheet_webapp_url', pasted.trim());
     if(infoEl) infoEl.textContent = '✓ URL kaydedildi. Sayfa tazelenecek…';
     setTimeout(()=> location.reload(), 400);
   }catch(e){
