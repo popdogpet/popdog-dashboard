@@ -865,10 +865,10 @@ th, td { white-space: nowrap; }
 const SHEET_WEBAPP_URL = (()=>{
   try{
     const u = localStorage.getItem('popdog_sheet_webapp_url');
-    return (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) ? u : 'https://script.google.com/macros/s/AKfycbw8NM4KhkPPeXs9eRV7DFWGwneXD5POygDNG4XaZrvMoDyJqeeL6dwwimqMFesVOo3x/exec';
-  }catch(_){
-    return 'https://script.google.com/macros/s/AKfycbw8NM4KhkPPeXs9eRV7DFWGwneXD5POygDNG4XaZrvMoDyJqeeL6dwwimqMFesVOo3x/exec';
-  }
+    if (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) return u;
+  }catch(_){}
+  // Safe fallback (no editor markup)
+  return 'https://script.google.com/macros/s/AKfycbw8NM4KhkPPeXs9eRV7DFWGwneXD5POygDNG4XaZrvMoDyJqeeL6dwwimqMFesVOo3x/exec';
 })();
 
 // Always read the latest URL from localStorage at call time
@@ -882,6 +882,9 @@ function getSheetWebAppURL(){
 
 async function fetchFundQuote(code){
   const base = getSheetWebAppURL();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
+    throw new Error('INVALID_WEBAPP_URL');
+  }
 
   // 7–8 sn sonra yarıda kes: “asılı kalma” engeli
   async function fetchWithTimeout(url, opts={}, timeoutMs=7000){
