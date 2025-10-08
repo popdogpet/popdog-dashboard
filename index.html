@@ -892,8 +892,8 @@ async function refreshFundQuotes(){
 
     for (const f of funds){
       try{
-        const r = await fetch(`${url}?action=fundQuote&code=${encodeURIComponent(f.code)}`, { method:'GET', cache:'no-store' });
-        const j = await r.json().catch(()=>null);
+        const qs = new URLSearchParams({ action: 'fundQuote', code: f.code });
+        const r  = await fetch(`${url}?${qs.toString()}`, { method: 'GET', cache: 'no-store' });        const j = await r.json().catch(()=>null);
         if (!j || !j.ok || !(j.unitTRY > 0)) {
           console.warn('fundQuote failed:', f.code, j);
           continue;
