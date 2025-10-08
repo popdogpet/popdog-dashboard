@@ -880,10 +880,64 @@ function getSheetWebAppURL(){
   return SHEET_WEBAPP_URL; // boot-time fallback
 }
 
-/* === TEFAS fon fiyatlarını Apps Script'ten çek (FI5, SAS, TI3) === */
+// Robust fetcher that tries multiple server handlers (GET fundQuote, GET shortcuts, POST JSON, POST form)
+async function fetchFundQuote(code){
+  const base = getSheetWebAppURL();
+
+  async function tryJson(url, opts){
+    const resp = await fetch(url, opts);
+    const raw  = await resp.text().catch(()=> '');
+    let json = null;
+    try{ json = JSON.parse(raw); }catch(_){}
+    return { ok: resp.ok, json, raw };
+  }
+
+  // A) GET fundQuote?code=CODE
+  {
+    const qs = new URLSearchParams({ action:'fundQuote', code: String(code).toUpperCase() });
+    const r  = await tryJson(`${base}?${qs.toString()}`, { method:'GET', cache:'no-store' });
+    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+  }
+
+  // B) GET shortcut handlers (some deployments expose these)
+  {
+    const actMap = { FI5:'fi5Quote', SAS:'sasQuote', TI3:'isyQuote' };
+    const act    = actMap[String(code).toUpperCase()];
+    if (act){
+      const r = await tryJson(`${base}?action=${encodeURIComponent(act)}`, { method:'GET', cache:'no-store' });
+      if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+    }
+  }
+
+  // C) POST JSON
+  {
+    const r = await tryJson(base, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json;charset=utf-8' },
+      body: JSON.stringify({ action:'fundQuote', code: String(code).toUpperCase() })
+    });
+    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+  }
+
+  // D) POST x-www-form-urlencoded (classic doPost(e.parameter))
+  {
+    const form = new URLSearchParams();
+    form.set('action','fundQuote');
+    form.set('code', String(code).toUpperCase());
+    const r = await tryJson(base, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
+      body: form.toString()
+    });
+    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+    // If we landed here, bubble the most recent payload for logging
+    throw new Error(r.json ? JSON.stringify(r.json) : (r.raw || 'unknown'));
+  }
+}
+
+// === TEFAS fon fiyatlarını Apps Script'ten çek (FI5, SAS, TI3) ===
 async function refreshFundQuotes(){
   try{
-    const url = getSheetWebAppURL(); // localStorage'dan okur
     const funds = [
       { code:'FI5', input:'fi5UnitInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
       { code:'SAS', input:'sasUnitInput', lsUnit:'popdog_sas_unit_try', lsAt:'popdog_sas_updated_at' },
@@ -892,20 +946,19 @@ async function refreshFundQuotes(){
 
     for (const f of funds){
       try{
-        const qs = new URLSearchParams({ action: 'fundQuote', code: f.code });
-        const r  = await fetch(`${url}?${qs.toString()}`, { method: 'GET', cache: 'no-store' });        const j = await r.json().catch(()=>null);
+        const j = await fetchFundQuote(f.code);
         if (!j || !j.ok || !(j.unitTRY > 0)) {
           console.warn('fundQuote failed:', f.code, j);
           continue;
         }
-        // State & UI güncelle
+        // State & UI
         localStorage.setItem(f.lsUnit, String(j.unitTRY));
         localStorage.setItem(f.lsAt, String(Date.now()));
-
         const inp = document.getElementById(f.input);
         if (inp) inp.value = String(j.unitTRY);
       }catch(e){
-        console.warn('fundQuote error:', f.code, e);
+        // Log the last-known error snapshot for easier debugging
+        console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
       }
     }
 
