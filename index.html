@@ -880,6 +880,42 @@ function getSheetWebAppURL(){
   return SHEET_WEBAPP_URL; // boot-time fallback
 }
 
+/* === TEFAS fon fiyatlarını Apps Script'ten çek (FI5, SAS, TI3) === */
+async function refreshFundQuotes(){
+  try{
+    const url = getSheetWebAppURL(); // localStorage'dan okur
+    const funds = [
+      { code:'FI5', input:'fi5UnitInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
+      { code:'SAS', input:'sasUnitInput', lsUnit:'popdog_sas_unit_try', lsAt:'popdog_sas_updated_at' },
+      { code:'TI3', input:'isyUnitInput', lsUnit:'popdog_isy_unit_try', lsAt:'popdog_isy_updated_at' }, // İŞY = TI3
+    ];
+
+    for (const f of funds){
+      try{
+        const r = await fetch(`${url}?action=fundQuote&amp;code=${encodeURIComponent(f.code)}`, { method:'GET', cache:'no-store' });
+        const j = await r.json().catch(()=>null);
+        if (!j || !j.ok || !(j.unitTRY &gt; 0)) {
+          console.warn('fundQuote failed:', f.code, j);
+          continue;
+        }
+        // State &amp; UI güncelle
+        localStorage.setItem(f.lsUnit, String(j.unitTRY));
+        localStorage.setItem(f.lsAt, String(Date.now()));
+
+        const inp = document.getElementById(f.input);
+        if (inp) inp.value = String(j.unitTRY);
+      }catch(e){
+        console.warn('fundQuote error:', f.code, e);
+      }
+    }
+
+    // Kartlardaki toplamları/hesap notlarını tazele
+    try{ renderLoansBlock(); }catch(_){}
+  }catch(e){
+    console.warn('refreshFundQuotes() top-level error', e);
+  }
+}
+
 // Simple interactive setter for the Web App URL
 async function setupSheetWebAppURL(infoEl){
   try{
@@ -1695,6 +1731,20 @@ async function initExpenseEntryUI(){
 // Sayfa yüklenince hazırla (router çalıştıktan sonra da çağrılırsa sorun yok)
 document.addEventListener('DOMContentLoaded', ()=> {
   try{ initExpenseEntryUI(); }catch(_){}
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // 300ms sonra bir kere çek (UI render’dan sonra gelsin)
+  setTimeout(refreshFundQuotes, 300);
+
+  // Ekstra: Çift tıkla anlık güncelle
+  ['fi5UnitInput','sasUnitInput','isyUnitInput'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el){
+      el.title = 'Çift tıkla: sunucudan en son birim fiyatı çek';
+      el.addEventListener('dblclick', refreshFundQuotes);
+    }
+  });
 });
 
 /* ================== LOANS & PENDING (STATE + UI) ================== */
