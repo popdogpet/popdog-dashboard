@@ -886,78 +886,80 @@ async function fetchFundQuote(code){
     throw new Error('INVALID_WEBAPP_URL');
   }
 
-  // 7–8 sn sonra yarıda kes: “asılı kalma” engeli
-  async function fetchWithTimeout(url, opts={}, timeoutMs=7000){
-    const ctrl = new AbortController();
-    const id = setTimeout(()=> ctrl.abort(), timeoutMs);
-    try{
-      const res = await fetch(url, { ...opts, signal: ctrl.signal });
-      return res;
-    }finally{
-      clearTimeout(id);
-    }
-  }
-
-  async function tryJson(url, opts){
-    try{
-      const resp = await fetchWithTimeout(url, opts, 8000);
-      const raw  = await resp.text().catch(()=> '');
-      let json = null; try{ json = JSON.parse(raw); }catch(_){ /* non-JSON olabilir */ }
-      return { ok: resp.ok, json, raw };
-    }catch(err){
-      // ağ/timeout hatalarını normalize et
-      return { ok:false, json:null, raw: (err && err.name === 'AbortError') ? 'TIMEOUT' : 'LOAD_FAILED' };
-    }
-  }
-
   const upper = String(code||'').toUpperCase();
+  const shortcut = { FI5:'fi5Quote', SAS:'sasQuote', TI3:'isyQuote' }[upper] || '';
 
-  // A) GET fundQuote?code=CODE
-  {
-    const qs = new URLSearchParams({ action:'fundQuote', code: upper, t:String(Date.now()) });
-    const r  = await tryJson(`${base}?${qs.toString()}`, { method:'GET', cache:'no-store' });
-    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+  // Small helper: fetch and try to parse JSON safely (don’t throw on 200/HTML bodies)
+  async function request(url, opts){
+    const ctrl = new AbortController();
+    const id = setTimeout(()=> ctrl.abort(), 12000); // a bit more lenient
+    try{
+      const res = await fetch(url, { cache:'no-store', ...opts, signal: ctrl.signal });
+      const text = await res.text().catch(()=> '');
+      let json = null;
+      // Try JSON only if it looks like JSON
+      try{ json = JSON.parse(text); }catch(_){ json = null; }
+      return { status: res.status, ok: res.ok, json, raw: text };
+    }catch(err){
+      return { status: 0, ok:false, json:null, raw: (err && err.name==='AbortError') ? 'TIMEOUT' : 'LOAD_FAILED' };
+    }finally{ clearTimeout(id); }
   }
 
-  // B) GET kısayollar (bazı deploy’larda açık)
-  {
-    const actMap = { FI5:'fi5Quote', SAS:'sasQuote', TI3:'isyQuote' };
-    const act    = actMap[upper];
-    if (act){
-      const r = await tryJson(`${base}?action=${encodeURIComponent(act)}&t=${Date.now()}`, { method:'GET', cache:'no-store' });
-      if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-      if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+  // Normalize a potential quote-shaped object
+  function normalizeQuote(j){
+    if (!j || typeof j !== 'object') return null;
+    const unit = (j.unitTRY!=null) ? Number(j.unitTRY) : NaN;
+    if (j.ok && unit>0) return { ok:true, code: (j.code||upper), unitTRY: unit, source: j.source||'' };
+    return null;
+  }
+
+  // Try a sequence of GET endpoints first (some deploys only allow GET)
+  const getURLs = [
+    `${base}?action=fundQuote&code=${encodeURIComponent(upper)}&t=${Date.now()}`,
+    `${base}?code=${encodeURIComponent(upper)}&action=fundQuote&t=${Date.now()}`,
+  ];
+  if (shortcut){
+    getURLs.push(`${base}?action=${encodeURIComponent(shortcut)}&t=${Date.now()}`);
+  }
+
+  for (const u of getURLs){
+    const r = await request(u, { method:'GET' });
+    const q = normalizeQuote(r.json);
+    if (q) return q;             // success
+    // If server answered 200 but not a quote (e.g., ping JSON), just continue without throwing
+    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED'){
+      // soft fail; continue trying other strategies — don’t surface as an error yet
+      continue;
     }
   }
 
-  // C) POST JSON (doPost router)
+  // Try POST (JSON)
   {
-    const r = await tryJson(base, {
+    const r = await request(base, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json;charset=utf-8' },
+      headers: { 'Content-Type':'application/json;charset=utf-8' },
       body: JSON.stringify({ action:'fundQuote', code: upper })
     });
-    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+    const q = normalizeQuote(r.json);
+    if (q) return q;
   }
 
-  // D) POST form-urlencoded (klasik Apps Script)
+  // Try POST (form-urlencoded)
   {
     const form = new URLSearchParams();
     form.set('action','fundQuote');
     form.set('code', upper);
-    const r = await tryJson(base, {
+    const r = await request(base, {
       method:'POST',
-      headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
+      headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
       body: form.toString()
     });
-    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
-
-    // en son gördüğümüz payload’ı üste fırlatalım (console’da görülsün)
-    throw new Error(r.json ? JSON.stringify(r.json) : (r.raw || 'unknown'));
+    const q = normalizeQuote(r.json);
+    if (q) return q;
   }
+
+  // Nothing worked → signal upper layer to use cache without logging scary errors
+  throw new Error('NO_QUOTE');
 }
 
 // === TEFAS fon fiyatlarını Apps Script'ten çek (FI5, SAS, TI3) ===
