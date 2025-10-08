@@ -880,57 +880,79 @@ function getSheetWebAppURL(){
   return SHEET_WEBAPP_URL; // boot-time fallback
 }
 
-// Robust fetcher that tries multiple server handlers (GET fundQuote, GET shortcuts, POST JSON, POST form)
 async function fetchFundQuote(code){
   const base = getSheetWebAppURL();
 
-  async function tryJson(url, opts){
-    const resp = await fetch(url, opts);
-    const raw  = await resp.text().catch(()=> '');
-    let json = null;
-    try{ json = JSON.parse(raw); }catch(_){}
-    return { ok: resp.ok, json, raw };
-  }
-
-  // A) GET fundQuote?code=CODE
-  {
-    const qs = new URLSearchParams({ action:'fundQuote', code: String(code).toUpperCase() });
-    const r  = await tryJson(`${base}?${qs.toString()}`, { method:'GET', cache:'no-store' });
-    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-  }
-
-  // B) GET shortcut handlers (some deployments expose these)
-  {
-    const actMap = { FI5:'fi5Quote', SAS:'sasQuote', TI3:'isyQuote' };
-    const act    = actMap[String(code).toUpperCase()];
-    if (act){
-      const r = await tryJson(`${base}?action=${encodeURIComponent(act)}`, { method:'GET', cache:'no-store' });
-      if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+  // 7–8 sn sonra yarıda kes: “asılı kalma” engeli
+  async function fetchWithTimeout(url, opts={}, timeoutMs=7000){
+    const ctrl = new AbortController();
+    const id = setTimeout(()=> ctrl.abort(), timeoutMs);
+    try{
+      const res = await fetch(url, { ...opts, signal: ctrl.signal });
+      return res;
+    }finally{
+      clearTimeout(id);
     }
   }
 
-  // C) POST JSON
+  async function tryJson(url, opts){
+    try{
+      const resp = await fetchWithTimeout(url, opts, 8000);
+      const raw  = await resp.text().catch(()=> '');
+      let json = null; try{ json = JSON.parse(raw); }catch(_){ /* non-JSON olabilir */ }
+      return { ok: resp.ok, json, raw };
+    }catch(err){
+      // ağ/timeout hatalarını normalize et
+      return { ok:false, json:null, raw: (err && err.name === 'AbortError') ? 'TIMEOUT' : 'LOAD_FAILED' };
+    }
+  }
+
+  const upper = String(code||'').toUpperCase();
+
+  // A) GET fundQuote?code=CODE
+  {
+    const qs = new URLSearchParams({ action:'fundQuote', code: upper, t:String(Date.now()) });
+    const r  = await tryJson(`${base}?${qs.toString()}`, { method:'GET', cache:'no-store' });
+    if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+  }
+
+  // B) GET kısayollar (bazı deploy’larda açık)
+  {
+    const actMap = { FI5:'fi5Quote', SAS:'sasQuote', TI3:'isyQuote' };
+    const act    = actMap[upper];
+    if (act){
+      const r = await tryJson(`${base}?action=${encodeURIComponent(act)}&t=${Date.now()}`, { method:'GET', cache:'no-store' });
+      if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+      if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+    }
+  }
+
+  // C) POST JSON (doPost router)
   {
     const r = await tryJson(base, {
       method:'POST',
       headers:{ 'Content-Type':'application/json;charset=utf-8' },
-      body: JSON.stringify({ action:'fundQuote', code: String(code).toUpperCase() })
+      body: JSON.stringify({ action:'fundQuote', code: upper })
     });
     if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
+    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
   }
 
-  // D) POST x-www-form-urlencoded (classic doPost(e.parameter))
+  // D) POST form-urlencoded (klasik Apps Script)
   {
     const form = new URLSearchParams();
     form.set('action','fundQuote');
-    form.set('code', String(code).toUpperCase());
+    form.set('code', upper);
     const r = await tryJson(base, {
       method:'POST',
       headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
       body: form.toString()
     });
     if (r.json && r.json.ok && r.json.unitTRY>0) return r.json;
-    // If we landed here, bubble the most recent payload for logging
+    if (r.raw === 'TIMEOUT' || r.raw === 'LOAD_FAILED') throw new Error('Load failed');
+
+    // en son gördüğümüz payload’ı üste fırlatalım (console’da görülsün)
     throw new Error(r.json ? JSON.stringify(r.json) : (r.raw || 'unknown'));
   }
 }
@@ -945,22 +967,34 @@ async function refreshFundQuotes(){
     ];
 
     for (const f of funds){
-      try{
-        const j = await fetchFundQuote(f.code);
-        if (!j || !j.ok || !(j.unitTRY > 0)) {
-          console.warn('fundQuote failed:', f.code, j);
-          continue;
-        }
-        // State & UI
-        localStorage.setItem(f.lsUnit, String(j.unitTRY));
-        localStorage.setItem(f.lsAt, String(Date.now()));
-        const inp = document.getElementById(f.input);
-        if (inp) inp.value = String(j.unitTRY);
-      }catch(e){
-        // Log the last-known error snapshot for easier debugging
-        console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
-      }
+  try{
+    const j = await fetchFundQuote(f.code);
+    if (!j || !j.ok || !(j.unitTRY > 0)) {
+      console.warn('fundQuote failed:', f.code, j);
+      throw new Error('Invalid payload');
     }
+    // Başarılı → kaydet + UI
+    localStorage.setItem(f.lsUnit, String(j.unitTRY));
+    localStorage.setItem(f.lsAt, String(Date.now()));
+    const inp = document.getElementById(f.input);
+    if (inp) inp.value = String(j.unitTRY);
+    // Kaynak bilgisi (varsa) not alanına
+    const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+    if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
+  }catch(e){
+    // Bağlantı/timeout/yanıt bozuksa → önbellek fallback
+    const cached = Number(localStorage.getItem(f.lsUnit)||'0');
+    const inp = document.getElementById(f.input);
+    if (cached>0 && inp){
+      inp.value = String(cached);
+      const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+      const at = Number(localStorage.getItem(f.lsAt)||'0');
+      const ageMin = at? Math.round((Date.now()-at)/60000) : null;
+      if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null? ` • ${ageMin} dk önce` : ''}`;
+    }
+    console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
+  }
+}
 
     // Kartlardaki toplamları/hesap notlarını tazele
     try{ renderLoansBlock(); }catch(_){}
