@@ -4,6 +4,81 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pop Dog | 2025 CFO Dashboard (Sheet + WhatsApp + Weekly)</title>
+  <!-- === Versioned cache reset (iOS/Safari safe) ===
+       Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
+  <script>
+  (function(){
+    var APP_VERSION = '2025.10.09-01'; // ⬅️ bump this to invalidate client caches
+    var VERSION_KEY = 'popdog_app_version';
+    var RELOAD_FLAG = 'popdog_version_reloaded';
+    // Keep these keys across resets (user prefs / endpoints)
+    var PRESERVE_KEYS = [
+      'popdog_sheet_webapp_url',
+      'popdog_theme'
+    ];
+    try{
+      var prev = localStorage.getItem(VERSION_KEY);
+      if (prev !== APP_VERSION){
+        // Preserve a few important values before we clean
+        var preserve = {};
+        try{
+          PRESERVE_KEYS.forEach(function(k){ preserve[k] = localStorage.getItem(k); });
+        }catch(_){}
+
+        // Wipe app-local keys (namespaced with popdog_) but keep PRESERVE_KEYS
+        try{
+          var toRemove = [];
+          for (var i=0; i<localStorage.length; i++){
+            var k = localStorage.key(i);
+            if (/^popdog_/i.test(k) && PRESERVE_KEYS.indexOf(k) === -1){
+              toRemove.push(k);
+            }
+          }
+          toRemove.forEach(function(k){ localStorage.removeItem(k); });
+        }catch(_){}
+
+        // Restore preserved values
+        try{
+          Object.keys(preserve).forEach(function(k){
+            if (preserve[k] !== null && preserve[k] !== undefined){
+              localStorage.setItem(k, preserve[k]);
+            }
+          });
+        }catch(_){}
+
+        // Nuke CacheStorage (if available)
+        try{
+          if ('caches' in window){
+            caches.keys().then(function(keys){ keys.forEach(function(k){ caches.delete(k); }); });
+          }
+        }catch(_){}
+
+        // Unregister any service workers (if any)
+        try{
+          if ('serviceWorker' in navigator){
+            navigator.serviceWorker.getRegistrations().then(function(list){
+              list.forEach(function(reg){ reg.unregister(); });
+            });
+          }
+        }catch(_){}
+
+        // Save new version
+        try{ localStorage.setItem(VERSION_KEY, APP_VERSION); }catch(_){}
+
+        // One-time hard reload to ensure fresh assets
+        try{
+          if (!sessionStorage.getItem(RELOAD_FLAG)){
+            sessionStorage.setItem(RELOAD_FLAG, '1');
+            // Avoid hash preserving to prevent SW/SPA quirks; strip query except debug flags
+            location.replace(location.href.split('#')[0]);
+          }else{
+            sessionStorage.removeItem(RELOAD_FLAG);
+          }
+        }catch(_){}
+      }
+    }catch(_){}
+  })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
