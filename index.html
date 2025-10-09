@@ -417,7 +417,7 @@ th, td { white-space: nowrap; }
               <input id="fi5UnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,0198">
             </div>
           </div>
-          <div class="mt-1 text-sm">Adet: <strong>665</strong></div>
+          <div class="mt-1 text-sm">Adet: <strong>565</strong></div>
           <div class="mt-1 text-sm">Toplam (≈): <span id="fi5Total" class="font-semibold">–</span></div>
           <div class="hint text-xs mt-1" id="fi5Note"></div>
         </div>
@@ -431,7 +431,7 @@ th, td { white-space: nowrap; }
               <input id="sasUnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,0321">
             </div>
           </div>
-          <div class="mt-1 text-sm">Adet: <strong>850</strong></div>
+          <div class="mt-1 text-sm">Adet: <strong>114236</strong></div>
           <div class="mt-1 text-sm">Toplam (≈): <span id="sasTotal" class="font-semibold">–</span></div>
           <div class="hint text-xs mt-1" id="sasNote"></div>
         </div>
@@ -445,7 +445,7 @@ th, td { white-space: nowrap; }
               <input id="isyUnitInput" type="text" inputmode="decimal" class="input-pro w-28 text-sm" placeholder="örn. 1,5267">
             </div>
           </div>
-          <div class="mt-1 text-sm">Adet: <strong>1300</strong></div>
+          <div class="mt-1 text-sm">Adet: <strong>2530000</strong></div>
           <div class="mt-1 text-sm">Toplam (≈): <span id="isyTotal" class="font-semibold">–</span></div>
           <div class="hint text-xs mt-1" id="isyNote"></div>
         </div>
@@ -2031,7 +2031,7 @@ if (sasInput){
   };
 }
 const sasUnit = st.demoBank.sasUnitTRY || Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0;
-const sasQty  = st.demoBank.sasUnits || 850;
+const sasQty  = st.demoBank.sasUnits || 114236;
 const sasSum  = sasUnit ? (sasUnit * sasQty) : 0;
 const sasTotalEl = document.getElementById('sasTotal');
 if (sasTotalEl) sasTotalEl.textContent = sasSum ? numberTL(sasSum) : '–';
@@ -2060,7 +2060,7 @@ if (isyInput){
   };
 }
 const isyUnit = st.demoBank.isyUnitTRY || Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0;
-const isyQty  = st.demoBank.isyUnits || 1300;
+const isyQty  = st.demoBank.isyUnits || 2530000;
 const isySum  = isyUnit ? (isyUnit * isyQty) : 0;
 const isyTotalEl = document.getElementById('isyTotal');
 if (isyTotalEl) isyTotalEl.textContent = isySum ? numberTL(isySum) : '–';
