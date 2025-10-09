@@ -2004,9 +2004,11 @@ function renderLoansBlock(){
     };
   }
   const fi5Unit = st.demoBank.fi5UnitTRY || Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0;
-  const fi5Qty  = st.demoBank.fi5Units || 0;
+  const fi5Qty  = st.demoBank.fi5Units || 565;
   const fi5Sum  = fi5Unit ? (fi5Unit * fi5Qty) : 0;
-  document.getElementById('fi5Total').textContent = fi5Sum ? numberTL(fi5Sum) : '–';
+  const fi5TotalEl = document.getElementById('fi5Total');
+  if (fi5TotalEl) fi5TotalEl.textContent = fi5Sum ? numberTL(fi5Sum) : '–';
+
   {
     const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
     const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
