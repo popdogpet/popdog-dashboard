@@ -2024,23 +2024,46 @@ function tryPerUsd(){
 
 /* === Render === */
 function renderLoansBlock(){
-  const st = getLoansState();
+  const st = (typeof getLoansState === 'function') ? getLoansState() : defaultLoansState;
+  const loans = (st && st.loans) ? st.loans : {};
+  const biz = loans.biz || {};
+  const car = loans.car || {};
 
-  // Biz (ticari)
-  document.getElementById('loanBizRemain').textContent   = numberTL(st.loans.biz.remainTRY);
-  document.getElementById('loanBizInst').textContent     = numberTL(st.loans.biz.instTRY);
-  document.getElementById('loanBizPrincipal').textContent= numberTL(st.loans.biz.principalTRY);
-  document.getElementById('loanBizRate').textContent     = `${(st.loans.biz.monthlyRate*100).toFixed(6)}%`;
-  document.getElementById('loanBizPaidBadge').textContent= `${st.loans.biz.paid}/${st.loans.biz.total}`;
-  document.getElementById('loanBizBar').style.width      = `${Math.min(100, st.loans.biz.paid/st.loans.biz.total*100).toFixed(1)}%`;
+  // ---- Taksitli Ticari Kredi (biz) ----
+  const bizPaid = document.getElementById('loanBizPaidBadge');
+  if (bizPaid) bizPaid.textContent = `${biz.paid || 0}/${biz.total || 0}`;
+  const bizInst = document.getElementById('loanBizInst');
+  if (bizInst) bizInst.textContent = numberTL(biz.instTRY || 0);
+  const bizRemain = document.getElementById('loanBizRemain');
+  if (bizRemain) bizRemain.textContent = numberTL(biz.remainTRY || 0);
+  const bizPrincipal = document.getElementById('loanBizPrincipal');
+  if (bizPrincipal) bizPrincipal.textContent = numberTL(biz.principalTRY || 0);
+  const bizRate = document.getElementById('loanBizRate');
+  if (bizRate) bizRate.textContent = `${((biz.monthlyRate || 0) * 100).toFixed(4)}%`;
+  const bizBar = document.getElementById('loanBizBar');
+  if (bizBar) {
+    const pct = (biz.total ? (biz.paid || 0) / biz.total * 100 : 0);
+    bizBar.style.width = `${pct}%`;
+  }
 
-  // Car (araç)
-  document.getElementById('loanCarRemain').textContent   = numberTL(st.loans.car.remainTRY);
-  document.getElementById('loanCarInst').textContent     = numberTL(st.loans.car.instTRY);
-  document.getElementById('loanCarPrincipal').textContent= numberTL(st.loans.car.principalTRY);
-  document.getElementById('loanCarRate').textContent     = `${(st.loans.car.monthlyRate*100).toFixed(6)}%`;
-  document.getElementById('loanCarPaidBadge').textContent= `${st.loans.car.paid}/${st.loans.car.total}`;
-  document.getElementById('loanCarBar').style.width      = `${Math.min(100, st.loans.car.paid/st.loans.car.total*100).toFixed(1)}%`;
+  // ---- Taksitli Araç Kredisi (car) ----
+  const carPaid = document.getElementById('loanCarPaidBadge');
+  if (carPaid) carPaid.textContent = `${car.paid || 0}/${car.total || 0}`;
+  const carInst = document.getElementById('loanCarInst');
+  if (carInst) carInst.textContent = numberTL(car.instTRY || 0);
+  const carRemain = document.getElementById('loanCarRemain');
+  if (carRemain) carRemain.textContent = numberTL(car.remainTRY || 0);
+  const carPrincipal = document.getElementById('loanCarPrincipal');
+  if (carPrincipal) carPrincipal.textContent = numberTL(car.principalTRY || 0);
+  const carRate = document.getElementById('loanCarRate');
+  if (carRate) carRate.textContent = `${((car.monthlyRate || 0) * 100).toFixed(4)}%`;
+  const carBar = document.getElementById('loanCarBar');
+  if (carBar) {
+    const pct = (car.total ? (car.paid || 0) / car.total * 100 : 0);
+    carBar.style.width = `${pct}%`;
+  }
+
+  window.renderLoansBlock = renderLoansBlock;
 
   // Zee listesi
   const tbody = document.getElementById('tblZeeAwait');
