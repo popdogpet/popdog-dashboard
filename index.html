@@ -1037,17 +1037,15 @@ async function fetchFundQuote(code){
   throw new Error('NO_QUOTE');
 }
 
-// === Helper: cacheless fetch (GET, disables all caches, adds cache-buster param) ===
 function cacheless(url){
   const u = new URL(url, location.href);
   u.searchParams.set('_', Date.now());      // cache-buster
   return fetch(u.toString(), {
     method: 'GET',
-    cache: 'no-store',                      // tarayıcı cache’i kapat
-    headers: {
-      'Cache-Control': 'no-store',          // ara proxy’lere niyetimizi belirt
-      'Pragma': 'no-cache'
-    }
+    cache: 'no-store',
+    // ÖNEMLİ: custom header koyma → preflight tetikleme
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer'
   });
 }
 
@@ -2024,12 +2022,11 @@ function tryPerUsd(){
 
 /* === Render === */
 function renderLoansBlock(){
-  const st = (typeof getLoansState === 'function') ? getLoansState() : defaultLoansState;
+  const st = (typeof getLoansState === 'function') ? getLoansState() : (typeof defaultLoansState !== 'undefined' ? defaultLoansState : {});
   const loans = (st && st.loans) ? st.loans : {};
   const biz = loans.biz || {};
   const car = loans.car || {};
 
-  // ---- Taksitli Ticari Kredi (biz) ----
   const bizPaid = document.getElementById('loanBizPaidBadge');
   if (bizPaid) bizPaid.textContent = `${biz.paid || 0}/${biz.total || 0}`;
   const bizInst = document.getElementById('loanBizInst');
@@ -2039,14 +2036,10 @@ function renderLoansBlock(){
   const bizPrincipal = document.getElementById('loanBizPrincipal');
   if (bizPrincipal) bizPrincipal.textContent = numberTL(biz.principalTRY || 0);
   const bizRate = document.getElementById('loanBizRate');
-  if (bizRate) bizRate.textContent = `${((biz.monthlyRate || 0) * 100).toFixed(4)}%`;
+  if (bizRate) bizRate.textContent = (typeof biz.monthlyRate === 'number' ? `${(biz.monthlyRate * 100).toFixed(6)}%` : '–');
   const bizBar = document.getElementById('loanBizBar');
-  if (bizBar) {
-    const pct = (biz.total ? (biz.paid || 0) / biz.total * 100 : 0);
-    bizBar.style.width = `${pct}%`;
-  }
+  if (bizBar) bizBar.style.width = (biz.total ? `${(biz.paid / biz.total) * 100}%` : '0%');
 
-  // ---- Taksitli Araç Kredisi (car) ----
   const carPaid = document.getElementById('loanCarPaidBadge');
   if (carPaid) carPaid.textContent = `${car.paid || 0}/${car.total || 0}`;
   const carInst = document.getElementById('loanCarInst');
@@ -2056,12 +2049,11 @@ function renderLoansBlock(){
   const carPrincipal = document.getElementById('loanCarPrincipal');
   if (carPrincipal) carPrincipal.textContent = numberTL(car.principalTRY || 0);
   const carRate = document.getElementById('loanCarRate');
-  if (carRate) carRate.textContent = `${((car.monthlyRate || 0) * 100).toFixed(4)}%`;
+  if (carRate) carRate.textContent = (typeof car.monthlyRate === 'number' ? `${(car.monthlyRate * 100).toFixed(6)}%` : '–');
   const carBar = document.getElementById('loanCarBar');
-  if (carBar) {
-    const pct = (car.total ? (car.paid || 0) / car.total * 100 : 0);
-    carBar.style.width = `${pct}%`;
-  }
+  if (carBar) carBar.style.width = (car.total ? `${(car.paid / car.total) * 100}%` : '0%');
+}
+ 
 
   window.renderLoansBlock = renderLoansBlock;
 
@@ -2194,7 +2186,7 @@ if (isyTotalEl) isyTotalEl.textContent = isySum ? numberTL(isySum) : '–';
     ? `Hesap: ${isyQty} adet × ${numberTL(isyUnit)}${suffix}`
     : 'Birim fiyat girin';
 }
-}
+
 
 /* === Otomatik güncelleme: gider eklendiğinde çağırılacak ===
    - subcat "Taksitli Ticari Kredi" → loans.biz
