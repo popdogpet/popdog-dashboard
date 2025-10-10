@@ -1037,6 +1037,20 @@ async function fetchFundQuote(code){
   throw new Error('NO_QUOTE');
 }
 
+// === Helper: cacheless fetch (GET, disables all caches, adds cache-buster param) ===
+function cacheless(url){
+  const u = new URL(url, location.href);
+  u.searchParams.set('_', Date.now());      // cache-buster
+  return fetch(u.toString(), {
+    method: 'GET',
+    cache: 'no-store',                      // tarayıcı cache’i kapat
+    headers: {
+      'Cache-Control': 'no-store',          // ara proxy’lere niyetimizi belirt
+      'Pragma': 'no-cache'
+    }
+  });
+}
+
 // === TEFAS fon fiyatlarını Apps Script'ten çek (FI5, SAS, TI3) ===
 async function refreshFundQuotes(){
   try{
@@ -1045,37 +1059,44 @@ async function refreshFundQuotes(){
       { code:'SAS', input:'sasUnitInput', lsUnit:'popdog_sas_unit_try', lsAt:'popdog_sas_updated_at' },
       { code:'TI3', input:'isyUnitInput', lsUnit:'popdog_isy_unit_try', lsAt:'popdog_isy_updated_at' }, // İŞY = TI3
     ];
-
+    const base = getSheetWebAppURL();
     for (const f of funds){
-  try{
-    const j = await fetchFundQuote(f.code);
-    if (!j || !j.ok || !(j.unitTRY > 0)) {
-      console.warn('fundQuote failed:', f.code, j);
-      throw new Error('Invalid payload');
+      try{
+        // Build GET URL (prefer action=fundQuote&code=...)
+        const url = `${base}?action=fundQuote&code=${encodeURIComponent(f.code)}&t=${Date.now()}`;
+        const res = await cacheless(url);
+        let j = null;
+        try {
+          const txt = await res.text();
+          j = JSON.parse(txt);
+        } catch(_){}
+        // Normalize: expect shape { ok:true, unitTRY: number }
+        const unit = (j && typeof j.unitTRY !== 'undefined') ? Number(j.unitTRY) : NaN;
+        if (!j || !j.ok || !(unit > 0)) {
+          throw new Error('Invalid payload');
+        }
+        // Başarılı → kaydet + UI
+        localStorage.setItem(f.lsUnit, String(unit));
+        localStorage.setItem(f.lsAt, String(Date.now()));
+        const inp = document.getElementById(f.input);
+        if (inp) inp.value = String(unit);
+        // Kaynak bilgisi (varsa) not alanına
+        const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+        if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
+      }catch(e){
+        // Bağlantı/timeout/yanıt bozuksa → önbellek fallback
+        const cached = Number(localStorage.getItem(f.lsUnit)||'0');
+        const inp = document.getElementById(f.input);
+        if (cached>0 && inp){
+          inp.value = String(cached);
+          const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+          const at = Number(localStorage.getItem(f.lsAt)||'0');
+          const ageMin = at? Math.round((Date.now()-at)/60000) : null;
+          if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null? ` • ${ageMin} dk önce` : ''}`;
+        }
+        console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
+      }
     }
-    // Başarılı → kaydet + UI
-    localStorage.setItem(f.lsUnit, String(j.unitTRY));
-    localStorage.setItem(f.lsAt, String(Date.now()));
-    const inp = document.getElementById(f.input);
-    if (inp) inp.value = String(j.unitTRY);
-    // Kaynak bilgisi (varsa) not alanına
-    const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
-    if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
-  }catch(e){
-    // Bağlantı/timeout/yanıt bozuksa → önbellek fallback
-    const cached = Number(localStorage.getItem(f.lsUnit)||'0');
-    const inp = document.getElementById(f.input);
-    if (cached>0 && inp){
-      inp.value = String(cached);
-      const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
-      const at = Number(localStorage.getItem(f.lsAt)||'0');
-      const ageMin = at? Math.round((Date.now()-at)/60000) : null;
-      if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null? ` • ${ageMin} dk önce` : ''}`;
-    }
-    console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
-  }
-}
-
     // Kartlardaki toplamları/hesap notlarını tazele
     try{ renderLoansBlock(); }catch(_){}
   }catch(e){
@@ -5053,6 +5074,40 @@ try{ document.addEventListener('DOMContentLoaded', ()=>{ autoUpdateFunds(); }, {
 
 // Optional: refresh quotes every 6h if fields are still empty
 try{ setInterval(()=>{ autoUpdateFunds(); }, 6*60*60*1000); }catch(_){ }
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Eski Service Worker’ları iptal et
+  if ('serviceWorker' in navigator) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    } catch (e) { /* yoksay */ }
+  }
+
+  // Cache Storage’ı temizle
+  if ('caches' in window) {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch (e) { /* yoksay */ }
+  }
+
+  // İstersen localStorage da sıfırlanabilir (tamamen cachesiz istiyorsan):
+  // localStorage.clear();
+
+  // UI render’dan sonra canlı veriyi çek
+  setTimeout(refreshFundQuotes, 300);
+
+  // Çift tıklamada tazele (kullanışlı)
+  ['fi5UnitInput','sasUnitInput','isyUnitInput'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el){
+      el.title = 'Çift tıkla: sunucudan en son birim fiyatı çek';
+      el.addEventListener('dblclick', refreshFundQuotes);
+    }
+  });
+});
 </script>
 </body>
 </html>
