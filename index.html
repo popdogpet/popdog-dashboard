@@ -943,6 +943,7 @@ const SHEET_WEBAPP_URL = (()=>{
     if (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) return u;
   }catch(_){}
   // Safe fallback (no editor markup)
+  try { localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycby9KY5ljSj2v3fIu8XJk0ejXu_L3j14jYTgBWza88WZGnKTduMaFPt7UY0zH4o5CUnT/exec'); } catch(_){}
   return 'https://script.google.com/macros/s/AKfycby9KY5ljSj2v3fIu8XJk0ejXu_L3j14jYTgBWza88WZGnKTduMaFPt7UY0zH4o5CUnT/exec';
 })();
 
