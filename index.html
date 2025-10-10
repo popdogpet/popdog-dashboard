@@ -1043,9 +1043,10 @@ function cacheless(url){
   return fetch(u.toString(), {
     method: 'GET',
     cache: 'no-store',
-    // ÖNEMLİ: custom header koyma → preflight tetikleme
-    redirect: 'follow',
-    referrerPolicy: 'no-referrer'
+    headers: {
+      'Cache-Control': 'no-store',
+      'Pragma': 'no-cache'
+    }
   });
 }
 
@@ -1061,11 +1062,10 @@ async function refreshFundQuotes(){
     for (const f of funds){
       try{
         // Build GET URL (prefer action=fundQuote&code=...)
-        const url = `${base}?action=fundQuote&code=${encodeURIComponent(f.code)}&t=${Date.now()}`;
-        const res = await cacheless(url);
+        const r = await cacheless(`${base}?action=fundQuote&code=${encodeURIComponent(f.code)}`);
         let j = null;
         try {
-          const txt = await res.text();
+          const txt = await r.text();
           j = JSON.parse(txt);
         } catch(_){}
         // Normalize: expect shape { ok:true, unitTRY: number }
@@ -1090,7 +1090,7 @@ async function refreshFundQuotes(){
           const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
           const at = Number(localStorage.getItem(f.lsAt)||'0');
           const ageMin = at? Math.round((Date.now()-at)/60000) : null;
-          if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null? ` • ${ageMin} dk önce` : ''}`;
+          if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null ? ` • ${ageMin} dk önce` : ''}`;
         }
         console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
       }
