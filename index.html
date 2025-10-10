@@ -2022,36 +2022,58 @@ function tryPerUsd(){
 
 /* === Render === */
 function renderLoansBlock(){
-  const st = (typeof getLoansState === 'function') ? getLoansState() : (typeof defaultLoansState !== 'undefined' ? defaultLoansState : {});
-  const loans = (st && st.loans) ? st.loans : {};
+  const state = (typeof getLoansState === 'function') ? getLoansState() : (typeof defaultLoansState !== 'undefined' ? defaultLoansState : {});
+  const loans = (state && state.loans) ? state.loans : {};
   const biz = loans.biz || {};
   const car = loans.car || {};
 
+  // ---- Biz (Taksitli Ticari) ----
   const bizPaid = document.getElementById('loanBizPaidBadge');
-  if (bizPaid) bizPaid.textContent = `${biz.paid || 0}/${biz.total || 0}`;
-  const bizInst = document.getElementById('loanBizInst');
-  if (bizInst) bizInst.textContent = numberTL(biz.instTRY || 0);
-  const bizRemain = document.getElementById('loanBizRemain');
-  if (bizRemain) bizRemain.textContent = numberTL(biz.remainTRY || 0);
-  const bizPrincipal = document.getElementById('loanBizPrincipal');
-  if (bizPrincipal) bizPrincipal.textContent = numberTL(biz.principalTRY || 0);
-  const bizRate = document.getElementById('loanBizRate');
-  if (bizRate) bizRate.textContent = (typeof biz.monthlyRate === 'number' ? `${(biz.monthlyRate * 100).toFixed(6)}%` : '–');
-  const bizBar = document.getElementById('loanBizBar');
-  if (bizBar) bizBar.style.width = (biz.total ? `${(biz.paid / biz.total) * 100}%` : '0%');
+  if (bizPaid) bizPaid.textContent = `${Number(biz.paid||0)}/${Number(biz.total||0)}`;
 
+  const bizInst = document.getElementById('loanBizInst');
+  if (bizInst) bizInst.textContent = numberTL(Number(biz.instTRY || biz.installmentTRY || 0));
+
+  const bizRemain = document.getElementById('loanBizRemain');
+  if (bizRemain) bizRemain.textContent = numberTL(Number(biz.remainTRY || 0));
+
+  const bizPrincipal = document.getElementById('loanBizPrincipal');
+  if (bizPrincipal) bizPrincipal.textContent = numberTL(Number(biz.principalTRY || 0));
+
+  const bizRate = document.getElementById('loanBizRate');
+  const bizRateNum = (typeof biz.monthlyRate === 'number') ? biz.monthlyRate*100
+                     : (typeof biz.monthlyRatePct === 'number' ? biz.monthlyRatePct : 0);
+  if (bizRate) bizRate.textContent = `${(Number(bizRateNum)||0).toFixed(4)}%`;
+
+  const bizBar = document.getElementById('loanBizBar');
+  if (bizBar){
+    const t = Number(biz.total||0), p = Number(biz.paid||0);
+    bizBar.style.width = (t>0 ? (Math.min(Math.max(p/t,0),1)*100) : 0) + '%';
+  }
+
+  // ---- Araç (Taksitli Araç) ----
   const carPaid = document.getElementById('loanCarPaidBadge');
-  if (carPaid) carPaid.textContent = `${car.paid || 0}/${car.total || 0}`;
+  if (carPaid) carPaid.textContent = `${Number(car.paid||0)}/${Number(car.total||0)}`;
+
   const carInst = document.getElementById('loanCarInst');
-  if (carInst) carInst.textContent = numberTL(car.instTRY || 0);
+  if (carInst) carInst.textContent = numberTL(Number(car.instTRY || car.installmentTRY || 0));
+
   const carRemain = document.getElementById('loanCarRemain');
-  if (carRemain) carRemain.textContent = numberTL(car.remainTRY || 0);
+  if (carRemain) carRemain.textContent = numberTL(Number(car.remainTRY || 0));
+
   const carPrincipal = document.getElementById('loanCarPrincipal');
-  if (carPrincipal) carPrincipal.textContent = numberTL(car.principalTRY || 0);
+  if (carPrincipal) carPrincipal.textContent = numberTL(Number(car.principalTRY || 0));
+
   const carRate = document.getElementById('loanCarRate');
-  if (carRate) carRate.textContent = (typeof car.monthlyRate === 'number' ? `${(car.monthlyRate * 100).toFixed(6)}%` : '–');
+  const carRateNum = (typeof car.monthlyRate === 'number') ? car.monthlyRate*100
+                    : (typeof car.monthlyRatePct === 'number' ? car.monthlyRatePct : 0);
+  if (carRate) carRate.textContent = `${(Number(carRateNum)||0).toFixed(4)}%`;
+
   const carBar = document.getElementById('loanCarBar');
-  if (carBar) carBar.style.width = (car.total ? `${(car.paid / car.total) * 100}%` : '0%');
+  if (carBar){
+    const t = Number(car.total||0), p = Number(car.paid||0);
+    carBar.style.width = (t>0 ? (Math.min(Math.max(p/t,0),1)*100) : 0) + '%';
+  }
 }
  
 
