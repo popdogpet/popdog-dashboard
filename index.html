@@ -1039,14 +1039,15 @@ async function fetchFundQuote(code){
 
 function cacheless(url){
   const u = new URL(url, location.href);
-  u.searchParams.set('_', Date.now());      // cache-buster
+  // Add a cache-busting param to avoid any intermediary caches
+  u.searchParams.set('_', Date.now());
+  // IMPORTANT: Do NOT set any custom headers here — Apps Script Web Apps
+  // will preflight on non-simple headers and return 405 to the CORS OPTIONS request.
+  // Keep this a simple GET so the request does not trigger a preflight.
   return fetch(u.toString(), {
     method: 'GET',
     cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-store',
-      'Pragma': 'no-cache'
-    }
+    redirect: 'follow'
   });
 }
 
