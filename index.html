@@ -2371,36 +2371,76 @@ function tryPerUsd(){
   return derived || 0;
 }
 function renderLoansBlock(){
-  const st = getLoansState();
-  const loans = st.loans || {};
-  const biz = loans.biz || {};
-  const car = loans.car || {};
+  try{
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {});
+    const loans = st.loans || {};
+    const biz = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, loans.biz || {});
+    const car = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, loans.car || {});
 
-  const bizPaid = document.getElementById('loanBizPaidBadge');
-  if (bizPaid) bizPaid.textContent = `${biz.paid || 0}/${biz.total || 0}`;
-  const bizInst = document.getElementById('loanBizInst');
-  if (bizInst) bizInst.textContent = numberTL(biz.instTRY || 0);
-  const bizRemain = document.getElementById('loanBizRemain');
-  if (bizRemain) bizRemain.textContent = numberTL(biz.remainTRY || 0);
-  const bizPrincipal = document.getElementById('loanBizPrincipal');
-  if (bizPrincipal) bizPrincipal.textContent = numberTL(biz.principalTRY || 0);
-  const bizRate = document.getElementById('loanBizRate');
-  if (bizRate) bizRate.textContent = (typeof biz.monthlyRate === 'number') ? `${(biz.monthlyRate * 100).toFixed(4)}%` : '–';
-  const bizBar = document.getElementById('loanBizBar');
-  if (bizBar) bizBar.style.width = (biz.total > 0) ? `${(Math.max(0, biz.paid || 0) / biz.total) * 100}%` : '0%';
+    // helpers
+    const pct = p => Math.max(0, Math.min(100, p||0));
+    const fmtTL = n => numberTL(n||0);
+    const fmtRate = r => (r ? (Number(r)*100).toFixed(4) + '%' : '–');
 
-  const carPaid = document.getElementById('loanCarPaidBadge');
-  if (carPaid) carPaid.textContent = `${car.paid || 0}/${car.total || 0}`;
-  const carInst = document.getElementById('loanCarInst');
-  if (carInst) carInst.textContent = numberTL(car.instTRY || 0);
-  const carRemain = document.getElementById('loanCarRemain');
-  if (carRemain) carRemain.textContent = numberTL(car.remainTRY || 0);
-  const carPrincipal = document.getElementById('loanCarPrincipal');
-  if (carPrincipal) carPrincipal.textContent = numberTL(car.principalTRY || 0);
-  const carRate = document.getElementById('loanCarRate');
-  if (carRate) carRate.textContent = (typeof car.monthlyRate === 'number') ? `${(car.monthlyRate * 100).toFixed(4)}%` : '–';
-  const carBar = document.getElementById('loanCarBar');
-  if (carBar) carBar.style.width = (car.total > 0) ? `${(Math.max(0, car.paid || 0) / car.total) * 100}%` : '0%';
+    // — Ticari kredi kartı
+    const bizPaidSpan = document.getElementById('loanBizPaidBadge');
+    const bizRemainEl = document.getElementById('loanBizRemain');
+    const bizInstEl   = document.getElementById('loanBizInst');
+    const bizPrinEl   = document.getElementById('loanBizPrincipal');
+    const bizRateEl   = document.getElementById('loanBizRate');
+    const bizBar      = document.getElementById('loanBizBar');
+
+    if (bizPaidSpan) bizPaidSpan.textContent = `${Math.max(0, biz.paid||0)}/${biz.total||0}`;
+    if (bizRemainEl) bizRemainEl.textContent = (biz.remainTRY ? fmtTL(biz.remainTRY) : '–');
+    if (bizInstEl)   bizInstEl.textContent   = (biz.instTRY ? fmtTL(biz.instTRY) : '–');
+    if (bizPrinEl)   bizPrinEl.textContent   = (biz.principalTRY ? fmtTL(biz.principalTRY) : '₺2.000.000');
+    if (bizRateEl)   bizRateEl.textContent   = (biz.monthlyRate ? (Number(biz.monthlyRate).toFixed(4)+'%') : '4.6408%');
+    if (bizBar)      bizBar.style.width      = pct((biz.paid||0) / (biz.total||1) * 100) + '%';
+
+    // — Araç kredi kartı
+    const carPaidSpan = document.getElementById('loanCarPaidBadge');
+    const carRemainEl = document.getElementById('loanCarRemain');
+    const carInstEl   = document.getElementById('loanCarInst');
+    const carPrinEl   = document.getElementById('loanCarPrincipal');
+    const carRateEl   = document.getElementById('loanCarRate');
+    const carBar      = document.getElementById('loanCarBar');
+
+    if (carPaidSpan) carPaidSpan.textContent = `${Math.max(0, car.paid||0)}/${car.total||0}`;
+    if (carRemainEl) carRemainEl.textContent = (car.remainTRY ? fmtTL(car.remainTRY) : '–');
+    if (carInstEl)   carInstEl.textContent   = (car.instTRY ? fmtTL(car.instTRY) : '–');
+    if (carPrinEl)   carPrinEl.textContent   = (car.principalTRY ? fmtTL(car.principalTRY) : '–');
+    if (carRateEl)   carRateEl.textContent   = (car.monthlyRate ? fmtRate(car.monthlyRate) : '–');
+    if (carBar)      carBar.style.width      = pct((car.paid||0) / (car.total||1) * 100) + '%';
+
+    // — Zee.Dog tablosu
+    const tb = document.getElementById('tblZeeAwait');
+    if (tb){
+      const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
+      const list = Array.isArray(st.zeeAwait) ? st.zeeAwait.slice() : [];
+      if (!list.length){
+        tb.innerHTML = `<tr><td class="py-1 pr-3 hint" colspan="4">Henüz veri yok.</td></tr>`;
+      } else {
+        tb.innerHTML = list.map(it=>{
+          const id   = String(it.id || '').toUpperCase();
+          const usd  = Number(it.usd || 0);
+          const paid = String(it.status||'').toLowerCase() === 'paid';
+          // TRY yoksa anlık kurla hesapla; kur 0 ise boş bırak
+          const tryVal = (typeof it.try === 'number' && it.try>0) ? it.try : ((fx>0 && usd>0) ? usd*fx : null);
+          const statusBadge = paid ? `<span class="badge-paid">paid</span>` : `<span class="badge-wait">waiting</span>`;
+          return `
+            <tr>
+              <td class="py-1 pr-3">${id || '–'}</td>
+              <td class="py-1 pr-3 text-right">${usd ? numberUSD(usd) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${(tryVal!=null && tryVal>0) ? numberTL(tryVal) : '–'}</td>
+              <td class="py-1 pr-0">${statusBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  }catch(e){
+    console.warn('renderLoansBlock() error:', e);
+  }
 }
 
  
