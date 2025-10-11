@@ -1170,6 +1170,60 @@ const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
 
+/* ================== LOANS STATE HELPERS ================== */
+(function(){
+  if (typeof window.defaultLoansState === 'undefined') {
+    window.defaultLoansState = {
+      loans: {
+        biz: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 },
+        car: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 }
+      },
+      zeeAwait: []
+    };
+  }
+  if (typeof window.getLoansState !== 'function'){
+    window.getLoansState = function(){
+      try{
+        const raw = localStorage.getItem('popdog_loans_state');
+        if (!raw) return JSON.parse(JSON.stringify(window.defaultLoansState));
+        const obj = JSON.parse(raw);
+        const d = JSON.parse(JSON.stringify(window.defaultLoansState));
+        const out = Object.assign({}, d, obj || {});
+        out.loans = Object.assign({}, d.loans, out.loans || {});
+        out.loans.biz = Object.assign({}, d.loans.biz, out.loans.biz || {});
+        out.loans.car = Object.assign({}, d.loans.car, out.loans.car || {});
+        return out;
+      }catch(_){ return JSON.parse(JSON.stringify(window.defaultLoansState)); }
+    };
+  }
+  if (typeof window.setLoansState !== 'function'){
+    window.setLoansState = function(st){
+      try{ localStorage.setItem('popdog_loans_state', JSON.stringify(st || {})); }catch(_){}
+    };
+  }
+  if (typeof window.bumpLoansPaidIfMatches !== 'function'){
+    window.bumpLoansPaidIfMatches = function(subcat, amountTRY){
+      try{
+        const s = String(subcat || '').toLowerCase();
+        if (!s) return;
+        const amt = Number(amountTRY || 0);
+        const st = getLoansState();
+        const isBiz = /ticari|işletme|taksitli.*ticari/.test(s);
+        const isCar = /araç|oto|otomobil|taşıt/.test(s);
+        if (isBiz){
+          st.loans.biz.paid = Math.max(0, Number(st.loans.biz.paid || 0)) + 1;
+          if (amt > 0) st.loans.biz.remainTRY = Math.max(0, Number(st.loans.biz.remainTRY || 0) - amt);
+          setLoansState(st);
+        } else if (isCar){
+          st.loans.car.paid = Math.max(0, Number(st.loans.car.paid || 0)) + 1;
+          if (amt > 0) st.loans.car.remainTRY = Math.max(0, Number(st.loans.car.remainTRY || 0) - amt);
+          setLoansState(st);
+        }
+      }catch(_){}
+    };
+  }
+})();
+
 function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function yyyymmddUTC(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 
@@ -1799,10 +1853,20 @@ function dateToISO(d){
         throw new Error(`Server • ${json.error || json.message || 'unknown error'}`);
       }
       if (json && (json.error || json.message)){
-        return String(json.message || json.error);
-      }
-      return 'Sheet güncellendi';
-    }catch(e){
+  try{
+    localStorage.removeItem('popdog_expenses_cache');
+    if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+    if (typeof renderLoansBlock === 'function') renderLoansBlock();
+  }catch(_){}
+  return String(json.message || json.error);
+}
+try{
+  localStorage.removeItem('popdog_expenses_cache');
+  if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+  if (typeof renderLoansBlock === 'function') renderLoansBlock();
+} catch(_){}
+return 'Sheet güncellendi';
+}catch(e){
       const s = String(e && e.message || '');
       if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
       // network or other errors → bubble up
@@ -2022,8 +2086,8 @@ function tryPerUsd(){
   return derived || 0;
 }
 function renderLoansBlock(){
-  const st = (typeof getLoansState === 'function') ? getLoansState() : defaultLoansState;
-  const loans = (st && st.loans) ? st.loans : {};
+  const st = getLoansState();
+  const loans = st.loans || {};
   const biz = loans.biz || {};
   const car = loans.car || {};
 
@@ -2036,9 +2100,9 @@ function renderLoansBlock(){
   const bizPrincipal = document.getElementById('loanBizPrincipal');
   if (bizPrincipal) bizPrincipal.textContent = numberTL(biz.principalTRY || 0);
   const bizRate = document.getElementById('loanBizRate');
-  if (bizRate) bizRate.textContent = `${(biz.monthlyRate * 100).toFixed(4)}%`;
+  if (bizRate) bizRate.textContent = (typeof biz.monthlyRate === 'number') ? `${(biz.monthlyRate * 100).toFixed(4)}%` : '–';
   const bizBar = document.getElementById('loanBizBar');
-  if (bizBar) bizBar.style.width = `${(biz.paid / biz.total) * 100}%`;
+  if (bizBar) bizBar.style.width = (biz.total > 0) ? `${(Math.max(0, biz.paid || 0) / biz.total) * 100}%` : '0%';
 
   const carPaid = document.getElementById('loanCarPaidBadge');
   if (carPaid) carPaid.textContent = `${car.paid || 0}/${car.total || 0}`;
@@ -2049,9 +2113,9 @@ function renderLoansBlock(){
   const carPrincipal = document.getElementById('loanCarPrincipal');
   if (carPrincipal) carPrincipal.textContent = numberTL(car.principalTRY || 0);
   const carRate = document.getElementById('loanCarRate');
-  if (carRate) carRate.textContent = `${(car.monthlyRate * 100).toFixed(4)}%`;
+  if (carRate) carRate.textContent = (typeof car.monthlyRate === 'number') ? `${(car.monthlyRate * 100).toFixed(4)}%` : '–';
   const carBar = document.getElementById('loanCarBar');
-  if (carBar) carBar.style.width = `${(car.paid / car.total) * 100}%`;
+  if (carBar) carBar.style.width = (car.total > 0) ? `${(Math.max(0, car.paid || 0) / car.total) * 100}%` : '0%';
 }
 
  
@@ -5126,6 +5190,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+// === Krediler & Bekleyen Ödemeler bloğunu başlangıçta bir kez render et ===
+document.addEventListener('DOMContentLoaded', function(){
+  try{ renderLoansBlock(); }catch(_){}
+}, { once:true });
 </script>
 </body>
 </html>
