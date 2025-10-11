@@ -1281,6 +1281,135 @@ function getTryPerUsd(){
     return 0;
   }catch(e){ return 0; }
 }
+
+// === Expenses'tan TRY tutarı güvenli okuma (USD ise kurla çevirir) ===
+function readExpenseAmountTRY(row){
+  // 1) Doğrudan TRY kolonları
+  const TRY_KEYS = ['AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount'];
+  for (const k of TRY_KEYS){
+    if (row[k] != null && String(row[k]).trim() !== ''){
+      const v = parseTL(row[k]);
+      if (v > 0) return v;
+    }
+  }
+  // 2) USD kolonlarından çeviri
+  const USD_KEYS = ['AmountUSD','USD','Amount (USD)','USD Amount'];
+  for (const k of USD_KEYS){
+    if (row[k] != null && String(row[k]).trim() !== ''){
+      const usd = parseUSD(row[k]);
+      const fx = getTryPerUsd();
+      if (usd > 0 && fx > 0) return usd * fx;
+    }
+  }
+  // 3) Tek bir generic "Amount" kolonu varsa dene
+  if (row.Amount != null && String(row.Amount).trim() !== ''){
+    // İçinde $ geçiyorsa USD varsay
+    const s = String(row.Amount);
+    if (/\$|USD/i.test(s)){
+      const usd = parseUSD(s);
+      const fx = getTryPerUsd();
+      if (usd > 0 && fx > 0) return usd * fx;
+    }
+    // değilse TRY varsay
+    const v = parseTL(s);
+    if (v > 0) return v;
+  }
+  return 0;
+}
+
+// === Satırdan subcategory metnini okuma (SUBCAT_KEYS globalde zaten var) ===
+function readExpenseSubcat(row){
+  const keys = (typeof SUBCAT_KEYS !== 'undefined' && Array.isArray(SUBCAT_KEYS) && SUBCAT_KEYS.length)
+    ? SUBCAT_KEYS
+    : ['Subcategory','Sub-Category','Subcat','Alt Kategori','AltKategori','Detail','Kalem'];
+  for (const k of keys){
+    if (row[k] != null && String(row[k]).trim() !== '') return String(row[k]).trim();
+  }
+  return '';
+}
+
+/* === Expenses CSV'den kredi taksitlerini say ve Loans UI'ı güncelle === */
+async function refreshLoansFromExpenses(){
+  try{
+    // CSV'yi oku (mevcut loader'ını kullanıyoruz)
+    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+
+    // Mevcut loans config/state'i al
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {
+      loans:{
+        biz:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
+        car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }
+      },
+      zeeAwait:[]
+    });
+
+    // === Filtre koşulları ===
+    // Ticari kredi: alt kategoride "kredi" ve "ticari|işletme" geçsin, tutar 143 bin civarı olsun.
+    const BIZ_KEY_RE = /(kredi)/i;
+    const BIZ_HINT_RE = /(ticari|işletme|taksitli\s*ticari)/i;
+    const BIZ_MIN = 143_150, BIZ_MAX = 143_159;
+
+    // Araç kredisi: alt kategoride "kredi" ve "araç|taşıt|oto" geçsin, tutarı mantıklı bandda olsun.
+    const CAR_KEY_RE = /(kredi)/i;
+    const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
+    const CAR_MIN = 96_750, CAR_MAX = 96_900;
+
+    // (Opsiyonel) Eğer state'te taksit tutarı doluysa toleransı ona göre daralt
+    function inBand(n, target, tol=0.12){
+      if (!target || target<=0) return false;
+      const lo = target*(1-tol), hi = target*(1+tol);
+      return (n>=lo && n<=hi);
+    }
+
+    let bizPaid=0, carPaid=0;
+
+    (rows||[]).forEach(r=>{
+      const sub = readExpenseSubcat(r).toLowerCase();
+      if (!sub) return;
+      const amt = readExpenseAmountTRY(r);
+      if (amt <= 0) return;
+
+      // İşletme/ticari kredi sayımı
+      if (BIZ_KEY_RE.test(sub) && BIZ_HINT_RE.test(sub)){
+        const ok = (amt>=BIZ_MIN && amt<=BIZ_MAX) ||
+                   (st.loans?.biz?.instTRY>0 && inBand(amt, Number(st.loans.biz.instTRY)));
+        if (ok) bizPaid++;
+      }
+
+      // Araç kredisi sayımı
+      if (CAR_KEY_RE.test(sub) && CAR_HINT_RE.test(sub)){
+        const ok = (amt>=CAR_MIN && amt<=CAR_MAX) ||
+                   (st.loans?.car?.instTRY>0 && inBand(amt, Number(st.loans.car.instTRY)));
+        if (ok) carPaid++;
+      }
+    });
+
+    // State'i güncelle
+    st.loans = st.loans || {};
+    st.loans.biz = Object.assign({ total:24, instTRY:143000, remainTRY:0 }, st.loans.biz||{});
+    st.loans.car = Object.assign({ total:24, instTRY:30000,  remainTRY:0 }, st.loans.car||{});
+
+    st.loans.biz.paid = bizPaid;
+    st.loans.car.paid = carPaid;
+
+    // Kalan toplamı kabaca taksit* (kalan adet) olarak güncelle (opsiyonel)
+    const bizRemainCnt = Math.max(0, (st.loans.biz.total||0) - bizPaid);
+    const carRemainCnt = Math.max(0, (st.loans.car.total||0) - carPaid);
+    if (st.loans.biz.instTRY>0) st.loans.biz.remainTRY = bizRemainCnt * Number(st.loans.biz.instTRY||0);
+    if (st.loans.car.instTRY>0) st.loans.car.remainTRY = carRemainCnt * Number(st.loans.car.instTRY||0);
+
+    // Kaydet + UI
+    if (typeof setLoansState === 'function') setLoansState(st);
+    if (typeof renderLoansBlock === 'function') renderLoansBlock();
+
+  }catch(e){
+    console.warn('refreshLoansFromExpenses() error:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  try{ refreshLoansFromExpenses(); }catch(_){}
+}, { once:true });
 function toMonday(d){
   const dt = new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt;
 }
@@ -5193,6 +5322,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // === Krediler & Bekleyen Ödemeler bloğunu başlangıçta bir kez render et ===
 document.addEventListener('DOMContentLoaded', function(){
   try{ renderLoansBlock(); }catch(_){}
+  // Yeni: expenses_master'tan dinamik sayım yap
+  try{ refreshLoansFromExpenses(); }catch(_){}
 }, { once:true });
 </script>
 </body>
