@@ -1171,6 +1171,16 @@ const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
 
 /* ================== LOANS STATE HELPERS ================== */
+// Zee.Dog varsayılan bekleyen ödemeler (USD)
+const DEFAULT_ZEE_AWAIT = [
+  { id:'YK#033',   usd:4626.02, status:'waiting' },
+  { id:'YK#034',   usd:39425.33, status:'waiting' },
+  { id:'YK#034.1', usd:11827.00, status:'waiting' },
+  { id:'YK#034.2', usd:27597.00, status:'waiting' },
+  { id:'YK#035',   usd:37589.19, status:'waiting' },
+  { id:'YK#035.1', usd:11276.76, status:'waiting' },
+  { id:'YK#035.2', usd:26312.43, status:'waiting' },
+];
 (function(){
   if (typeof window.defaultLoansState === 'undefined') {
     window.defaultLoansState = {
@@ -1178,7 +1188,7 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
         biz: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 },
         car: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 }
       },
-      zeeAwait: []
+    zeeAwait: DEFAULT_ZEE_AWAIT.slice()
     };
   }
   if (typeof window.getLoansState !== 'function'){
@@ -1190,6 +1200,7 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
         const d = JSON.parse(JSON.stringify(window.defaultLoansState));
         const out = Object.assign({}, d, obj || {});
         out.loans = Object.assign({}, d.loans, out.loans || {});
+        out.zeeAwait = Array.isArray(out.zeeAwait) && out.zeeAwait.length ? out.zeeAwait : DEFAULT_ZEE_AWAIT.slice();
         out.loans.biz = Object.assign({}, d.loans.biz, out.loans.biz || {});
         out.loans.car = Object.assign({}, d.loans.car, out.loans.car || {});
         return out;
@@ -1440,8 +1451,78 @@ async function refreshLoansFromExpenses(){
   }
 }
 
+// === Zee.Dog: Expenses'tan paid olanları işaretle + TRY hesapla ===
+async function refreshZeeAwaitFromExpenses(){
+  try{
+    // 1) Expenses'ı yükle
+    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+
+    // 2) Note/Not/Açıklama içinden YK#... yakala
+    const NOTE_KEYS = ['Note','Not','Açıklama','Description','DetailNote'];
+    const getNote = (r) => {
+      for (const k of NOTE_KEYS) if (r[k] != null && String(r[k]).trim() !== '') return String(r[k]).trim();
+      return '';
+    };
+    const isZeeRow = (r) => /zee\.?dog/i.test(String(r.Subcategory || r.FinalSubcategory || ''));
+    const idFromNote = (s) => {
+      const m = String(s||'').match(/YK#\d+(?:\.\d+)?/i);
+      return m ? m[0].toUpperCase() : '';
+    };
+
+    const paidIds = new Set();
+    for (const r of rows) {
+      if (!isZeeRow(r)) continue;
+      const id = idFromNote(getNote(r));
+      if (id) paidIds.add(id);
+    }
+
+    // 3) State'i al + yoksa default listeyi kullan
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || { zeeAwait: [] });
+    if (!Array.isArray(st.zeeAwait) || st.zeeAwait.length===0) {
+      st.zeeAwait = DEFAULT_ZEE_AWAIT.slice();
+    }
+
+    // 4) Kur (USD→TRY)
+    const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
+
+    // 5) Güncelle
+    st.zeeAwait = st.zeeAwait.map(it => {
+      const id = String(it.id || '').toUpperCase();
+      const usd = Number(it.usd || 0);
+      const paid = paidIds.has(id);
+      return {
+        ...it,
+        status: paid ? 'paid' : 'waiting',
+        try: (fx > 0 && usd > 0) ? (usd * fx) : (it.try ?? null)
+      };
+    });
+
+    // 6) Kaydet + UI
+    if (typeof setLoansState === 'function') setLoansState(st);
+    if (typeof renderLoansBlock === 'function') renderLoansBlock();
+  }catch(e){
+    console.warn('refreshZeeAwaitFromExpenses() error:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async function(){
+  try{ await refreshLoansFromExpenses(); }catch(_){}
+  try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+}, { once:true });
+
+/* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
 document.addEventListener('DOMContentLoaded', function(){
-  try{ refreshLoansFromExpenses(); }catch(_){}
+  const btn = document.getElementById('expAddBtn');
+  if (!btn) return;
+  // We don't intercept the existing click handler; we just schedule a refresh shortly after.
+  btn.addEventListener('click', function(){
+    // Give the existing submit/write flow a moment to complete before refreshing.
+    setTimeout(async function(){
+      try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+      try{ await refreshLoansFromExpenses(); }catch(_){}
+      try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+    }, 1800);
+  });
 }, { once:true });
 function toMonday(d){
   const dt = new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt;
