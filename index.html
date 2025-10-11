@@ -1454,13 +1454,27 @@ async function refreshLoansFromExpenses(){
 // === Zee.Dog: Expenses'tan paid olanları işaretle + TRY hesapla ===
 async function refreshZeeAwaitFromExpenses(){
   try{
+    // Always bust the cached expenses before scanning (ensures we see latest Notes)
+    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
     // 1) Expenses'ı yükle
     const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
 
     // 2) Note/Not/Açıklama içinden YK#... yakala
-    const NOTE_KEYS = ['Note','Not','Açıklama','Description','DetailNote'];
+    const NOTE_KEYS = ['Note','Notes','Not','Açıklama','Açıklama 2','Description','DetailNote','Source','Kaynak','Detay'];
     const getNote = (r) => {
       for (const k of NOTE_KEYS) if (r[k] != null && String(r[k]).trim() !== '') return String(r[k]).trim();
+      return '';
+    };
+    // Fallback: scan all string fields on the row for an ID like YK#033 or YK#033.1
+    const idFromAnyField = (row) => {
+      try{
+        for (const k in row){
+          const v = row[k];
+          if (v == null) continue;
+          const m = String(v).match(/YK#\d+(?:\.\d+)?/i);
+          if (m) return m[0].toUpperCase();
+        }
+      }catch(_){}
       return '';
     };
     const isZeeRow = (r) => /zee\.?dog/i.test(String(r.Subcategory || r.FinalSubcategory || ''));
@@ -1472,7 +1486,8 @@ async function refreshZeeAwaitFromExpenses(){
     const paidIds = new Set();
     for (const r of rows) {
       if (!isZeeRow(r)) continue;
-      const id = idFromNote(getNote(r));
+      let id = idFromNote(getNote(r));
+      if (!id) id = idFromAnyField(r);
       if (id) paidIds.add(id);
     }
 
@@ -1490,10 +1505,12 @@ async function refreshZeeAwaitFromExpenses(){
       const id = String(it.id || '').toUpperCase();
       const usd = Number(it.usd || 0);
       const paid = paidIds.has(id);
+      const prevTRY = (typeof it.try === 'number') ? it.try : null;
+      const nextTRY = (fx > 0 && usd > 0) ? (usd * fx) : prevTRY;
       return {
         ...it,
         status: paid ? 'paid' : 'waiting',
-        try: (fx > 0 && usd > 0) ? (usd * fx) : (it.try ?? null)
+        try: nextTRY
       };
     });
 
@@ -1506,7 +1523,11 @@ async function refreshZeeAwaitFromExpenses(){
 }
 
 document.addEventListener('DOMContentLoaded', async function(){
+  // Ensure fresh expenses before both passes
+  try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
   try{ await refreshLoansFromExpenses(); }catch(_){}
+  // Clear again in case the prior pass populated cache
+  try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
   try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
 }, { once:true });
 
