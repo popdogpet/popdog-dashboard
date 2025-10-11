@@ -1344,15 +1344,18 @@ async function refreshLoansFromExpenses(){
     });
 
     // === Filtre koşulları ===
-    // Ticari kredi: alt kategoride "kredi" ve "ticari|işletme" geçsin, tutar 143 bin civarı olsun.
-    const BIZ_KEY_RE = /(kredi)/i;
-    const BIZ_HINT_RE = /(ticari|işletme|taksitli\s*ticari)/i;
-    const BIZ_MIN = 143_150, BIZ_MAX = 143_159;
+    // İşletme/Ticari kredi: alt kategoride "kredi" geçsin, "araç/taşıt" ipucu OLMASIN.
+    // Tutar, 143.155 TL civarında (dar pencere) olsun.
+    const BIZ_KEY_RE  = /(kredi)/i;
+    const CAT_BIZ_RE  = /(finansal\s*giderler|faiz|banka)/i;  // kategori ipucu
+    const BIZ_TARGET  = 143_155;
+    const BIZ_MIN     = 143_000, BIZ_MAX = 143_300;          // dar bant, ±150 civarı
+    const BIZ_ABS_EPS = 400;                                 // veya ±400 TL tolerans
 
-    // Araç kredisi: alt kategoride "kredi" ve "araç|taşıt|oto" geçsin, tutarı mantıklı bandda olsun.
-    const CAR_KEY_RE = /(kredi)/i;
+    // Araç kredisi: alt kategoride "kredi" + "araç|taşıt|oto" ipucu, 96.8k civarı (ör.)
+    const CAR_KEY_RE  = /(kredi)/i;
     const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
-    const CAR_MIN = 96_750, CAR_MAX = 96_900;
+    const CAR_MIN     = 96_700, CAR_MAX = 97_000;
 
     // (Opsiyonel) Eğer state'te taksit tutarı doluysa toleransı ona göre daralt
     function inBand(n, target, tol=0.12){
@@ -1369,17 +1372,27 @@ async function refreshLoansFromExpenses(){
       const amt = readExpenseAmountTRY(r);
       if (amt <= 0) return;
 
-      // İşletme/ticari kredi sayımı
-      if (BIZ_KEY_RE.test(sub) && BIZ_HINT_RE.test(sub)){
-        const ok = (amt>=BIZ_MIN && amt<=BIZ_MAX) ||
-                   (st.loans?.biz?.instTRY>0 && inBand(amt, Number(st.loans.biz.instTRY)));
-        if (ok) bizPaid++;
+      // Sütunlardan kategori metnini de çek (bazı CSV'lerde 'Kategori' olabilir)
+      const cat = String(r.Category || r.Kategori || r['Main Category'] || '').toLowerCase();
+
+      // Araç kredi adayı mı?
+      const isCarHint = CAR_HINT_RE.test(sub);
+
+      // İşletme/ticari kredi sayımı (araç olmayan kredi ödemeleri)
+      if (BIZ_KEY_RE.test(sub) && !isCarHint){
+        const nearTarget = Math.abs(amt - BIZ_TARGET) <= BIZ_ABS_EPS;
+        const inTightBand = (amt>=BIZ_MIN && amt<=BIZ_MAX);
+        const matchesState = (st.loans?.biz?.instTRY>0) && inBand(amt, Number(st.loans.biz.instTRY), 0.03);
+        const catHint = CAT_BIZ_RE.test(cat);
+        if (nearTarget || inTightBand || matchesState || catHint){
+          bizPaid++;
+        }
       }
 
-      // Araç kredisi sayımı
-      if (CAR_KEY_RE.test(sub) && CAR_HINT_RE.test(sub)){
+      // Araç kredisi sayımı (net araç/taşıt ipucuyla)
+      if (CAR_KEY_RE.test(sub) && isCarHint){
         const ok = (amt>=CAR_MIN && amt<=CAR_MAX) ||
-                   (st.loans?.car?.instTRY>0 && inBand(amt, Number(st.loans.car.instTRY)));
+                   (st.loans?.car?.instTRY>0 && inBand(amt, Number(st.loans.car.instTRY), 0.08));
         if (ok) carPaid++;
       }
     });
