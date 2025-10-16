@@ -2497,39 +2497,45 @@ function renderLoansBlock(){
       ? `Hesap: ${st.demoBank.goldGram} gr × ${numberTL(gramPrice)}${suffix}`
       : 'Gram fiyatı girin';
   }
-  // FI5 (QNB Portföy Para Piyasası) — birim fiyat × adet
-  const fInput = document.getElementById('fi5UnitInput');
-  if (fInput){
-    if (!fInput.value && st.demoBank.fi5UnitTRY){ fInput.value = String(st.demoBank.fi5UnitTRY); }
-    fInput.onchange = ()=>{
-      const v = parseTL(fInput.value);
-      const s = getLoansState();
-      s.demoBank.fi5UnitTRY = v;
-      setLoansState(s);
-      localStorage.setItem('popdog_fi5_unit_try', String(v));
-      localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
-      renderLoansBlock();
-    };
-  }
+// FI5 (QNB Portföy Para Piyasası) — birim fiyat × adet
+const fInput = document.getElementById('fi5UnitInput');
+if (fInput){
+  if (!fInput.value && st.demoBank.fi5UnitTRY){ fInput.value = String(st.demoBank.fi5UnitTRY); }
+  fInput.onchange = ()=>{
+    const v = parseTL(fInput.value);
+    const s = getLoansState();
+    s.demoBank.fi5UnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_fi5_unit_try', String(v));
+    localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+}
+
 // === FI5 total (robust parse + sanity cap) ===
 const fi5Inp = document.getElementById('fi5UnitInput');
 let fi5Unit = fi5Inp ? parseTL(fi5Inp.value) : 0;
 if (!(fi5Unit > 0 && fi5Unit < 2000)) {
   fi5Unit = 0; // kirli/zehirli değeri yok say
 }
-const fi5TotalVal = fi5Unit * 565;
-const fi5TotalEl = document.getElementById('fi5Total');
-if (fi5TotalEl) fi5TotalEl.textContent = numberTL(fi5TotalVal);
+// adet güvenli: state’ten al, yoksa 565
+const fi5Qty = (st && st.demoBank && Number(st.demoBank.fi5Units)) || 565;
 
-  {
-    const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
-    const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
-    const suffix = when ? ` • Güncellendi: ${when}` : '';
-    const noteEl = document.getElementById('fi5Note');
-    if (noteEl) noteEl.textContent = fi5Unit
-      ? `Hesap: ${fi5Qty} adet × ${numberTL(fi5Unit)}${suffix}`
-      : 'Birim fiyat girin';
-  }
+const fi5TotalVal = fi5Unit * fi5Qty;
+const fi5TotalEl = document.getElementById('fi5Total');
+if (fi5TotalEl) fi5TotalEl.textContent = fi5TotalVal ? numberTL(fi5TotalVal) : '–';
+
+{
+  const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('fi5Note');
+  if (noteEl) noteEl.textContent = fi5Unit
+    ? `Hesap: ${fi5Qty} adet × ${numberTL(fi5Unit)}${suffix}`
+    : 'Birim fiyat girin';
+}
+// Remove old FI5 total block if present
+// (no action needed if not present)
   // SAS Fonu
 const sasInput = document.getElementById('sasUnitInput');
 if (sasInput){
