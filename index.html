@@ -2318,8 +2318,6 @@ const defaultLoansState = {
   gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
   fi5Units: 565,
   fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0,  // kullanıcı girecek (birim fiyat)
-
-  // 👇 yeni fonlar
   sasUnits: 114236,
   sasUnitTRY: Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0,
   isyUnits: 2530000,
@@ -2499,10 +2497,8 @@ function renderLoansBlock(){
       const s = getLoansState();
       s.demoBank.fi5UnitTRY = v;
       setLoansState(s);
-      try{
-        localStorage.setItem('popdog_fi5_unit_try', String(v));
-        localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
-      }catch(_){}
+      localStorage.setItem('popdog_fi5_unit_try', String(v));
+      localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
       renderLoansBlock();
     };
   }
