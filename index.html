@@ -664,6 +664,28 @@ th, td { white-space: nowrap; }
           </div>
         </div>
       </div>
+      <!-- Bu Ayın Giderleri (Kategori + Alt Kategori) -->
+      <div class="glass card-3d rounded-2xl p-4 mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-slate-700 dark:text-slate-200">Bu Ayın Giderleri</div>
+          <div class="hint text-xs">Kategori ve Alt Kategori</div>
+        </div>
+        <div class="overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">Tarih</th>
+                <th class="text-left py-1 pr-3">Kategori</th>
+                <th class="text-left py-1 pr-3">Alt Kategori</th>
+                <th class="text-right py-1 pr-0">Tutar (₺)</th>
+              </tr>
+            </thead>
+            <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
+              <tr><td class="hint py-2" colspan="4">Yükleniyor…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Satış / Devir Listeleri -->
@@ -1365,6 +1387,65 @@ function readExpenseSubcat(row){
   return v !== '' ? String(v).trim() : '';
 }
 
+/* === Bu Ayın Giderleri: Kategori + Alt Kategori listesi === */
+async function renderThisMonthExpenses(){
+  try{
+    const tbody = document.getElementById('tblExpThisMonth');
+    if (!tbody) return;
+
+    // CSV'yi yükle
+    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+
+    // Bu ayın başlangıç/bitişi
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-index
+
+    // Bu aya ait satırları filtrele
+    const inMonth = (rows||[]).filter(r=>{
+      const ds = String(r.Date || r.date || '').slice(0,10);
+      const d  = new Date(ds);
+      return !isNaN(+d) && d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    if (!inMonth.length){
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Bu ay için gider bulunamadı.</td></tr>';
+      return;
+    }
+
+    // Satırları tarihe göre artan sırada göster
+    inMonth.sort((a,b)=>{
+      const ad = new Date(String(a.Date||a.date||'').slice(0,10));
+      const bd = new Date(String(b.Date||b.date||'').slice(0,10));
+      return ad - bd;
+    });
+
+    // Yardımcılar
+    const fmtTL = (n)=> nfTL.format(Math.round(n||0));
+    const getCat = (r)=> getFieldCI(r, ['Category','Kategori','Main Category','Ana Kategori','Cat']) || '';
+    const getSub = (r)=> getFieldCI(r, ['FinalSubcategory','Final Subcategory','Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
+
+    // Render
+    const html = inMonth.map(r=>{
+      const date = String(r.Date || r.date || '').slice(0,10);
+      const cat  = getCat(r);
+      const sub  = getSub(r);
+      const amt  = readExpenseAmountTRY(r); // TRY tutarı güvenli okuma
+      return `<tr>
+        <td class="py-1 pr-3">${date}</td>
+        <td class="py-1 pr-3">${cat}</td>
+        <td class="py-1 pr-3">${sub}</td>
+        <td class="py-1 pr-0 text-right">${fmtTL(amt)}</td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML = html;
+  }catch(e){
+    console.warn('renderThisMonthExpenses() error:', e);
+    const tbody = document.getElementById('tblExpThisMonth');
+    if (tbody) tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Liste yüklenemedi.</td></tr>';
+  }
+}
+
 /* === Expenses CSV'den kredi taksitlerini say ve Loans UI'ı güncelle === */
 async function refreshLoansFromExpenses(){
   try{
@@ -1559,6 +1640,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   // Clear again in case the prior pass populated cache
   try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
   try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+  try{ await renderThisMonthExpenses(); }catch(_){}
 }, { once:true });
 
 /* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
@@ -1572,6 +1654,7 @@ document.addEventListener('DOMContentLoaded', function(){
       try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
       try{ await refreshLoansFromExpenses(); }catch(_){}
       try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+      try{ await renderThisMonthExpenses(); }catch(_){}
     }, 1800);
   });
 }, { once:true });
