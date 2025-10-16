@@ -690,6 +690,14 @@ th, td { white-space: nowrap; }
           </table>
         </div>
       </div>
+      <!-- Bu Ay — Kategori Altında Ödemeler -->
+      <div class="glass card-3d rounded-2xl p-4 mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-slate-700 dark:text-slate-200">Bu Ay — Kategori Altında Ödemeler</div>
+          <div id="expByCatTotal" class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">–</div>
+        </div>
+        <div id="expThisMonthByCat" class="text-sm"></div>
+      </div>
     </section>
 
     <!-- Satış / Devir Listeleri -->
@@ -1490,6 +1498,88 @@ async function renderThisMonthExpenses(){
   }
 }
 
+/* === Bu Ayın Giderleri: Kategori altında (FinalSubcategory – Subcategory) kırılımı === */
+async function renderThisMonthExpensesByCategory(){
+  try{
+    const wrap = document.getElementById('expThisMonthByCat');
+    if (!wrap) return;
+
+    // CSV'yi yükle
+    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+
+    // Bu ayın başlangıç/bitişi
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-index
+
+    // Bu aya ait satırları filtrele
+    const inMonth = (rows||[]).filter(r=>{
+      const ds = String(r.Date || r.date || '').slice(0,10);
+      const d  = new Date(ds);
+      return !isNaN(+d) && d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    // Hiç veri yoksa
+    if (!inMonth.length){
+      wrap.innerHTML = '<div class="hint">Bu ay için gider bulunamadı.</div>';
+      const totEl = document.getElementById('expByCatTotal');
+      if (totEl) totEl.textContent = '–';
+      return;
+    }
+
+    // Kategori -> { sum, items: Map(label -> sum) }
+    const totals = new Map();
+    let grand = 0;
+
+    inMonth.forEach(r=>{
+      const cat = getFieldCI(r, ['Category','Kategori','Main Category','Ana Kategori','Cat']) || 'Diğer';
+      const fsubRaw = getFieldCI(r, ['FinalSubcategory','Final Subcategory','Final','Nihai Alt Kategori']) || '';
+      const subRaw  = getFieldCI(r, ['Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
+      const label = (function(){
+        if (fsubRaw && subRaw && String(fsubRaw) !== String(subRaw)) return `${fsubRaw} – ${subRaw}`;
+        if (fsubRaw) return String(fsubRaw);
+        if (subRaw)  return String(subRaw);
+        return 'Diğer';
+      })();
+      const amt = readExpenseAmountTRY(r);
+      if (!(amt > 0)) return;
+      grand += amt;
+
+      if (!totals.has(cat)) totals.set(cat, { sum:0, items:new Map() });
+      const entry = totals.get(cat);
+      entry.sum += amt;
+      entry.items.set(label, (entry.items.get(label)||0) + amt);
+    });
+
+    // Render: Kategorileri toplam tutara göre büyükten küçüğe sırala
+    const cats = Array.from(totals.entries()).sort((a,b)=> b[1].sum - a[1].sum);
+
+    let html = '';
+    cats.forEach(([cat, obj])=>{
+      const items = Array.from(obj.items.entries()).sort((a,b)=> b[1] - a[1]);
+      const listHTML = items.map(([label, val])=> `<li>${label} — <strong>${numberTL(val)}</strong></li>`).join('');
+      html += `
+        <div class="mt-2">
+          <div class="font-medium">${cat} — Toplam Tutar: ${numberTL(obj.sum)}</div>
+          <ul class="ml-4 list-disc">
+            ${listHTML}
+          </ul>
+        </div>
+      `;
+    });
+
+    const totEl = document.getElementById('expByCatTotal');
+    if (totEl) totEl.textContent = numberTL(grand);
+    wrap.innerHTML = html || '<div class="hint">Bu ay için gider bulunamadı.</div>';
+  }catch(e){
+    console.warn('renderThisMonthExpensesByCategory() error:', e);
+    const wrap = document.getElementById('expThisMonthByCat');
+    if (wrap) wrap.innerHTML = '<div class="hint">Liste yüklenemedi.</div>';
+    const totEl = document.getElementById('expByCatTotal');
+    if (totEl) totEl.textContent = '–';
+  }
+}
+
 /* === Expenses CSV'den kredi taksitlerini say ve Loans UI'ı güncelle === */
 async function refreshLoansFromExpenses(){
   try{
@@ -1685,6 +1775,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
   try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
   try{ await renderThisMonthExpenses(); }catch(_){}
+  try{ await renderThisMonthExpensesByCategory(); }catch(_){}
 }, { once:true });
 
 /* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
@@ -1699,6 +1790,7 @@ document.addEventListener('DOMContentLoaded', function(){
       try{ await refreshLoansFromExpenses(); }catch(_){}
       try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
       try{ await renderThisMonthExpenses(); }catch(_){}
+      try{ await renderThisMonthExpensesByCategory(); }catch(_){}
     }, 1800);
   });
 }, { once:true });
