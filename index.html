@@ -668,7 +668,10 @@ th, td { white-space: nowrap; }
       <div class="glass card-3d rounded-2xl p-4 mt-4">
         <div class="flex items-center justify-between mb-2">
           <div class="text-slate-700 dark:text-slate-200">Bu Ayın Giderleri</div>
-          <div class="hint text-xs">Kategori ve Alt Kategori</div>
+          <div class="text-right">
+            <div id="expThisMonthTotal" class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">–</div>
+            <div id="expThisMonthMoM" class="hint text-[11px]">MoM: –</div>
+          </div>
         </div>
         <div class="overflow-auto">
           <table class="min-w-full text-sm">
@@ -676,12 +679,13 @@ th, td { white-space: nowrap; }
               <tr>
                 <th class="text-left py-1 pr-3">Tarih</th>
                 <th class="text-left py-1 pr-3">Kategori</th>
+                <th class="text-left py-1 pr-3">Nihai Alt Kategori</th>
                 <th class="text-left py-1 pr-3">Alt Kategori</th>
                 <th class="text-right py-1 pr-0">Tutar (₺)</th>
               </tr>
             </thead>
             <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
-              <tr><td class="hint py-2" colspan="4">Yükleniyor…</td></tr>
+              <tr><td class="hint py-2" colspan="5">Yükleniyor…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1408,8 +1412,42 @@ async function renderThisMonthExpenses(){
       return !isNaN(+d) && d.getFullYear() === y && d.getMonth() === m;
     });
 
+    // === Totals & MoM ===
+    const curTotal = inMonth.reduce((acc, r) => acc + readExpenseAmountTRY(r), 0);
+
+    // Previous month (handles year wrap automatically)
+    const prevStart = new Date(y, m - 1, 1);
+    const prevY = prevStart.getFullYear();
+    const prevM = prevStart.getMonth();
+    const prevMonthRows = (rows || []).filter(r => {
+      const ds = String(r.Date || r.date || '').slice(0,10);
+      const d  = new Date(ds);
+      return !isNaN(+d) && d.getFullYear() === prevY && d.getMonth() === prevM;
+    });
+    const prevTotal = prevMonthRows.reduce((acc, r) => acc + readExpenseAmountTRY(r), 0);
+
+    // Write header totals
+    const totalEl = document.getElementById('expThisMonthTotal');
+    if (totalEl) totalEl.textContent = numberTL(curTotal);
+
+    const momEl = document.getElementById('expThisMonthMoM');
+    if (momEl){
+      let text = 'MoM: –';
+      momEl.classList.remove('kpi-up','kpi-down');
+      if (prevTotal > 0){
+        const pct = ((curTotal - prevTotal) / prevTotal) * 100;
+        const sign = pct > 0 ? '+' : '';
+        text = `MoM: ${sign}${pct.toFixed(1)}%`;
+        momEl.classList.add(pct >= 0 ? 'kpi-up' : 'kpi-down');
+      } else if (curTotal > 0){
+        text = 'MoM: +∞% (ilk ay)';
+        momEl.classList.add('kpi-up');
+      }
+      momEl.textContent = text;
+    }
+
     if (!inMonth.length){
-      tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Bu ay için gider bulunamadı.</td></tr>';
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Bu ay için gider bulunamadı.</td></tr>';
       return;
     }
 
@@ -1423,18 +1461,24 @@ async function renderThisMonthExpenses(){
     // Yardımcılar
     const fmtTL = (n)=> nfTL.format(Math.round(n||0));
     const getCat = (r)=> getFieldCI(r, ['Category','Kategori','Main Category','Ana Kategori','Cat']) || '';
-    const getSub = (r)=> getFieldCI(r, ['FinalSubcategory','Final Subcategory','Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
+    // Nihai alt kategori (varsa FinalSubcategory öncelikli)
+    const getFinalSub = (r)=> getFieldCI(r, ['FinalSubcategory','Final Subcategory','Final','Nihai Alt Kategori']) ||
+                              getFieldCI(r, ['Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
+    // Kaynak (ham) Subcategory
+    const getRawSub = (r)=> getFieldCI(r, ['Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
 
     // Render
     const html = inMonth.map(r=>{
       const date = String(r.Date || r.date || '').slice(0,10);
       const cat  = getCat(r);
-      const sub  = getSub(r);
+      const fsub = getFinalSub(r);
+      const rsub = getRawSub(r);
       const amt  = readExpenseAmountTRY(r); // TRY tutarı güvenli okuma
       return `<tr>
         <td class="py-1 pr-3">${date}</td>
         <td class="py-1 pr-3">${cat}</td>
-        <td class="py-1 pr-3">${sub}</td>
+        <td class="py-1 pr-3">${fsub}</td>
+        <td class="py-1 pr-3">${rsub}</td>
         <td class="py-1 pr-0 text-right">${fmtTL(amt)}</td>
       </tr>`;
     }).join('');
@@ -1442,7 +1486,7 @@ async function renderThisMonthExpenses(){
   }catch(e){
     console.warn('renderThisMonthExpenses() error:', e);
     const tbody = document.getElementById('tblExpThisMonth');
-    if (tbody) tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Liste yüklenemedi.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Liste yüklenemedi.</td></tr>';
   }
 }
 
