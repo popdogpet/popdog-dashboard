@@ -1071,18 +1071,27 @@ async function refreshFundQuotes(){
           j = JSON.parse(txt);
         } catch(_){}
         // Normalize: expect shape { ok:true, unitTRY: number }
-        const unit = (j && typeof j.unitTRY !== 'undefined') ? Number(j.unitTRY) : NaN;
-        if (!j || !j.ok || !(unit > 0)) {
-          throw new Error('Invalid payload');
-        }
-        // Başarılı → kaydet + UI
-        localStorage.setItem(f.lsUnit, String(unit));
-        localStorage.setItem(f.lsAt, String(Date.now()));
-        const inp = document.getElementById(f.input);
-        if (inp) inp.value = String(unit);
-        // Kaynak bilgisi (varsa) not alanına
-        const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
-        if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
+const unitRaw = (j && typeof j.unitTRY !== 'undefined') ? j.unitTRY : null;
+const unit = Number(unitRaw);
+if (!j || !j.ok || !(unit > 0)) {
+  throw new Error('Invalid payload');
+}
+// SANE PRICE GUARD
+const codeUp = String(f.code || '').toUpperCase();
+const cap = (codeUp === 'FI5') ? 2000 : 10000;
+if (!(unit > 0 && unit < cap)) {
+  throw new Error('Insane price rejected');
+}
+
+// Başarılı → kaydet + UI
+localStorage.setItem(f.lsUnit, String(unit));
+localStorage.setItem(f.lsAt, String(Date.now()));
+const inp = document.getElementById(f.input);
+if (inp) inp.value = String(unit);
+
+// Kaynak yaz
+const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
       }catch(e){
         // Bağlantı/timeout/yanıt bozuksa → önbellek fallback
         const cached = Number(localStorage.getItem(f.lsUnit)||'0');
@@ -2502,11 +2511,15 @@ function renderLoansBlock(){
       renderLoansBlock();
     };
   }
-  const fi5Unit = st.demoBank.fi5UnitTRY || Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0;
-  const fi5Qty  = st.demoBank.fi5Units || 565;
-  const fi5Sum  = fi5Unit ? (fi5Unit * fi5Qty) : 0;
-  const fi5TotalEl = document.getElementById('fi5Total');
-  if (fi5TotalEl) fi5TotalEl.textContent = fi5Sum ? numberTL(fi5Sum) : '–';
+// === FI5 total (robust parse + sanity cap) ===
+const fi5Inp = document.getElementById('fi5UnitInput');
+let fi5Unit = fi5Inp ? parseTL(fi5Inp.value) : 0;
+if (!(fi5Unit > 0 && fi5Unit < 2000)) {
+  fi5Unit = 0; // kirli/zehirli değeri yok say
+}
+const fi5TotalVal = fi5Unit * 565;
+const fi5TotalEl = document.getElementById('fi5Total');
+if (fi5TotalEl) fi5TotalEl.textContent = numberTL(fi5TotalVal);
 
   {
     const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
