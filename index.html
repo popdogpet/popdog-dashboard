@@ -1131,27 +1131,27 @@ async function refreshFundQuotes(){
           j = JSON.parse(txt);
         } catch(_){}
         // Normalize: expect shape { ok:true, unitTRY: number }
-const unitRaw = (j && typeof j.unitTRY !== 'undefined') ? j.unitTRY : null;
-const unit = Number(unitRaw);
-if (!j || !j.ok || !(unit > 0)) {
-  throw new Error('Invalid payload');
-}
-// SANE PRICE GUARD
-const codeUp = String(f.code || '').toUpperCase();
-const cap = (codeUp === 'FI5') ? 2000 : 10000;
-if (!(unit > 0 && unit < cap)) {
-  throw new Error('Insane price rejected');
-}
+        const unitRaw = (j && typeof j.unitTRY !== 'undefined') ? j.unitTRY : null;
+        const unit = Number(unitRaw);
+        if (!j || !j.ok || !(unit > 0)) {
+          throw new Error('Invalid payload');
+        }
+        // SANE PRICE GUARD
+        const codeUp = String(f.code || '').toUpperCase();
+        const cap = (codeUp === 'FI5') ? 2000 : 10000;
+        if (!(unit > 0 && unit < cap)) {
+          throw new Error('Insane price rejected');
+        }
 
-// Başarılı → kaydet + UI
-localStorage.setItem(f.lsUnit, String(unit));
-localStorage.setItem(f.lsAt, String(Date.now()));
-const inp = document.getElementById(f.input);
-if (inp) inp.value = String(unit);
+        // Başarılı → kaydet + UI
+        localStorage.setItem(f.lsUnit, String(unit));
+        localStorage.setItem(f.lsAt, String(Date.now()));
+        const inp = document.getElementById(f.input);
+        if (inp) inp.value = String(unit);
 
-// Kaynak yaz
-const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
-if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
+        // Kaynak yaz
+        const noteEl = document.getElementById((f.input||'').replace('UnitInput','Note'));
+        if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
       }catch(e){
         // Bağlantı/timeout/yanıt bozuksa → önbellek fallback
         const cached = Number(localStorage.getItem(f.lsUnit)||'0');
@@ -1170,6 +1170,82 @@ if (noteEl) noteEl.textContent = (j.source ? `Kaynak: ${j.source}` : '');
     try{ renderLoansBlock(); }catch(_){}
   }catch(e){
     console.warn('refreshFundQuotes() top-level error', e);
+  }
+}
+
+// === Altın gram fiyatını Apps Script üzerinden çek (CORS'suz) ===
+async function refreshGoldFromScript(){
+  try{
+    const base = getSheetWebAppURL();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
+      throw new Error('INVALID_WEBAPP_URL');
+    }
+
+    const url = `${base}?action=goldQuote&t=${Date.now()}`;
+    const res = await fetch(url, { method:'GET', cache:'no-store' });
+    const txt = await res.text().catch(()=> '');
+    let j = null;
+    try{ j = JSON.parse(txt); }catch(_){ j = null; }
+
+    if (!j || !j.ok || typeof j.gramTRY === 'undefined'){
+      throw new Error('Invalid payload');
+    }
+
+    const gram = Number(j.gramTRY);
+    if (!(gram > 0)){
+      throw new Error('Invalid price');
+    }
+
+    // Cache to localStorage
+    try{
+      localStorage.setItem('popdog_gold_gram_try', String(gram));
+      localStorage.setItem('popdog_gold_updated_at', String(Date.now()));
+    }catch(_){}
+
+    const input = document.getElementById('goldGramInput');
+    const note  = document.getElementById('goldNote');
+
+    if (input){
+      // Türkçe formatla veya düz sayı bırak; mevcut logic input'u parse ediyor
+      input.value = String(gram);
+      // Mevcut hesaplama mantığını tetiklemek için input event'i gönder
+      try{
+        const evt = new Event('input', { bubbles:true });
+        input.dispatchEvent(evt);
+      }catch(_){}
+    }
+
+    if (note){
+      note.textContent = j.source
+        ? `Kaynak: ${j.source}`
+        : 'Altın gram fiyatı Apps Script üzerinden güncellendi.';
+    }
+  }catch(e){
+    // Hata durumunda, varsa önbelleği kullan
+    const input = document.getElementById('goldGramInput');
+    const note  = document.getElementById('goldNote');
+    try{
+      const cached = Number(localStorage.getItem('popdog_gold_gram_try') || '0');
+      const at     = Number(localStorage.getItem('popdog_gold_updated_at') || '0');
+      if (cached > 0 && input){
+        input.value = String(cached);
+        try{
+          const evt = new Event('input', { bubbles:true });
+          input.dispatchEvent(evt);
+        }catch(_){}
+        if (note){
+          const ageMin = at ? Math.round((Date.now() - at)/60000) : null;
+          note.textContent = ageMin != null
+            ? `Gram fiyatı önbellekten kullanıldı • ${ageMin} dk önce`
+            : 'Gram fiyatı önbellekten kullanıldı.';
+        }
+        return;
+      }
+    }catch(_){}
+    if (note){
+      note.textContent = 'Altın fiyatı otomatik alınamadı, lütfen gram fiyatını elle girin.';
+    }
+    console.warn('refreshGoldFromScript() error:', e && e.message ? e.message : e);
   }
 }
 
@@ -1808,6 +1884,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
   try{ await renderThisMonthExpenses(); }catch(_){}
   try{ await renderThisMonthExpensesByCategory(); }catch(_){}
+  try{ await refreshGoldFromScript(); }catch(_){}
 }, { once:true });
 
 /* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
