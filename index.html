@@ -421,8 +421,8 @@ th, td { white-space: nowrap; }
         </div>
       </div>
     
-      <!-- İki kredi -->
-      <div class="grid md:grid-cols-2 gap-4">
+      <!-- üç kredi -->
+      <div class="grid md:grid-cols-3 gap-4">
         <!-- Taksitli Ticari Kredi -->
         <div class="rounded-2xl p-4 card-glass-pro">
           <div class="flex items-center justify-between">
@@ -447,6 +447,30 @@ th, td { white-space: nowrap; }
           <div class="progress-wrap mt-2"><div id="loanCarBar" class="progress-bar" style="width:0%"></div></div>
         </div>
       </div>
+
+              <!-- Taksitli Ticari Kredi 2 -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Taksitli Ticari Kredi 2</div>
+            <span id="loanBiz2PaidBadge" class="badge">0/24</span>
+          </div>
+          <div class="mt-1 text-sm hint">
+            Ödenecek Taksitler Toplamı:
+            <span id="loanBiz2Remain" class="font-medium">1714868,61₺</span>
+          </div>
+          <div class="mt-1 text-sm">
+            Taksit Tutarı:
+            <span id="loanBiz2Inst" class="font-semibold">71452,86₺</span>
+          </div>
+          <div class="mt-1 text-xs hint">
+            Kredi Tutarı:
+            <span id="loanBiz2Principal">1714868,61₺</span>
+            • Aylık Faiz: <span id="loanBiz2Rate">–</span>
+          </div>
+          <div class="progress-wrap mt-2">
+            <div id="loanBiz2Bar" class="progress-bar" style="width:0%"></div>
+          </div>
+        </div>
     
       <!-- Zee.Dog Bekleyen Ödemeler -->
       <div class="mt-5 rounded-2xl p-4 card-glass-pro">
@@ -1227,9 +1251,10 @@ const DEFAULT_ZEE_AWAIT = [
 (function(){
   if (typeof window.defaultLoansState === 'undefined') {
     window.defaultLoansState = {
-      loans: {
-        biz: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 },
-        car: { total: 24, paid: 0, instTRY: 0, remainTRY: 0, principalTRY: 0, monthlyRate: 0 }
+            loans: {
+        biz:  { total: 24, paid: 0, instTRY: 0,        remainTRY: 0,         principalTRY: 0,         monthlyRate: 0 },
+        car:  { total: 24, paid: 0, instTRY: 0,        remainTRY: 0,         principalTRY: 0,         monthlyRate: 0 },
+        biz2: { total: 24, paid: 0, instTRY: 71452.86, remainTRY: 1714868.61, principalTRY: 1714868.61, monthlyRate: 0 }
       },
     zeeAwait: DEFAULT_ZEE_AWAIT.slice()
     };
@@ -1244,8 +1269,9 @@ const DEFAULT_ZEE_AWAIT = [
         const out = Object.assign({}, d, obj || {});
         out.loans = Object.assign({}, d.loans, out.loans || {});
         out.zeeAwait = Array.isArray(out.zeeAwait) && out.zeeAwait.length ? out.zeeAwait : DEFAULT_ZEE_AWAIT.slice();
-        out.loans.biz = Object.assign({}, d.loans.biz, out.loans.biz || {});
-        out.loans.car = Object.assign({}, d.loans.car, out.loans.car || {});
+        out.loans.biz  = Object.assign({}, d.loans.biz,  out.loans.biz  || {});
+        out.loans.car  = Object.assign({}, d.loans.car,  out.loans.car  || {});
+        out.loans.biz2 = Object.assign({}, d.loans.biz2, out.loans.biz2 || {});
         return out;
       }catch(_){ return JSON.parse(JSON.stringify(window.defaultLoansState)); }
     };
@@ -1590,7 +1616,8 @@ async function refreshLoansFromExpenses(){
     const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {
       loans:{
         biz:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
-        car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }
+        car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
+        biz2: { total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }
       },
       zeeAwait:[]
     });
@@ -1670,7 +1697,10 @@ async function refreshLoansFromExpenses(){
     st.loans = st.loans || {};
     st.loans.biz = Object.assign({ total:24, instTRY:143000, remainTRY:0 }, st.loans.biz||{});
     st.loans.car = Object.assign({ total:24, instTRY:30000,  remainTRY:0 }, st.loans.car||{});
-
+    st.loans.biz2 = Object.assign(
+      { total:24, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0, paid:0 },
+      st.loans.biz2 || {}
+    );
     st.loans.biz.paid = bizPaid;
     st.loans.car.paid = carPaid;
 
@@ -2600,68 +2630,86 @@ function renderLoansBlock(){
   try{
     const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {});
     const loans = st.loans || {};
-    const biz = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, loans.biz || {});
-    const car = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, loans.car || {});
 
-    // helpers
-    const pct = p => Math.max(0, Math.min(100, p||0));
-    const fmtTL = n => numberTL(n||0);
-    const fmtRate = r => (r ? (Number(r)*100).toFixed(4) + '%' : '–');
+    function applyLoan(prefix, loan){
+      if (!loan) return;
+      const total = Number(loan.total || 0);
+      const paid  = Number(loan.paid  || 0);
+      const inst  = Number(loan.instTRY || 0);
+      const remain= Number(loan.remainTRY || 0);
+      const princ = Number(loan.principalTRY || 0);
+      const rate  = loan.monthlyRate;
 
-    // — Ticari kredi kartı
-    const bizPaidSpan = document.getElementById('loanBizPaidBadge');
-    const bizRemainEl = document.getElementById('loanBizRemain');
-    const bizInstEl   = document.getElementById('loanBizInst');
-    const bizPrinEl   = document.getElementById('loanBizPrincipal');
-    const bizRateEl   = document.getElementById('loanBizRate');
-    const bizBar      = document.getElementById('loanBizBar');
+      const id = (s)=> document.getElementById(prefix + s);
 
-    if (bizPaidSpan) bizPaidSpan.textContent = `${Math.max(0, biz.paid||0)}/${biz.total||0}`;
-    if (bizRemainEl) bizRemainEl.textContent = (biz.remainTRY ? fmtTL(biz.remainTRY) : '–');
-    if (bizInstEl)   bizInstEl.textContent   = (biz.instTRY ? fmtTL(biz.instTRY) : '–');
-    if (bizPrinEl)   bizPrinEl.textContent   = (biz.principalTRY ? fmtTL(biz.principalTRY) : '₺2.000.000');
-    if (bizRateEl)   bizRateEl.textContent   = (biz.monthlyRate ? (Number(biz.monthlyRate).toFixed(4)+'%') : '4.6408%');
-    if (bizBar)      bizBar.style.width      = pct((biz.paid||0) / (biz.total||1) * 100) + '%';
+      const badge = id('PaidBadge');
+      if (badge) badge.textContent = `${paid}/${total}`;
 
-    // — Araç kredi kartı
-    const carPaidSpan = document.getElementById('loanCarPaidBadge');
-    const carRemainEl = document.getElementById('loanCarRemain');
-    const carInstEl   = document.getElementById('loanCarInst');
-    const carPrinEl   = document.getElementById('loanCarPrincipal');
-    const carRateEl   = document.getElementById('loanCarRate');
-    const carBar      = document.getElementById('loanCarBar');
+      const remainEl = id('Remain');
+      if (remainEl) {
+        const calcRemain = remain > 0 ? remain : Math.max(0, (total - paid) * inst);
+        remainEl.textContent = numberTL(calcRemain);
+      }
 
-    if (carPaidSpan) carPaidSpan.textContent = `${Math.max(0, car.paid||0)}/${car.total||0}`;
-    if (carRemainEl) carRemainEl.textContent = (car.remainTRY ? fmtTL(car.remainTRY) : '–');
-    if (carInstEl)   carInstEl.textContent   = (car.instTRY ? fmtTL(car.instTRY) : '–');
-    if (carPrinEl)   carPrinEl.textContent   = (car.principalTRY ? fmtTL(car.principalTRY) : '–');
-    if (carRateEl)   carRateEl.textContent   = (car.monthlyRate ? fmtRate(car.monthlyRate) : '–');
-    if (carBar)      carBar.style.width      = pct((car.paid||0) / (car.total||1) * 100) + '%';
+      const instEl = id('Inst');
+      if (instEl) instEl.textContent = numberTL(inst);
 
-    // — Zee.Dog tablosu
-    const tb = document.getElementById('tblZeeAwait');
-    if (tb){
+      const princEl = id('Principal');
+      if (princEl) {
+        const calcPrinc = princ > 0 ? princ : inst * total;
+        princEl.textContent = numberTL(calcPrinc);
+      }
+
+      const rateEl = id('Rate');
+      if (rateEl) {
+        if (rate != null && rate !== '' && !isNaN(Number(rate))) {
+          rateEl.textContent = `${Number(rate).toFixed(2)}%`;
+        } else {
+          rateEl.textContent = '–';
+        }
+      }
+
+      const bar = id('Bar');
+      if (bar){
+        const pct = total > 0 ? Math.max(0, Math.min(100, (paid / total) * 100)) : 0;
+        bar.style.width = `${pct.toFixed(1)}%`;
+      }
+    }
+
+    // 3 kredi: biz, car, biz2
+    applyLoan('loanBiz',  loans.biz);
+    applyLoan('loanCar',  loans.car);
+    applyLoan('loanBiz2', loans.biz2);
+
+    // Zee.Dog Bekleyen Ödemeler tablosu
+    const tbody = document.getElementById('tblZeeAwait');
+    if (tbody){
       const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
-      const list = Array.isArray(st.zeeAwait) ? st.zeeAwait.slice() : [];
+      const list = Array.isArray(st.zeeAwait) && st.zeeAwait.length ? st.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
+
       if (!list.length){
-        tb.innerHTML = `<tr><td class="py-1 pr-3 hint" colspan="4">Henüz veri yok.</td></tr>`;
+        tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Kayıt bulunamadı.</td></tr>';
       } else {
-        tb.innerHTML = list.map(it=>{
-          const id   = String(it.id || '').toUpperCase();
-          const usd  = Number(it.usd || 0);
-          const paid = String(it.status||'').toLowerCase() === 'paid';
-          // TRY yoksa anlık kurla hesapla; kur 0 ise boş bırak
-          const tryVal = (typeof it.try === 'number' && it.try>0) ? it.try : ((fx>0 && usd>0) ? usd*fx : null);
-          const statusBadge = paid ? `<span class="badge-paid">paid</span>` : `<span class="badge-wait">waiting</span>`;
+        const rows = list.map(it => {
+          const usd = Number(it.usd || 0);
+          const tryVal = (typeof it.try === 'number' && it.try > 0)
+            ? it.try
+            : (fx > 0 ? usd * fx : 0);
+          const status = (it.status || '').toLowerCase();
+          const paid = status === 'paid';
+          const badgeCls = paid ? 'badge-paid' : 'badge-wait';
+          const badgeText = paid ? 'Ödendi' : 'Bekliyor';
           return `
             <tr>
-              <td class="py-1 pr-3">${id || '–'}</td>
-              <td class="py-1 pr-3 text-right">${usd ? numberUSD(usd) : '–'}</td>
-              <td class="py-1 pr-3 text-right">${(tryVal!=null && tryVal>0) ? numberTL(tryVal) : '–'}</td>
-              <td class="py-1 pr-0">${statusBadge}</td>
-            </tr>
-          `;
+              <td class="py-1 pr-3">${it.id || ''}</td>
+              <td class="py-1 pr-3 text-right">${usd > 0 ? numberUSD(usd) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${tryVal > 0 ? numberTL(tryVal) : '–'}</td>
+              <td class="py-1 pr-0">
+                <span class="${badgeCls}">${badgeText}</span>
+              </td>
+            </tr>`;
         }).join('');
+        tbody.innerHTML = rows;
       }
     }
   }catch(e){
