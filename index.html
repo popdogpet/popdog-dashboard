@@ -3009,32 +3009,6 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     return !(ageMs > 0) || ageMs > 22*60*60*1000;
   }
 
-  // Source #1: Truncgil (popular JSON; fields have Turkish decimals)
-  async function fetchFromTruncgil(){
-    const url = 'https://finans.truncgil.com/today.json';
-    const r = await fetch(url, { cache:'no-store' });
-    if(!r.ok) throw new Error('truncgil http '+r.status);
-    const j = await r.json();
-    const o = j && (j['gram-altin'] || j['Gram Altın'] || j['gram_altin']);
-    if(!o) throw new Error('truncgil format');
-    const s = (o.Satış || o.Satis || o.satis || o.selling || '').toString().replace('.', '').replace(',', '.');
-    const v = Number(s);
-    if(!v || isNaN(v)) throw new Error('truncgil parse');
-    return v; // TRY per gram
-  }
-
-  // Source #2: Genelpara (fallback; shape may vary across time; best-effort parsing)
-  async function fetchFromGenelpara(){
-    const url = 'https://api.genelpara.com/api/altin/gram';
-    const r = await fetch(url, { cache:'no-store' });
-    if(!r.ok) throw new Error('genelpara http '+r.status);
-    const j = await r.json();
-    // Try several common fields
-    const s = (j.satis || j.selling || j.price || j['Satış'] || '').toString().replace('.', '').replace(',', '.');
-    const v = Number(s);
-    if(!v || isNaN(v)) throw new Error('genelpara parse');
-    return v;
-  }
 
   // Source #0: Optional custom endpoint you can define in localStorage
   async function fetchFromCustom(){
@@ -3051,11 +3025,15 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
   }
 
   async function tryFetch(){
-    const fns = [fetchFromCustom, fetchFromTruncgil, fetchFromGenelpara];
-    for(const fn of fns){
-      try{ const v = await fn(); if(v && !isNaN(v)) return v; }catch(_){ /* continue */ }
+    try{
+      // If a custom endpoint is defined in localStorage, use it as the only automated source.
+      const v = await fetchFromCustom();
+      if (v && !isNaN(v)) return v;
+      throw new Error('custom source invalid');
+    }catch(e){
+      // No automatic external fallbacks anymore: user can always type the gram price manually.
+      throw new Error('Gold auto source failed (custom endpoint only).');
     }
-    throw new Error('All gold sources failed');
   }
 
   async function updateGold(force=false){
