@@ -2822,14 +2822,30 @@ function renderLoansBlock(){
   const gInput = document.getElementById('goldGramInput');
   if (gInput){
     if (!gInput.value && st.demoBank.gramTRY){ gInput.value = String(st.demoBank.gramTRY); }
-    gInput.onchange = ()=>{
+
+    const applyGoldInput = ()=>{
       const v = parseTL(gInput.value);
       const s = getLoansState();
       s.demoBank.gramTRY = v;
       setLoansState(s);
-      try{ localStorage.setItem('popdog_gold_gram_try', String(v)); }catch(_){}
+      try{
+        localStorage.setItem('popdog_gold_gram_try', String(v));
+        localStorage.setItem('popdog_gold_updated_at', String(Date.now()));
+      }catch(_){}
       renderLoansBlock();
     };
+
+    // Değer değişip input'tan çıkıldığında çalışsın
+    gInput.addEventListener('change', applyGoldInput);
+
+    // Enter'a basınca da aynı işlemi yap
+    gInput.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter'){
+        ev.preventDefault();
+        applyGoldInput();
+        try{ gInput.blur(); }catch(_){}
+      }
+    });
   }
   const gramPrice = st.demoBank.gramTRY || Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0;
   const goldTotal = gramPrice ? gramPrice * st.demoBank.goldGram : 0;
@@ -2847,7 +2863,8 @@ function renderLoansBlock(){
 const fInput = document.getElementById('fi5UnitInput');
 if (fInput){
   if (!fInput.value && st.demoBank.fi5UnitTRY){ fInput.value = String(st.demoBank.fi5UnitTRY); }
-  fInput.onchange = ()=>{
+
+  const applyFi5Input = ()=>{
     const v = parseTL(fInput.value);
     const s = getLoansState();
     s.demoBank.fi5UnitTRY = v;
@@ -2856,6 +2873,15 @@ if (fInput){
     localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
     renderLoansBlock();
   };
+
+  fInput.addEventListener('change', applyFi5Input);
+  fInput.addEventListener('keydown', (ev)=>{
+    if (ev.key === 'Enter'){
+      ev.preventDefault();
+      applyFi5Input();
+      try{ fInput.blur(); }catch(_){}
+    }
+  });
 }
 
 // === FI5 total (robust parse + sanity cap) ===
