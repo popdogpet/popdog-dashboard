@@ -2983,8 +2983,16 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     const n = approxInstallments(amountTRY, inst);
     st.loans.car.remainTRY = Math.max(0, (st.loans.car.remainTRY || 0) - amountTRY);
     st.loans.car.paid = Math.min(st.loans.car.total, (st.loans.car.paid || 0) + n);
+
+  } else if (s.includes('kredi 2') || s.includes('ticari kredi 2')) {
+    // 2. Ticari Kredi (loanBiz2)
+    const inst = st.loans.biz2.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.biz2.remainTRY = Math.max(0, (st.loans.biz2.remainTRY || 0) - amountTRY);
+    st.loans.biz2.paid = Math.min(st.loans.biz2.total, (st.loans.biz2.paid || 0) + n);
+
   } else if (s.includes('kredi')) {
-    // "Kredi" (araç harici) → Ticari Kredi
+    // 1. Ticari Kredi (loanBiz)
     const inst = st.loans.biz.instTRY || 0;
     const n = approxInstallments(amountTRY, inst);
     st.loans.biz.remainTRY = Math.max(0, (st.loans.biz.remainTRY || 0) - amountTRY);
