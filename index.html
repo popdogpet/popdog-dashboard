@@ -104,10 +104,24 @@
     .badge { font-size:10px; padding:.15rem .45rem; border-radius:999px; background:#eef2ff; color:#334155; }
     .dark .badge { background:#0b1220; color:#cbd5e1; border:1px solid rgba(255,255,255,.08); }
     .progress-wrap{height:4px;background:rgba(0,0,0,.06);border-radius:999px;overflow:hidden}
-    .target-card{padding:.65rem .75rem;border-radius:1rem}
-    .target-card .ttl{font-size:.8rem}
-    .target-card .val{font-weight:600; font-size:.8rem}
-    .target-card .sub{font-size:.7rem; opacity:.75}
+    .target-card{
+      padding:.35rem .5rem;
+      border-radius:.75rem;
+    }
+    .target-card .ttl{
+      font-size:.7rem;
+      line-height:1.1;
+    }
+    .target-card .val{
+      font-weight:600;
+      font-size:.75rem;
+      line-height:1.1;
+    }
+    .target-card .sub{
+      font-size:.65rem;
+      opacity:.75;
+      line-height:1.1;
+    }
     .progress-bar{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
     .kpi-up{color:#10b981}.kpi-down{color:#ef4444}
     .dot{width:.5rem;height:.5rem;border-radius:999px;display:inline-block;margin-right:.4rem}
@@ -926,7 +940,7 @@ th, td { white-space: nowrap; }
         <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Aylık Hedefler (YTD ortalama)</div>
         <div class="hint text-xs">Her ay: aynı yıl o aya kadar ortalama</div>
       </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-3" id="targetsWrap"></div>
+      <div class="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1 mt-2" id="targetsWrap"></div>
     </section>
 
     <footer class="text-xs hint text-right">
