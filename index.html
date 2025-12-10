@@ -173,7 +173,7 @@ th, td { white-space: nowrap; }
   display: block;
   width: 100% !important;
   /* Force a stable height controlled purely by CSS (not content size) */
-  height: clamp(180px, 40vw, 260px) !important;
+  height: clamp(220px, 40vw, 320px) !important;
 }
 
 /* Desktop override for a bit more headroom */
@@ -217,8 +217,16 @@ th, td { white-space: nowrap; }
     font-size: 60%;
   }
 /* === Unified chart sizing for consistency (mobile-first) === */
-.chart-can{ width:100%; display:block; height: clamp(180px, 40vw, 260px); }
-@media (min-width:1024px){ .chart-can{ height: 220px; } }
+.chart-can{
+  width:100%;
+  display:block;
+  /* Aynı mantık: min 220, max 320 */
+  height: clamp(220px, 40vw, 320px);
+}
+@media (min-width:1024px){
+  /* Desktop’ta biraz daha nefes alan yükseklik */
+  .chart-can{ height: 260px; }
+}
 
 /* Fallback for older Safari that doesn’t support clamp() on height */
 @supports not (height: clamp(10px, 10vw, 300px)){
