@@ -1003,6 +1003,28 @@ th, td { white-space: nowrap; }
   try {
     Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
   } catch(_) {}
+
+  // Global typography & axis defaults (safe, non-scriptable)
+  Chart.defaults.font = Chart.defaults.font || {};
+  Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.font.size = 12;
+
+  // Use a light but readable default text color for axes/labels
+  Chart.defaults.color = '#e5e7eb';
+
+  // Add some padding around charts so labels are not visually "squeezed"
+  Chart.defaults.layout = Chart.defaults.layout || {};
+  Chart.defaults.layout.padding = { top: 20, right: 16, bottom: 24, left: 28 };
+
+  // Global scale tick styling (X/Y axis labels)
+  Chart.defaults.scale = Chart.defaults.scale || {};
+  const baseTicks = Chart.defaults.scale.ticks || {};
+  Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
+    maxRotation: 0,
+    minRotation: 0,
+    autoSkip: true,
+    font: Object.assign({}, baseTicks.font || {}, { size: 12 })
+  });
 })();
 
 
