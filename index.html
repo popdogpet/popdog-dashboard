@@ -1049,6 +1049,49 @@ th, td { white-space: nowrap; }
   // Expose a manual hook in case charts are re-rendered later
   window.normalizeChartAxes = normalizeChartAxes;
 })();
+
+/* === Apply themed colors to Chart.js axes, legend and tooltips === */
+function applyChartTheme(mode){
+  try{
+    if (!window.Chart || !Chart.instances) return;
+    const isDark = (mode === 'dark');
+    const axisColor = isDark ? '#e5e7eb' : '#0f172a'; // light text on dark, dark text on light
+    const gridColor = 'rgba(148,163,184,0.35)';
+
+    const instances = Object.values(Chart.instances || {});
+    instances.forEach(ch => {
+      if (!ch || !ch.options) return;
+      const opts = ch.options;
+
+      // Axes
+      if (!opts.scales) opts.scales = {};
+      ['x','y'].forEach(axis => {
+        const s = opts.scales[axis];
+        if (!s) return;
+        if (!s.ticks) s.ticks = {};
+        s.ticks.color = axisColor;
+        if (s.grid){
+          s.grid.color = gridColor;
+        }
+      });
+
+      // Legend
+      opts.plugins = opts.plugins || {};
+      const plugs = opts.plugins;
+      plugs.legend = plugs.legend || {};
+      plugs.legend.labels = plugs.legend.labels || {};
+      plugs.legend.labels.color = axisColor;
+
+      // Tooltips
+      plugs.tooltip = plugs.tooltip || {};
+      plugs.tooltip.bodyColor = isDark ? '#f9fafb' : '#0f172a';
+      plugs.tooltip.titleColor = isDark ? '#f9fafb' : '#0f172a';
+
+      try{ ch.update(); }catch(_){}
+    });
+  }catch(_){}
+}
+
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1359,9 +1402,20 @@ const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ
 
 /* ================== THEME ================== */
 const root = document.documentElement;
-function setTheme(mode){ if(mode==='dark'){ root.classList.add('dark'); } else { root.classList.remove('dark'); } localStorage.setItem('popdog_theme', mode); }
-document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark')?'light':'dark');
-(function(){ setTheme(localStorage.getItem('popdog_theme')||'light'); })();
+function setTheme(mode){
+  if(mode === 'dark'){
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+  try{ applyChartTheme(mode); }catch(_){}
+  localStorage.setItem('popdog_theme', mode);
+}
+document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
+(function(){
+  const initial = localStorage.getItem('popdog_theme') || 'light';
+  setTheme(initial);
+})();
 
 /* ================== HELPERS ================== */
 const nfTL  = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
