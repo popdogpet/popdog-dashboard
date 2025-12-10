@@ -483,13 +483,15 @@ th, td { white-space: nowrap; }
         <div class="overflow-auto mt-2">
           <table class="min-w-full text-sm">
             <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">ID</th>
-                <th class="text-right py-1 pr-3">Tutar (USD)</th>
-                <th class="text-right py-1 pr-3">≈ TRY</th>
-                <th class="text-left py-1 pr-0">Durum</th>
-              </tr>
-            </thead>
+  <tr>
+    <th class="text-left py-1 pr-3">ID</th>
+    <th class="text-right py-1 pr-3">Tutar (USD)</th>
+    <th class="text-right py-1 pr-3">≈ TRY</th>
+    <th class="text-right py-1 pr-3">Ödenen (USD)</th>
+    <th class="text-right py-1 pr-3">Kalan (USD)</th>
+    <th class="text-left py-1 pr-0">Durum</th>
+  </tr>
+</thead>
             <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
           </table>
         </div>
@@ -2760,31 +2762,54 @@ function renderLoansBlock(){
     applyLoan('loanCar',  loans.car);
     applyLoan('loanBiz2', loans.biz2);
 
-    // Zee.Dog Bekleyen Ödemeler tablosu
+        // Zee.Dog Bekleyen Ödemeler tablosu
     const tbody = document.getElementById('tblZeeAwait');
     if (tbody){
       const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
       const list = Array.isArray(st.zeeAwait) && st.zeeAwait.length ? st.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
 
       if (!list.length){
-        tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Kayıt bulunamadı.</td></tr>';
+        // 6 kolon olduğundan colspan'ı 6 yapıyoruz
+        tbody.innerHTML = '<tr><td class="hint py-2" colspan="6">Kayıt bulunamadı.</td></tr>';
       } else {
         const rows = list.map(it => {
           const usd = Number(it.usd || 0);
           const tryVal = (typeof it.try === 'number' && it.try > 0)
             ? it.try
             : (fx > 0 ? usd * fx : 0);
-          const status = (it.status || '').toLowerCase();
-          const paid = status === 'paid';
-          const badgeCls = paid ? 'badge-paid' : 'badge-wait';
-          const badgeText = paid ? 'Ödendi' : 'Bekliyor';
+
+          // Yeni alanlar: paidUSD / remainUSD
+          const paidUSD = Number(it.paidUSD || 0);
+          const hasRemainProp = Object.prototype.hasOwnProperty.call(it, 'remainUSD');
+          const remainUSD = hasRemainProp
+            ? Number(it.remainUSD || 0)
+            : (usd > 0 ? Math.max(0, usd - paidUSD) : 0);
+
+          let statusText = 'Bekliyor';
+          let badgeCls   = 'badge-wait';
+
+          if (usd > 0 && remainUSD <= 0.01){
+            statusText = 'Ödendi';
+            badgeCls   = 'badge-paid';
+          } else if (paidUSD > 0 && remainUSD > 0.01){
+            statusText = 'Kısmi';
+            badgeCls   = 'badge-wait';
+          }
+
+          const paidText   = paidUSD > 0 ? numberUSD(paidUSD)     : '–';
+          const remainText = remainUSD > 0.01
+            ? numberUSD(remainUSD)
+            : (usd > 0 && paidUSD === 0 ? numberUSD(usd) : '–');
+
           return `
             <tr>
               <td class="py-1 pr-3">${it.id || ''}</td>
               <td class="py-1 pr-3 text-right">${usd > 0 ? numberUSD(usd) : '–'}</td>
               <td class="py-1 pr-3 text-right">${tryVal > 0 ? numberTL(tryVal) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${paidText}</td>
+              <td class="py-1 pr-3 text-right">${remainText}</td>
               <td class="py-1 pr-0">
-                <span class="${badgeCls}">${badgeText}</span>
+                <span class="${badgeCls}">${statusText}</span>
               </td>
             </tr>`;
         }).join('');
