@@ -171,8 +171,6 @@ th, td { white-space: nowrap; }
   contain: layout size;
   display: block;
   width: 100% !important;
-  /* Force a stable height controlled by CSS (not content size) */
-  height: 480px !important;
 }
 
 
@@ -204,15 +202,10 @@ th, td { white-space: nowrap; }
 .chart-can{
   width: 100%;
   display: block;
+  height: 420px !important;
 }
 
 
-/* Fallback for older Safari that doesn’t support clamp() on height */
-@supports not (height: clamp(10px, 10vw, 300px)){
-  #lineTotal,
-  #barStack,
-  #pieShare{ height: 480px !important; }
-}
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
 .sales-turnover table td,
