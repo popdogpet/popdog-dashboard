@@ -1003,6 +1003,39 @@ th, td { white-space: nowrap; }
   try {
     Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
   } catch(_) {}
+
+  // === Theme-aware axis/label styling (affects X/Y axis numbers & month labels) ===
+  try{
+    // Read preferred theme from localStorage (same key used by setTheme)
+    const mode = (localStorage.getItem('popdog_theme') || 'light');
+    const isDark = (mode === 'dark');
+
+    // Axis/legend text color: bright on dark, dark on light
+    const axisColor = isDark ? '#f9fafb' : '#0f172a';
+    const gridColor = 'rgba(148,163,184,0.25)';
+
+    // Base font (applies to axes labels & legend unless overridden)
+    Chart.defaults.font = Chart.defaults.font || {};
+    Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    Chart.defaults.font.size = 12;
+
+    // Default text color for chart elements (ticks, legend, etc.)
+    Chart.defaults.color = axisColor;
+
+    // Global scale tick styling (X/Y axis numbers & month labels)
+    Chart.defaults.scale = Chart.defaults.scale || {};
+    const baseTicks = Chart.defaults.scale.ticks || {};
+    Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
+      maxRotation: 0,
+      minRotation: 0,
+      autoSkip: true,
+      font: Object.assign({}, baseTicks.font || {}, { size: 12 }),
+      color: axisColor
+    });
+
+    // Softer grid/border color so charts don't look "basık"
+    Chart.defaults.borderColor = gridColor;
+  }catch(_){}
 })();
 
 /* === Normalize chart axis labels (font & rotation) for all charts === */
