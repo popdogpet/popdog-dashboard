@@ -1004,6 +1004,51 @@ th, td { white-space: nowrap; }
     Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
   } catch(_) {}
 })();
+
+/* === Normalize chart axis labels (font & rotation) for all charts === */
+(function(){
+  function normalizeChartAxes(){
+    if (!window.Chart || !Chart.instances) return false;
+    const instances = Object.values(Chart.instances || {});
+    if (!instances.length) return false;
+
+    instances.forEach(ch => {
+      if (!ch || !ch.options || !ch.options.scales) return;
+      ['x','y'].forEach(axis => {
+        const s = ch.options.scales[axis];
+        if (!s) return;
+        if (!s.ticks) s.ticks = {};
+        const ticks = s.ticks;
+        // Keep everything horizontal and readable
+        ticks.maxRotation = 0;
+        ticks.minRotation = 0;
+        ticks.autoSkip = true;
+        // Unify font size for all axes
+        ticks.font = Object.assign({}, ticks.font || {}, { size: 12 });
+      });
+    });
+
+    // Trigger a redraw with the updated options
+    instances.forEach(ch => {
+      try{ ch.update(); }catch(_){}
+    });
+
+    return true;
+  }
+
+  // Poll a few times after load so that charts have time to be created
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries++;
+    const done = normalizeChartAxes();
+    if (done || tries > 20){
+      clearInterval(timer);
+    }
+  }, 500);
+
+  // Expose a manual hook in case charts are re-rendered later
+  window.normalizeChartAxes = normalizeChartAxes;
+})();
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
