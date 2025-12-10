@@ -157,11 +157,9 @@
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
 /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
-#
-lineTotal,
+#lineTotal,
 #barStack,
-#pieShare,
-#lineExpenses{
+#pieShare{
   background: rgba(255,255,255,0.25);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -213,8 +211,7 @@ lineTotal,
 @supports not (height: clamp(10px, 10vw, 300px)){
   #lineTotal,
   #barStack,
-  #pieShare,
-  #lineExpenses{ height: 480px !important; }
+  #pieShare{ height: 480px !important; }
 }
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
