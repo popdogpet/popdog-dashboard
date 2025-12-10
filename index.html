@@ -104,10 +104,24 @@
     .badge { font-size:10px; padding:.15rem .45rem; border-radius:999px; background:#eef2ff; color:#334155; }
     .dark .badge { background:#0b1220; color:#cbd5e1; border:1px solid rgba(255,255,255,.08); }
     .progress-wrap{height:4px;background:rgba(0,0,0,.06);border-radius:999px;overflow:hidden}
-    .target-card{padding:.65rem .75rem;border-radius:1rem}
-    .target-card .ttl{font-size:.8rem}
-    .target-card .val{font-weight:600; font-size:.8rem}
-    .target-card .sub{font-size:.7rem; opacity:.75}
+    .target-card{
+      padding:.35rem .5rem;
+      border-radius:.75rem;
+    }
+    .target-card .ttl{
+      font-size:.7rem;
+      line-height:1.1;
+    }
+    .target-card .val{
+      font-weight:600;
+      font-size:.75rem;
+      line-height:1.1;
+    }
+    .target-card .sub{
+      font-size:.65rem;
+      opacity:.75;
+      line-height:1.1;
+    }
     .progress-bar{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
     .kpi-up{color:#10b981}.kpi-down{color:#ef4444}
     .dot{width:.5rem;height:.5rem;border-radius:999px;display:inline-block;margin-right:.4rem}
@@ -481,19 +495,19 @@ th, td { white-space: nowrap; }
           <div class="hint text-xs">USD → TRY çeviri için KPI’dan türetilen kur kullanılır</div>
         </div>
         <div class="overflow-auto mt-2">
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-  <tr>
-    <th class="text-left py-1 pr-3">ID</th>
-    <th class="text-right py-1 pr-3">Tutar (USD)</th>
-    <th class="text-right py-1 pr-3">≈ TRY</th>
-    <th class="text-right py-1 pr-3">Ödenen (USD)</th>
-    <th class="text-right py-1 pr-3">Kalan (USD)</th>
-    <th class="text-left py-1 pr-0">Durum</th>
-  </tr>
-</thead>
-            <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
-          </table>
+  <table class="min-w-full text-sm">
+        <thead class="text-slate-600 dark:text-slate-300">
+        <tr>
+      <th class="text-left py-1 pr-3">ID</th>
+      <th class="text-right py-1 pr-3">Tutar (USD)</th>
+      <th class="text-right py-1 pr-3">≈ TRY</th>
+      <th class="text-right py-1 pr-3">Ödenen (USD)</th>
+      <th class="text-right py-1 pr-3">Kalan (USD)</th>
+      <th class="text-left py-1 pr-0">Durum</th>
+    </tr>
+  </thead>
+  <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
+</table>
         </div>
       </div>
     
@@ -928,7 +942,7 @@ th, td { white-space: nowrap; }
         <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Aylık Hedefler (YTD ortalama)</div>
         <div class="hint text-xs">Her ay: aynı yıl o aya kadar ortalama</div>
       </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-3" id="targetsWrap"></div>
+      <div class="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1 mt-2" id="targetsWrap"></div>
     </section>
 
     <footer class="text-xs hint text-right">
@@ -1805,18 +1819,4112 @@ async function refreshLoansFromExpenses(){
 // === Zee.Dog: Expenses'tan paid olanları işaretle + TRY hesapla ===
 async function refreshZeeAwaitFromExpenses(){
   try{
-    // Şimdilik sade versiyon: sadece state içindeki listeyi default ile senkronize et
-    const base = (window.defaultLoansState || { zeeAwait: [] });
-    const st = (typeof getLoansState === 'function') ? getLoansState() : { zeeAwait: [] };
+    // Always bust the cached expenses before scanning (ensures we see latest Notes)
+    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+    // 1) Expenses'ı yükle
+    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
 
-    const haveList = Array.isArray(st.zeeAwait) && st.zeeAwait.length;
-    const defList  = Array.isArray(base.zeeAwait) ? base.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
+    // 2) Note/Not/Açıklama içinden YK#... yakala (case-insensitive header names)
+    const NOTE_KEYS = ['Note','Notes','Not','Açıklama','Açıklama 2','Description','DetailNote','Source','Kaynak','Detay'];
+    const getNote = (r) => {
+      const v = getFieldCI(r, NOTE_KEYS);
+      return v !== '' ? String(v).trim() : '';
+    };
+    const idFromNote = (s) => {
+      const m = String(s||'').match(/YK#\d+(?:\.\d+)?/i);
+      return m ? m[0].toUpperCase() : '';
+    };
+    // Fallback: satırdaki tüm string alanlarda ID ara (YK#033, YK#034.1 vb.)
+    const idFromAnyField = (row) => {
+      try{
+        for (const k in row){
+          const v = row[k];
+          if (v == null) continue;
+          const m = String(v).match(/YK#\d+(?:\.\d+)?/i);
+          if (m) return m[0].toUpperCase();
+        }
+      }catch(_){}
+      return '';
+    };
+    // Zee.Dog satırı olup olmadığını Subcategory/FinalSubcategory üzerinden, case-insensitive bak
+    const isZeeRow = (r) => {
+      const sub = String(getFieldCI(r, ['Subcategory','FinalSubcategory','Final Subcategory']) || '').toLowerCase();
+      return /zee\.?dog/.test(sub);
+    };
 
-    st.zeeAwait = haveList ? st.zeeAwait : defList.map(it => Object.assign({}, it));
+    // 3) YK ID -> toplam ödenen USD map'i oluştur
+    const paidMap = new Map();
+    for (const r of rows) {
+      if (!isZeeRow(r)) continue;
+      let id = idFromNote(getNote(r));
+      if (!id) id = idFromAnyField(r);
+      if (!id) continue;
+
+      // USD/TL tutarını oku — önce USD kolonu, yoksa TRY'den çevir
+      let usd = 0;
+      const usdRaw = getFieldCI(r, ['AmountUSD','USD','Amount (USD)','USD Amount']);
+      if (usdRaw !== ''){
+        usd = parseUSD(usdRaw);
+      }else{
+        const tryAmt = readExpenseAmountTRY(r);
+        const fx = getTryPerUsd();
+        if (tryAmt > 0 && fx > 0){
+          usd = tryAmt / fx;
+        }
+      }
+      if (!(usd > 0)) continue;
+
+      paidMap.set(id, (paidMap.get(id) || 0) + usd);
+    }
+
+    // 4) Loans state'ini güncelle
+    const st = (typeof getLoansState === 'function') ? getLoansState() : { loans:{}, zeeAwait: DEFAULT_ZEE_AWAIT.slice() };
+    const fx = getTryPerUsd();
+
+    st.zeeAwait = (st.zeeAwait && st.zeeAwait.length) ? st.zeeAwait : DEFAULT_ZEE_AWAIT.slice();
+
+    st.zeeAwait = st.zeeAwait.map(item=>{
+      const baseUSD = Number(item.usd || 0);
+      const id = String(item.id || '').toUpperCase();
+      const paidUSD = paidMap.get(id) || 0;
+      const remainUSD = Math.max(0, baseUSD - paidUSD);
+      return Object.assign({}, item, {
+        paidUSD,
+        remainUSD
+      });
+    });
 
     if (typeof setLoansState === 'function') setLoansState(st);
+
+    // 5) UI'ı tazele
     if (typeof renderLoansBlock === 'function') renderLoansBlock();
   }catch(e){
     console.warn('refreshZeeAwaitFromExpenses() error:', e);
   }
 }
+
+document.addEventListener('DOMContentLoaded', async function(){
+  // Ensure fresh expenses before both passes
+  try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+  try{ await refreshLoansFromExpenses(); }catch(_){}
+  // Clear again in case the prior pass populated cache
+  try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+  try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+  try{ await renderThisMonthExpenses(); }catch(_){}
+  try{ await renderThisMonthExpensesByCategory(); }catch(_){}
+  try{ await refreshGoldFromScript(); }catch(_){}
+}, { once:true });
+
+/* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
+document.addEventListener('DOMContentLoaded', function(){
+  const btn = document.getElementById('expAddBtn');
+  if (!btn) return;
+  // We don't intercept the existing click handler; we just schedule a refresh shortly after.
+  btn.addEventListener('click', function(){
+    // Give the existing submit/write flow a moment to complete before refreshing.
+    setTimeout(async function(){
+      try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+      try{ await refreshLoansFromExpenses(); }catch(_){}
+      try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
+      try{ await renderThisMonthExpenses(); }catch(_){}
+      try{ await renderThisMonthExpensesByCategory(); }catch(_){}
+    }, 1800);
+  });
+}, { once:true });
+function toMonday(d){
+  const dt = new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt;
+}
+function addDays(d, n){ const dt = new Date(d); dt.setDate(dt.getDate()+n); return dt; }
+function weekRangeLabel(monday){
+  const sun = addDays(monday, 6);
+  const f = (x)=> `${x.getDate().toString().padStart(2,'0')}.${(x.getMonth()+1).toString().padStart(2,'0')}`;
+  return `${f(monday)} – ${f(sun)}`;
+}
+
+/* Cache-bust */
+function withCacheBust(url){
+  if(!url) return '';
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}t=${Date.now()}`;
+}
+
+// === Missing helpers (used by CSV loaders) ===
+// assetURL: currently just applies cache-bust; can be extended later for local assets
+function assetURL(url){
+  try{
+    return withCacheBust(url);
+  }catch(e){
+    return url || '';
+  }
+}
+
+// isFreshMode: controls fetch cache mode; can be toggled via ?fresh=1 or localStorage flag
+function isFreshMode(){
+  try{
+    const p = getParam('fresh');
+    if (p === '1') return true;
+    if (p === '0') return false;
+    const s = localStorage.getItem('popdog_fresh_mode');
+    if (s === '1') return true;
+    if (s === '0') return false;
+  } catch(e){}
+  return true; // default: fresh mode on (force reload)
+}
+
+/* ================== QUERY PARAM HELPERS ================== */
+function getParam(name){
+  try { return new URLSearchParams(location.search).get(name) || ''; } catch(e){ return ''; }
+}
+
+/* Clean-on-load flag: URL ?clean=1/0 overrides; falls back to localStorage; default = true */
+function isCleanOnLoad(){
+  try{
+    const p = getParam('clean');
+    if (p === '1') return true;
+    if (p === '0') return false;
+    const s = localStorage.getItem('popdog_clean_on_load');
+    if (s === '1') return true;
+    if (s === '0') return false;
+  }catch(e){}
+  return true; // default: clean enabled
+}
+
+/* ================== STATE ================== */
+/* === Ensure daily rows are deduped by Date (keep richer row) === */
+let loadedRows = [];     // revenue rows (sheet csv)
+let stagedRows = [];     // whatsapp pasted rows
+let fxRateUSDPerTRY = null;
+let fxDate = null;
+let mergedRowsCache = [];
+
+// Deduplicate daily rows by Date; keep the row with higher Total or more non-zero fields
+function dedupeDailyRows(rows){
+  try{
+    const fields = ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada'];
+    const score = (r)=>{
+      let nonzero = 0, total = 0;
+      for (const k of fields){
+        const v = +r[k] || 0;
+        if (v) nonzero++;
+        total += v;
+      }
+      return { nonzero, total };
+    };
+    const map = new Map();
+    (rows||[]).forEach(r=>{
+      if(!r || !r.Date) return;
+      const cur = map.get(r.Date);
+      if(!cur){ map.set(r.Date, r); return; }
+      const a = score(cur), b = score(r);
+      const keepNew = (b.total > a.total) || (b.total === a.total && b.nonzero > a.nonzero);
+      map.set(r.Date, keepNew ? r : cur);
+    });
+    return Array.from(map.values()).sort((a,b)=> (a.Date<b.Date?-1:(a.Date>b.Date?1:0)));
+  }catch(e){
+    // If anything goes wrong, fall back to original rows
+    return Array.isArray(rows) ? rows : [];
+  }
+}
+
+/* === Daily rows UI + write helpers === */
+function renderStagedTable(){
+  const tb = document.getElementById('stagedTbody');
+  if(!tb) return;
+  if(!Array.isArray(stagedRows) || stagedRows.length===0){
+    tb.innerHTML = '<tr><td class="hint py-2" colspan="9">Henüz satır yok.</td></tr>';
+    return;
+  }
+  const fmt = (n)=> nfTL.format(Math.round(n||0));
+  tb.innerHTML = stagedRows.map(r=>`
+    <tr>
+      <td class="py-2 pr-4">${r.Date||''}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Toptan||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Online||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.CKM||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r["CKM Nakit"]||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.KasaNakit||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Trendyol||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Hepsiburada||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Total||0)}</td>
+    </tr>
+  `).join('');
+}
+
+
+// Bind the writer to the button in the Daily Paste section
+(function(){
+  const btn = document.getElementById('pushRowsBtn');
+  if(btn) btn.onclick = writeStagedToSheet;
+})();
+
+// Bind the writer to the main Sheet’e Kaydet button (writeSheetBtn) using the JSON-based function
+(function(){
+  const b = document.getElementById('writeSheetBtn');
+  if (b) b.onclick = writeStagedToSheet;
+})();
+
+/* === Write staged rows to Google Sheet via Apps Script WebApp (idempotent) === */
+if (!window.writeStagedToSheet) {
+  window.writeStagedToSheet = async function writeStagedToSheet() {
+    try {
+      const infoEl = document.getElementById('parseInfo');
+      const rows = Array.isArray(window.stagedRows) ? window.stagedRows.slice() : [];
+      if (!rows.length) {
+        if (infoEl) infoEl.textContent = 'Gönderilecek satır yok.';
+        return;
+      }
+
+      // Ensure payload fields are plain numbers / strings
+      const cleanRows = rows.map(r => ({
+        Date: r.Date || '',
+        Toptan: Number(r.Toptan || 0),
+        Online: Number(r.Online || 0),
+        CKM: Number(r.CKM || 0),
+        'CKM Nakit': Number(r['CKM Nakit'] || 0),
+        KasaNakit: Number(r.KasaNakit || 0),
+        Trendyol: Number(r.Trendyol || 0),
+        Hepsiburada: Number(r.Hepsiburada || 0),
+        Total: Number(r.Total || 0),
+      }));
+
+      // --- Ensure a valid Apps Script Web App URL exists; if not, prompt the user and bail out
+      const WEBAPP_URL = getSheetWebAppURL();
+      if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(WEBAPP_URL)){
+        if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
+        await setupSheetWebAppURL(infoEl);
+        return;
+      }
+
+      if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+
+      async function postOnceFlexible(body){
+        const url = WEBAPP_URL;
+
+        // Strategy A: JSON POST
+        try{
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json;charset=utf-8' },
+            body: JSON.stringify(body)
+          });
+          if (r.ok){
+            const raw = await r.text().catch(()=> '');
+            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+            return { json, raw };
+          }
+          // If 400/unknown action text is present, bubble for fallback
+          const raw = await r.text().catch(()=> '');
+          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        }catch(e){ /* fall through to Strategy B */ }
+
+        // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
+        try{
+          const form = new URLSearchParams();
+          Object.keys(body||{}).forEach(k=>{
+            const v = body[k];
+            form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+          });
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+            body: form.toString()
+          });
+          if (r.ok){
+            const raw = await r.text().catch(()=> '');
+            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+            return { json, raw };
+          }
+          const raw = await r.text().catch(()=> '');
+          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        }catch(e){ /* fall through to Strategy C */ }
+
+        // Strategy C: GET with query params (very legacy handlers; beware URL length)
+        const params = new URLSearchParams();
+        Object.keys(body||{}).forEach(k=>{
+          const v = body[k];
+          params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
+        });
+        const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+        return { json, raw };
+      }
+
+      // Try primary action first, then fall back to legacy names and parameter aliases
+      const attempts = [];
+      const compat = getWebAppCompat();
+      if (compat && (compat.rowsKey || compat.actionKey || compat.dailyAction)){
+        const rk = compat.rowsKey || 'rows';
+        const ak = compat.actionKey || 'action';
+        const av = compat.dailyAction || 'appendDaily';
+        const b1 = {}; b1[rk] = cleanRows; if (ak) b1[ak] = av; attempts.push(b1);
+        const b2 = {}; b2[rk] = JSON.stringify(cleanRows); if (ak) b2[ak] = av; attempts.push(b2);
+      }
+      attempts.push(
+        { action: 'appendDaily', rows: cleanRows },
+        { action: 'appendRows',  rows: cleanRows },
+        { action: 'append',      rows: cleanRows },
+        // common legacy keys
+        { action: 'appendDaily', data: cleanRows },
+        { action: 'appendRows',  data: cleanRows },
+        { mode:   'appendDaily', rows: cleanRows },
+        // other legacy shapes
+        { payload: JSON.stringify(cleanRows) },
+        { data: JSON.stringify(cleanRows) },
+        { rowsJson: JSON.stringify(cleanRows) },
+        // bare rows
+        { rows: cleanRows },
+      );
+
+      let finalMsg = '';
+      let sent = false;
+      for (const body of attempts){
+        try{
+          const { json, raw } = await postOnceFlexible(body);
+          if (json && json.ok === false && /UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(String(json.error||json.message||''))){
+            // try next attempt
+            continue;
+          }
+          // Success path (ok true or no explicit failure)
+          sent = true;
+          finalMsg = json && (json.message || json.msg) ? String(json.message || json.msg) : (raw ? String(raw).slice(0,120) : '');
+          if(!finalMsg) finalMsg = 'OK (legacy handler)';
+          break;
+        }catch(e){
+          // If server responded 4xx with UNKNOWN_ACTION text, keep trying
+          const s = String(e && e.message || '');
+          if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
+          // Otherwise rethrow
+          throw e;
+        }
+      }
+
+      if (!sent){
+        if (infoEl){
+          infoEl.innerHTML = '⚠️ Sunucu bu işlemi tanımıyor. <button id="compatBtn" class="glass card-3d px-2 py-1 rounded-xl text-xs">Uyumluluğu Ayarla</button>';
+          const b = document.getElementById('compatBtn');
+          if (b) b.onclick = ()=> setupWebAppCompat(infoEl);
+        }
+        return;
+      }
+      if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${finalMsg ? ' • ' + finalMsg : ''}`;
+
+      // Clear staged rows and re-render the temp table
+      window.stagedRows = [];
+      try { renderStagedTable(); } catch (_) {}
+
+      // If the app has a refresh hook, call it to reload KPIs/charts
+      try { if (typeof refreshAll === 'function') refreshAll(); } catch (_) {}
+
+    } catch (err) {
+      const infoEl = document.getElementById('parseInfo');
+      if (infoEl) infoEl.textContent = `⚠️ Sheet yazma hatası: ${err.message || err}`;
+      console.error('writeStagedToSheet error:', err);
+    }
+  };
+}
+
+/* ================== CSV LOADERS ================== */
+async function loadFromSheet(url){
+  const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
+  if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
+  const csvText = await resp.text();
+  return new Promise((resolve,reject)=>{
+    Papa.parse(csvText, {
+      header:true, skipEmptyLines:true,
+      worker:true, fastMode:true,
+      complete: (res)=>{
+        try{
+          const data = (res.data||[]).map(r=>{
+            const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
+            const row = {
+              Date: iso,
+              Toptan: parseTL(r.Toptan),
+              Online: parseTL(r.Online),
+              CKM: parseTL(r.CKM),
+              "CKM Nakit": parseTL(r["CKM Nakit"]),
+              Trendyol: parseTL(r.Trendyol),
+              Hepsiburada: parseTL(r.Hepsiburada),
+            };
+            row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
+            return row;
+          }).filter(r=>r.Date);
+          // Optional cleaning while loading from Sheet:
+          // - dedupe same-day rows (keeps the row with higher Total or more non-zero fields)
+          // - sort by Date ascending
+          const cleaned = isCleanOnLoad() ? dedupeDailyRows(data) : data;
+          resolve(cleaned);
+        }catch(e){ reject(e); }
+      },
+      error: reject
+    });
+  });
+}
+
+function loadCSV(url){
+  return new Promise((resolve,reject)=>{
+    if(!url) return resolve([]);
+    Papa.parse(assetURL(url), {
+      download:true, header:true, skipEmptyLines:true,
+      worker:true, fastMode:true,
+      complete: (res)=> resolve(res.data||[]),
+      error: reject
+    });
+  });
+}
+
+// Robust normalizer so Papa.parse output always has Date normalized.
+function parseExpenseRow(r){
+  try{
+    const iso = getExpenseISODate(r) || '';
+    // IMPORTANT:
+    // Do NOT modify or overwrite r.Amount here.
+    // Keep raw CSV fields intact so readExpenseAmountTRY(r) can apply FX exactly once later.
+    return { ...r, Date: (iso || r.Date || r.date || '') };
+  }catch(e){
+    return r || {};
+  }
+}
+
+// Correct CSV loader for Expenses (fetch text, then Papa.parse on string)
+async function loadExpensesCsv(url){
+  if (!url) return [];
+  try{
+    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+
+    return await new Promise((resolve) => {
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+const rows = (res.data || [])
+  .map(parseExpenseRow)
+  .filter(r => r.Date);          resolve(rows);
+        },
+        error: () => resolve([])
+      });
+    });
+  }catch(e){
+    return [];
+  }
+}
+
+/* ========= Gider Ekle (UI + Sheet yazma) ========= */
+// Ek kolon alias'ları
+const CATEGORY_KEYS = ['Category','Kategori','Main Category','Ana Kategori','Cat'];
+const FINALSUB_KEYS = ['FinalSubcategory','Final Subcategory','FinalSubcat','Final Sub-Category','Nihai Alt Kategori','Final','FinalSub'];
+// Subcategory → { category, final } eşlemesi (CSV'den türetilir)
+let EXP_SUBMAP = {};  // ör: { "Kargo": { category:"Lojistik", final:"Kargo" } }
+// Alt kategori kolon isimleri için olası başlıklar
+const SUBCAT_KEYS = ['Subcategory', 'Sub-Category', 'Subcat', 'Alt Kategori', 'AltKategori', 'Detail', 'Kalem'];
+
+// Mevcut expenses CSV’den benzersiz alt kategorileri topla + kategori/final eşlemesi
+async function loadExpenseSubcategories(){
+  try{
+    // 1) Önce localStorage cache varsa kullan
+    let rows = [];
+    try{ rows = JSON.parse(localStorage.getItem('popdog_expenses_cache') || '[]'); }catch(_){}
+    // 2) Yoksa CSV’den yükle
+    if(!Array.isArray(rows) || rows.length===0){
+      rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+      try{ localStorage.setItem('popdog_expenses_cache', JSON.stringify(rows||[])); }catch(_){}
+    }
+
+    // 3) Set + eşleme (subcategory → {category, final})
+    const set = new Set();
+    const map = {};
+
+    (rows||[]).forEach(r=>{
+      if(!r) return;
+
+      // Subcategory value
+      let sub = '';
+      for(const k of SUBCAT_KEYS){
+        if(r[k]!=null && String(r[k]).trim()!==''){ sub = String(r[k]).trim(); break; }
+      }
+      if(!sub) return;
+
+      // Category value
+      let cat = '';
+      for(const k of CATEGORY_KEYS){
+        if(r[k]!=null && String(r[k]).trim()!==''){ cat = String(r[k]).trim(); break; }
+      }
+
+      // FinalSubcategory value
+      let fin = '';
+      for(const k of FINALSUB_KEYS){
+        if(r[k]!=null && String(r[k]).trim()!==''){ fin = String(r[k]).trim(); break; }
+      }
+
+      set.add(sub);
+      // İlk geleni koru, boşsa doldur
+      if(!map[sub]) map[sub] = { category: cat || '', final: fin || sub };
+    });
+
+    // Boşsa en azından bir kaç öneri bırak
+    if(set.size===0){
+      ['Kira','Elektrik','Personel','Kargo','Reklam','Sarf','Diğer'].forEach(x=>{
+        set.add(x);
+        if(!map[x]) map[x] = { category:'', final:x };
+      });
+    }
+
+    // Global ve localStorage'a yaz
+    EXP_SUBMAP = map;
+    try{ localStorage.setItem('popdog_expenses_submap', JSON.stringify(map)); }catch(_){}
+
+    return Array.from(set).sort((a,b)=> a.localeCompare(b,'tr'));
+  }catch(e){
+    // Map fallback
+    EXP_SUBMAP = {};
+    return ['Diğer'];
+  }
+}
+
+// Tarih: <input type="date"> → YYYY-MM-DD
+function dateToISO(d){
+  if(!d) return '';
+  const s = String(d).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+  return s; // already ISO-like from <input type="date">
+}
+
+// Sheet’e gider satırı yaz (daha sağlam hata yakalama + JSON kontrol)
+  async function appendExpenseRow({ dateISO, subcat, amountTRY, note }){
+  // Subcategory eşleşmesinden kategori/final çek
+  let cat = '', fin = '';
+  try{
+    const m = EXP_SUBMAP && EXP_SUBMAP[subcat] ? EXP_SUBMAP[subcat] : JSON.parse(localStorage.getItem('popdog_expenses_submap')||'{}')[subcat];
+    if(m){ cat = m.category || ''; fin = m.final || subcat; } else { fin = subcat; }
+  }catch(_){ fin = subcat; }
+
+  const payload = {
+    action: 'appendExpense',
+    row: {
+      Date: dateISO,                       // YYYY-MM-DD (01)
+      Subcategory: subcat,                 // alt kategori
+      Category: cat,                       // ana kategori (varsa)
+      FinalSubcategory: fin,               // nihai alt kategori (varsa)
+      AmountTRY: Math.round(amountTRY || 0), // tamsayıya yuvarla
+      Note: note || ''
+    }
+  };
+  const WEBAPP_URL = getSheetWebAppURL();
+  async function postOnceFlexible(body){
+    const url = WEBAPP_URL;
+
+    // Strategy A: JSON POST
+    try{
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        body: JSON.stringify(body)
+      });
+      if (r.ok){
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        return { json, raw };
+      }
+      // If 400/unknown action text is present, bubble for fallback
+      const raw = await r.text().catch(()=> '');
+      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    }catch(e){ /* fall through to Strategy B */ }
+
+    // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
+    try{
+      const form = new URLSearchParams();
+      Object.keys(body||{}).forEach(k=>{
+        const v = body[k];
+        form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: form.toString()
+      });
+      if (r.ok){
+        const raw = await r.text().catch(()=> '');
+        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+        return { json, raw };
+      }
+      const raw = await r.text().catch(()=> '');
+      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    }catch(e){ /* fall through to Strategy C */ }
+
+    // Strategy C: GET with query params (very legacy handlers; beware URL length)
+    const params = new URLSearchParams();
+    Object.keys(body||{}).forEach(k=>{
+      const v = body[k];
+      params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
+    });
+    const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
+    const raw = await r.text().catch(()=> '');
+    let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
+    if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+    return { json, raw };
+  }
+
+  const attempts = [];
+  {
+    const compat = getWebAppCompat();
+    if (compat && (compat.rowsKey || compat.actionKey || compat.expenseAction)){
+      const ak = compat.actionKey || 'action';
+      const av = compat.expenseAction || 'appendExpense';
+      // prefer 'row' for single; fallback to compat.rowsKey if provided
+      const rk = compat.rowsKey || 'row';
+      const b1 = {}; b1[rk] = payload.row; if (ak) b1[ak] = av; attempts.push(b1);
+      const b2 = {}; b2[rk] = JSON.stringify(payload.row); if (ak) b2[ak] = av; attempts.push(b2);
+    }
+  }
+  attempts.push(
+    { action: 'appendExpense', row: payload.row },
+    { action: 'append_expense', row: payload.row },
+    { action: 'expenseAppend',  row: payload.row },
+    { action: 'appendRow',      row: payload.row },
+    { action: 'append',         row: payload.row },
+    // legacy: rowJson / data
+    { action: 'appendExpense', rowJson: JSON.stringify(payload.row) },
+    { action: 'appendExpense', data: payload.row },
+    { data: JSON.stringify(payload.row) },
+    // very old handlers: flat payload
+    payload.row
+  );
+
+  for (const body of attempts){
+    try{
+      const { json, raw } = await postOnceFlexible(body);
+      if (json && json.ok === false && /UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(String(json.error||json.message||''))){
+        continue; // try next
+      }
+      if (json && json.ok === false){
+        throw new Error(`Server • ${json.error || json.message || 'unknown error'}`);
+      }
+      if (json && (json.error || json.message)){
+  try{
+    localStorage.removeItem('popdog_expenses_cache');
+    if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+    if (typeof renderLoansBlock === 'function') renderLoansBlock();
+  }catch(_){}
+  return String(json.message || json.error);
+}
+try{
+  localStorage.removeItem('popdog_expenses_cache');
+  if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+  if (typeof renderLoansBlock === 'function') renderLoansBlock();
+} catch(_){}
+return 'Sheet güncellendi';
+}catch(e){
+      const s = String(e && e.message || '');
+      if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
+      // network or other errors → bubble up
+      throw e;
+    }
+  }
+  throw new Error('UNKNOWN_ACTION: Sunucu appendExpense işlemini tanımıyor. (appendExpense/appendRow/append)');
+}
+
+// Web App bağlantı testi (opsiyonel)
+async function pingSheetWebApp(){
+  try{
+    // Try POST __ping__ (preferred)
+    const r = await fetch(getSheetWebAppURL(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: '__ping__' })
+    });
+    if (r && r.ok) return true;
+  }catch(_){}
+  try{
+    // Fallback: simple GET
+    const g = await fetch(getSheetWebAppURL(), { method: 'GET' });
+    return !!(g && g.ok);
+  }catch(_){
+    return false;
+  }
+}
+
+// UI init
+async function initExpenseEntryUI(){
+  const sel = document.getElementById('expSubSel');
+  const info = document.getElementById('expAddInfo');
+  const btn = document.getElementById('expAddBtn');
+
+  // Bağlantı uyarısı (erken)
+  try{
+    if(info) info.textContent = 'Bağlantı kontrol ediliyor…';
+    const ok = await pingSheetWebApp();
+    if(!ok && info){
+      info.textContent = '⚠️ Sheet bağlantısı yok. Apps Script Web App: Deploy→Web app → Execute as: Me · Access: Anyone (link). Ardından kendi /exec URL\'nizi localStorage\'a kaydedin: localStorage.setItem("popdog_sheet_webapp_url","https://script.google.com/macros/s/XXX/exec")';
+    }
+    try{
+      const b = document.getElementById('writeSheetBtn');
+      if(!ok && b){ b.onclick = ()=> setupSheetWebAppURL(info); }
+    }catch(_){}
+  }catch(_){ /* sessiz */ }
+  try{
+    const w = document.getElementById('writeSheetBtn');
+    if (w) w.addEventListener('contextmenu', (e)=>{ e.preventDefault(); setupWebAppCompat(info); });
+  }catch(_){}
+
+  // Alt kategorileri doldur
+  try{
+    const subs = await loadExpenseSubcategories();
+    if(sel){
+      sel.innerHTML = `<option value="">Seçiniz…</option>` + subs.map(s=>`<option>${s}</option>`).join('');
+    }
+    if(info) info.textContent = `Alt kategori sayısı: ${subs.length}`;
+  }catch(e){
+    if(sel) sel.innerHTML = `<option value="">(yüklenemedi)</option>`;
+    if(info) info.textContent = `⚠️ Alt kategoriler yüklenemedi: ${e.message||e}`;
+  }
+
+  // Varsayılan: bugün seçili gelsin
+  try{
+    const dateInput = document.getElementById('expDate');
+    if(dateInput && !dateInput.value){
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth()+1).padStart(2,'0');
+      const d = String(today.getDate()).padStart(2,'0');
+      dateInput.value = `${y}-${m}-${d}`;
+    }
+  }catch(_){/* sessiz */}
+
+  // Ekle butonu
+  if(btn){
+    btn.onclick = async ()=>{
+      const dateVal = document.getElementById('expDate')?.value || '';
+      const subVal  = document.getElementById('expSubSel')?.value || '';
+      const amtVal  = document.getElementById('expAmount')?.value || '';
+      const noteVal = document.getElementById('expNote')?.value || '';
+
+      const infoEl = document.getElementById('expAddInfo');
+      function setInfo(t){ if(infoEl) infoEl.textContent = t; }
+
+      // Validasyon
+      const dateISO = dateToISO(dateVal);
+      if(!dateISO){ setInfo('Lütfen bir tarih seçin (YYYY-AA-GG).'); return; }
+      if(!subVal){ setInfo('Alt kategori seçin.'); return; }
+      const amountTRY = parseTL(amtVal);
+      if(!amountTRY || amountTRY<=0){ setInfo('Tutar (₺) girin.'); return; }
+
+      try{
+        setInfo('Gönderiliyor…');
+        // Optional UX: kategori eşleşmesi yoksa bilgi ver
+        if(!EXP_SUBMAP[subVal]){
+          setInfo('Gönderiliyor… (kategori eşleşmesi bulunamadı, FinalSubcategory=subcat yazılacak)');
+        }
+        const msg = await appendExpenseRow({ dateISO, subcat: subVal, amountTRY, note: noteVal });
+        setInfo(`✓ Eklendi • ${msg||'Sheet güncellendi'}`);
+        applyExpenseToLoans({ amountTRY, subcat: subVal, note: noteVal });
+        // Gerekirse cache’i kirletme & ekrana tazeleme
+        try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+        try{ if(typeof refreshAll === 'function') refreshAll(); }catch(_){}
+      }catch(err){
+        setInfo(`⚠️ Hata: ${err && err.message ? err.message : err}\n— Olası nedenler: Web App URL hatalı, yayın yapılmadı/yeni versiyon seçilmedi veya erişim izni (Anyone) kapalı.`);
+      }
+    };
+  }
+}
+
+// Sayfa yüklenince hazırla (router çalıştıktan sonra da çağrılırsa sorun yok)
+document.addEventListener('DOMContentLoaded', ()=> {
+  try{ initExpenseEntryUI(); }catch(_){}
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // 300ms sonra bir kere çek (UI render’dan sonra gelsin)
+  setTimeout(refreshFundQuotes, 300);
+
+  // Ekstra: Çift tıkla anlık güncelle
+  ['fi5UnitInput','sasUnitInput','isyUnitInput'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el){
+      el.title = 'Çift tıkla: sunucudan en son birim fiyatı çek';
+      el.addEventListener('dblclick', refreshFundQuotes);
+    }
+  });
+});
+
+/* ================== LOANS & PENDING (STATE + UI) ================== */
+/* Kalıcı durum (localStorage) şeması */
+const LOANS_KEY = 'popdog_loans_state';
+const defaultLoansState = {
+  loans: {
+    biz: {                    // Taksitli Ticari
+      remainTRY: 2719938.78,
+      paid: 5, total: 24,
+      instTRY: 143154.67,
+      principalTRY: 2000000,
+      monthlyRate: 0.04640833
+    },
+    car: {                    // Taksitli Araç
+      remainTRY: 1453127.86,
+      paid: 9, total: 24,
+      instTRY: 96875.20,
+      principalTRY: 1500000,
+      monthlyRate: 0.03666666
+    }
+  },
+  zeeAwaitUSD: [
+    { id:'YK#033',   usd: 4626.02,  paid:true },
+    { id:'YK#034',   usd: 39425.33, paid:false },
+    { id:'YK#034.1', usd: 11827.00, paid:false },
+    { id:'YK#034.2', usd: 27597.00, paid:false },
+    { id:'YK#035',   usd: 37589.19, paid:false },
+    { id:'YK#035.1', usd: 11276.76, paid:false },
+    { id:'YK#035.2', usd: 26312.43, paid:false },
+  ],
+  demoBank: {
+  goldGram: 169,
+  gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
+  fi5Units: 565,
+  fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0,  // kullanıcı girecek (birim fiyat)
+  sasUnits: 114236,
+  sasUnitTRY: Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0,
+  isyUnits: 2530000,
+  isyUnitTRY: Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0
+}
+};
+
+function getLoansState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
+    if (s && typeof s==='object') return s;
+  }catch(_){}
+  return structuredClone(defaultLoansState);
+}
+function setLoansState(st){
+  try{ localStorage.setItem(LOANS_KEY, JSON.stringify(st)); }catch(_){}
+}
+
+/* Yardımcı: yaklaşık eşleşme (taksit sayısı tahmini) */
+function approxInstallments(paidAmount, instAmount){
+  if (!instAmount) return 1;
+  const k = Math.round(paidAmount / instAmount);
+  return Math.max(1, k);
+}
+
+/* Zee ID yakalama: not metninde YK#... varsa */
+function extractZeeIdFromNote(note){
+  if(!note) return '';
+  const m = String(note).match(/YK#\d+(?:\.\d+)?/i);
+  return m ? m[0].toUpperCase() : '';
+}
+
+/* USD tutarı nottan yakalama: $ 12,345.67 gibi */
+function extractUSDFromNote(note){
+  if(!note) return 0;
+  const m = String(note).match(/\$?\s*([\d,]+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const s = m[1].replace(/,/g,'');
+  const v = Number(s);
+  return isNaN(v) ? 0 : v;
+}
+
+/* TRY↔USD yardımcıları (mevcut koddaki oranları kullanır) */
+function tryPerUsd(){
+  // varsa localStorage tpu, yoksa KPI’dan türetilen
+  const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+  if (tpu>0) return tpu;
+  const derived = deriveTryPerUsdFromKPI();
+  return derived || 0;
+}
+function renderLoansBlock(){
+  try{
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {});
+    const loans = st.loans || {};
+
+    function applyLoan(prefix, loan){
+      if (!loan) return;
+      const total = Number(loan.total || 0);
+      const paid  = Number(loan.paid  || 0);
+      const inst  = Number(loan.instTRY || 0);
+      const remain= Number(loan.remainTRY || 0);
+      const princ = Number(loan.principalTRY || 0);
+      const rate  = loan.monthlyRate;
+
+      const id = (s)=> document.getElementById(prefix + s);
+
+      const badge = id('PaidBadge');
+      if (badge) badge.textContent = `${paid}/${total}`;
+
+      const remainEl = id('Remain');
+      if (remainEl) {
+        const calcRemain = remain > 0 ? remain : Math.max(0, (total - paid) * inst);
+        remainEl.textContent = numberTL(calcRemain);
+      }
+
+      const instEl = id('Inst');
+      if (instEl) instEl.textContent = numberTL(inst);
+
+      const princEl = id('Principal');
+      if (princEl) {
+        const calcPrinc = princ > 0 ? princ : inst * total;
+        princEl.textContent = numberTL(calcPrinc);
+      }
+
+      const rateEl = id('Rate');
+      if (rateEl) {
+        if (rate != null && rate !== '' && !isNaN(Number(rate))) {
+          rateEl.textContent = `${Number(rate).toFixed(2)}%`;
+        } else {
+          rateEl.textContent = '–';
+        }
+      }
+
+      const bar = id('Bar');
+      if (bar){
+        const pct = total > 0 ? Math.max(0, Math.min(100, (paid / total) * 100)) : 0;
+        bar.style.width = `${pct.toFixed(1)}%`;
+      }
+    }
+
+    // 3 kredi: biz, car, biz2
+    applyLoan('loanBiz',  loans.biz);
+    applyLoan('loanCar',  loans.car);
+    applyLoan('loanBiz2', loans.biz2);
+
+    // Zee.Dog Bekleyen Ödemeler tablosu
+    const tbody = document.getElementById('tblZeeAwait');
+    if (tbody){
+      const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
+      const list = Array.isArray(st.zeeAwait) && st.zeeAwait.length ? st.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
+
+      if (!list.length){
+        // 6 kolon: ID, Tutar(USD), ≈TRY, Ödenen, Kalan, Durum
+        tbody.innerHTML = '<tr><td class="hint py-2" colspan="6">Kayıt bulunamadı.</td></tr>';
+      } else {
+        const rows = list.map(it => {
+          const usd       = Number(it.usd || 0);
+          const paidUSD   = Number(it.paidUSD || 0);
+          const remainUSD = ('remainUSD' in it)
+            ? Number(it.remainUSD || 0)
+            : Math.max(0, usd - paidUSD);
+
+          const tryVal = (typeof it.try === 'number' && it.try > 0)
+            ? it.try
+            : (fx > 0 ? usd * fx : 0);
+
+          let statusText = 'Bekliyor';
+          let badgeCls   = 'badge-wait';
+
+          if (usd > 0 && remainUSD <= 0.01){
+            statusText = 'Ödendi';
+            badgeCls   = 'badge-paid';
+          } else if (paidUSD > 0 && remainUSD > 0.01){
+            statusText = 'Kısmi';
+            badgeCls   = 'badge-wait';
+          }
+
+          const paidText   = paidUSD   > 0 ? numberUSD(paidUSD)     : '–';
+          const remainText = remainUSD > 0.01 ? numberUSD(remainUSD) : '–';
+
+          return `
+            <tr>
+              <td class="py-1 pr-3">${it.id || ''}</td>
+              <td class="py-1 pr-3 text-right">${usd > 0 ? numberUSD(usd) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${tryVal > 0 ? numberTL(tryVal) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${paidText}</td>
+              <td class="py-1 pr-3 text-right">${remainText}</td>
+              <td class="py-1 pr-0">
+                <span class="${badgeCls}">${statusText}</span>
+              </td>
+            </tr>`;
+        }).join('');
+        tbody.innerHTML = rows;
+      }
+    }
+  }catch(e){
+    console.warn('renderLoansBlock() error:', e);
+  }
+}
+
+ 
+
+  window.renderLoansBlock = renderLoansBlock;
+
+
+
+  // Altın
+  const gInput = document.getElementById('goldGramInput');
+  if (gInput){
+    if (!gInput.value && st.demoBank.gramTRY){ gInput.value = String(st.demoBank.gramTRY); }
+
+    const applyGoldInput = ()=>{
+      const v = parseTL(gInput.value);
+      const s = getLoansState();
+      s.demoBank.gramTRY = v;
+      setLoansState(s);
+      try{
+        localStorage.setItem('popdog_gold_gram_try', String(v));
+        localStorage.setItem('popdog_gold_updated_at', String(Date.now()));
+      }catch(_){}
+      renderLoansBlock();
+    };
+
+    // Değer değişip input'tan çıkıldığında çalışsın
+    gInput.addEventListener('change', applyGoldInput);
+
+    // Enter'a basınca da aynı işlemi yap
+    gInput.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter'){
+        ev.preventDefault();
+        applyGoldInput();
+        try{ gInput.blur(); }catch(_){}
+      }
+    });
+  }
+  const gramPrice = st.demoBank.gramTRY || Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0;
+  const goldTotal = gramPrice ? gramPrice * st.demoBank.goldGram : 0;
+  document.getElementById('goldTotal').textContent = goldTotal ? numberTL(goldTotal) : '–';
+  {
+    const GOLD_UPDATED_AT_KEY = 'popdog_gold_updated_at';
+    const ts = Number(localStorage.getItem(GOLD_UPDATED_AT_KEY) || 0);
+    const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+    const suffix = when ? ` • Güncellendi: ${when}` : '';
+    document.getElementById('goldNote').textContent = gramPrice
+      ? `Hesap: ${st.demoBank.goldGram} gr × ${numberTL(gramPrice)}${suffix}`
+      : 'Gram fiyatı girin';
+  }
+// FI5 (QNB Portföy Para Piyasası) — birim fiyat × adet
+const fInput = document.getElementById('fi5UnitInput');
+if (fInput){
+  if (!fInput.value && st.demoBank.fi5UnitTRY){ fInput.value = String(st.demoBank.fi5UnitTRY); }
+
+  const applyFi5Input = ()=>{
+    const v = parseTL(fInput.value);
+    const s = getLoansState();
+    s.demoBank.fi5UnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_fi5_unit_try', String(v));
+    localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+
+  fInput.addEventListener('change', applyFi5Input);
+  fInput.addEventListener('keydown', (ev)=>{
+    if (ev.key === 'Enter'){
+      ev.preventDefault();
+      applyFi5Input();
+      try{ fInput.blur(); }catch(_){}
+    }
+  });
+}
+
+// === FI5 total (robust parse + sanity cap) ===
+const fi5Inp = document.getElementById('fi5UnitInput');
+let fi5Unit = fi5Inp ? parseTL(fi5Inp.value) : 0;
+if (!(fi5Unit > 0 && fi5Unit < 2000)) {
+  fi5Unit = 0; // kirli/zehirli değeri yok say
+}
+// adet güvenli: state’ten al, yoksa 565
+const fi5Qty = (st && st.demoBank && Number(st.demoBank.fi5Units)) || 565;
+
+const fi5TotalVal = fi5Unit * fi5Qty;
+const fi5TotalEl = document.getElementById('fi5Total');
+if (fi5TotalEl) fi5TotalEl.textContent = fi5TotalVal ? numberTL(fi5TotalVal) : '–';
+
+{
+  const ts = Number(localStorage.getItem('popdog_fi5_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('fi5Note');
+  if (noteEl) noteEl.textContent = fi5Unit
+    ? `Hesap: ${fi5Qty} adet × ${numberTL(fi5Unit)}${suffix}`
+    : 'Birim fiyat girin';
+}
+// Remove old FI5 total block if present
+// (no action needed if not present)
+  // SAS Fonu
+const sasInput = document.getElementById('sasUnitInput');
+if (sasInput){
+  if (!sasInput.value && st.demoBank.sasUnitTRY){ sasInput.value = String(st.demoBank.sasUnitTRY); }
+  sasInput.onchange = ()=>{
+    const v = parseTL(sasInput.value);
+    const s = getLoansState();
+    s.demoBank.sasUnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_sas_unit_try', String(v));
+    localStorage.setItem('popdog_sas_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+}
+const sasUnit = st.demoBank.sasUnitTRY || Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0;
+const sasQty  = st.demoBank.sasUnits || 114236;
+const sasSum  = sasUnit ? (sasUnit * sasQty) : 0;
+const sasTotalEl = document.getElementById('sasTotal');
+if (sasTotalEl) sasTotalEl.textContent = sasSum ? numberTL(sasSum) : '–';
+{
+  const ts = Number(localStorage.getItem('popdog_sas_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('sasNote');
+  if (noteEl) noteEl.textContent = sasUnit
+    ? `Hesap: ${sasQty} adet × ${numberTL(sasUnit)}${suffix}`
+    : 'Birim fiyat girin';
+}
+
+// İŞY Fonu
+const isyInput = document.getElementById('isyUnitInput');
+if (isyInput){
+  if (!isyInput.value && st.demoBank.isyUnitTRY){ isyInput.value = String(st.demoBank.isyUnitTRY); }
+  isyInput.onchange = ()=>{
+    const v = parseTL(isyInput.value);
+    const s = getLoansState();
+    s.demoBank.isyUnitTRY = v;
+    setLoansState(s);
+    localStorage.setItem('popdog_isy_unit_try', String(v));
+    localStorage.setItem('popdog_isy_updated_at', String(Date.now()));
+    renderLoansBlock();
+  };
+}
+const isyUnit = st.demoBank.isyUnitTRY || Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0;
+const isyQty  = st.demoBank.isyUnits || 2530000;
+const isySum  = isyUnit ? (isyUnit * isyQty) : 0;
+const isyTotalEl = document.getElementById('isyTotal');
+if (isyTotalEl) isyTotalEl.textContent = isySum ? numberTL(isySum) : '–';
+{
+  const ts = Number(localStorage.getItem('popdog_isy_updated_at') || 0);
+  const when = ts ? new Date(ts).toLocaleString('tr-TR') : '';
+  const suffix = when ? ` • Güncellendi: ${when}` : '';
+  const noteEl = document.getElementById('isyNote');
+  if (noteEl) noteEl.textContent = isyUnit
+    ? `Hesap: ${isyQty} adet × ${numberTL(isyUnit)}${suffix}`
+    : 'Birim fiyat girin';
+}
+
+
+/* === Otomatik güncelleme: gider eklendiğinde çağırılacak ===
+   - subcat "Taksitli Ticari Kredi" → loans.biz
+   - subcat "Taksitli Araç Kredisi" → loans.car
+   - Zee.Dog ödemesi (not veya kategori) → eşleşen YK# id “paid”
+*/
+function applyExpenseToLoans({ amountTRY, subcat, note }){
+  const st = getLoansState();
+  const s = (subcat||'').toLowerCase();
+
+  // 1) Kredi taksitleri
+  if (s.includes('araç kredi') || s.includes('arac kredi')) {
+    // Araç Kredisi
+    const inst = st.loans.car.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.car.remainTRY = Math.max(0, (st.loans.car.remainTRY || 0) - amountTRY);
+    st.loans.car.paid = Math.min(st.loans.car.total, (st.loans.car.paid || 0) + n);
+
+  } else if (s.includes('kredi 2') || s.includes('ticari kredi 2')) {
+    // 2. Ticari Kredi (loanBiz2)
+    const inst = st.loans.biz2.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.biz2.remainTRY = Math.max(0, (st.loans.biz2.remainTRY || 0) - amountTRY);
+    st.loans.biz2.paid = Math.min(st.loans.biz2.total, (st.loans.biz2.paid || 0) + n);
+
+  } else if (s.includes('kredi')) {
+    // 1. Ticari Kredi (loanBiz)
+    const inst = st.loans.biz.instTRY || 0;
+    const n = approxInstallments(amountTRY, inst);
+    st.loans.biz.remainTRY = Math.max(0, (st.loans.biz.remainTRY || 0) - amountTRY);
+    st.loans.biz.paid = Math.min(st.loans.biz.total, (st.loans.biz.paid || 0) + n);
+  }
+
+  // 2) Zee.Dog ödemesi: not içinde YK#xxx varsa doğrudan işaretle
+  let marked = false;
+  const idFromNote = extractZeeIdFromNote(note);
+  if (idFromNote){
+    st.zeeAwaitUSD.forEach(z => {
+      if (z.id.toUpperCase() === idFromNote) { z.paid = true; marked = true; }
+    });
+  } else {
+    // notta $ tutar varsa veya TRY tutarı USD’ye bölününce yaklaşık eşleşiyorsa
+    const usdNote = extractUSDFromNote(note);
+    const tpu = tryPerUsd();
+    const usdFromTry = tpu ? (amountTRY / tpu) : 0;
+    const candidates = st.zeeAwaitUSD.filter(z => !z.paid);
+    const matchBy = (val)=> candidates.find(z => Math.abs(z.usd - val) <= Math.max(5, z.usd*0.02)); // ±2% veya min $5
+    let hit = null;
+    if (usdNote) hit = matchBy(usdNote);
+    if (!hit && usdFromTry) hit = matchBy(usdFromTry);
+    if (hit){ hit.paid = true; marked = true; }
+  }
+
+  setLoansState(st);
+  renderLoansBlock();
+  return true;
+}
+
+/* === Başlat === */
+(function initLoans(){
+  // İlk render
+  try{ if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', renderLoansBlock, { once:true }); } else { renderLoansBlock(); } }catch(_){}
+})();
+
+/* === GOLD AUTO PRICE (daily refresh) =============================== */
+(function(){
+  const GOLD_FETCH_URL_KEY   = 'popdog_gold_fetch_url';       // optional override URL set by you
+  const GOLD_UPDATED_AT_KEY  = 'popdog_gold_updated_at';
+  const GOLD_GRAM_STORAGEKEY = 'popdog_gold_gram_try';        // already used elsewhere
+
+  // Consider price stale after 22 hours
+  function isStale(ts){
+    if(!ts) return true;
+    const ageMs = Date.now() - Number(ts);
+    return !(ageMs > 0) || ageMs > 22*60*60*1000;
+  }
+
+
+  // Source #0: Optional custom endpoint you can define in localStorage
+  async function fetchFromCustom(){
+    const u = localStorage.getItem(GOLD_FETCH_URL_KEY) || '';
+    if(!u) throw new Error('no custom');
+    const r = await fetch(u, { cache:'no-store' });
+    if(!r.ok) throw new Error('custom http '+r.status);
+    const j = await r.json();
+    // Accept a few shapes: {priceTRY}, {gramTRY}, {sell}, {Satış}
+    const s = (j.priceTRY ?? j.gramTRY ?? j.sell ?? j.selling ?? j['Satış'] ?? j.price ?? '').toString().replace('.', '').replace(',', '.');
+    const v = Number(s);
+    if(!v || isNaN(v)) throw new Error('custom parse');
+    return v;
+  }
+
+  async function tryFetch(){
+    try{
+      // If a custom endpoint is defined in localStorage, use it as the only automated source.
+      const v = await fetchFromCustom();
+      if (v && !isNaN(v)) return v;
+      throw new Error('custom source invalid');
+    }catch(e){
+      // No automatic external fallbacks anymore: user can always type the gram price manually.
+      throw new Error('Gold auto source failed (custom endpoint only).');
+    }
+  }
+
+  async function updateGold(force=false){
+    try{
+      // If user just typed a price, do not override immediately unless force=true.
+      const ts = Number(localStorage.getItem(GOLD_UPDATED_AT_KEY) || 0);
+      if(!force && !isStale(ts)) return; // still fresh
+
+      const price = await tryFetch();
+      if(!price || isNaN(price)) return;
+
+      // Persist
+      localStorage.setItem(GOLD_GRAM_STORAGEKEY, String(price));
+      localStorage.setItem(GOLD_UPDATED_AT_KEY, String(Date.now()));
+
+      // Also sync Loans state if it exists
+      try{
+        const s = getLoansState();
+        if(s && s.demoBank){ s.demoBank.gramTRY = price; setLoansState(s); }
+      }catch(_){ /* ignore */ }
+
+      // Reflect in input instantly
+      const gInput = document.getElementById('goldGramInput');
+      if(gInput){ gInput.value = String(price); }
+      // Re-render card
+      try{ renderLoansBlock(); }catch(_){}
+    }catch(err){
+      // Silent failure is okay; user can still type manually.
+      console.warn('Gold auto price update failed:', err && err.message ? err.message : err);
+    }
+  }
+
+  // Kick on load and then every 6 hours
+  try{
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', ()=>{ updateGold(false); setInterval(updateGold, 6*60*60*1000); }, { once:true });
+    } else {
+      updateGold(false);
+      setInterval(updateGold, 6*60*60*1000);
+    }
+  }catch(_){ /* ignore */ }
+
+  // Expose a small manual refresh for debugging
+  window.refreshGoldNow = ()=> updateGold(true);
+})();
+
+/* ================== INVENTORY & ORDERS HELPERS ================== */
+const SALES_WINDOW_OPTIONS = [30,90,120,180];
+let salesWindowDays = Number(localStorage.getItem('popdog_sales_window_days') || '90');
+if (!SALES_WINDOW_OPTIONS.includes(salesWindowDays)) salesWindowDays = 90;
+function initSalesWindowSelector(){
+  const sel = document.getElementById('salesWindowSelect');
+  if(!sel) return;
+  // Set current value
+  sel.value = String(salesWindowDays);
+  sel.onchange = () => {
+    const v = Number(sel.value);
+    if(!SALES_WINDOW_OPTIONS.includes(v)) return;
+    salesWindowDays = v;
+    localStorage.setItem('popdog_sales_window_days', String(v));
+    renderStockBlock();
+  };
+}
+/* inventory_value toplam özet */
+function summarizeInventoryValue(rows){
+  // başlık varyasyonlarını tolere et
+  let valCost = 0, valPrice = 0;
+  for(const r of rows || []){
+    const costRaw  = r['Value@Cost']  ?? r['Value @Cost']  ?? r['CostValue']   ?? r['Value_Cost']  ?? 0;
+    const priceRaw = r['Value@Price'] ?? r['Value @Price'] ?? r['SalesValue']  ?? r['Value_Price'] ?? 0;
+    valCost  += parseTL(costRaw);
+    valPrice += parseTL(priceRaw);
+  }
+  return { valCost, valPrice };
+}
+
+// Shopify "Created at" tarihlerini sağlam parse et
+function parseShopifyDate(s){
+  if(!s) return null;
+  let t = String(s).trim();
+
+  // "2025-09-07 12:34:56 +0300" → "+03:00" biçimine çevir
+  if(/\s\+\d{4}$/.test(t)){
+    t = t.replace(/\s\+(\d{2})(\d{2})$/, (m,h,mn)=> `+${h}:${mn}`);
+  }
+  // "... UTC" → Z
+  if(/\sUTC$/i.test(t)){ t = t.replace(/\sUTC$/i,'Z'); }
+
+  // "YYYY-MM-DD HH:mm:ss" → "YYYY-MM-DDTHH:mm:ss"
+  if(/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}/.test(t)){
+    t = t.replace(' ', 'T');
+  }
+
+  // dd/mm/yyyy veya dd.mm.yyyy gibi olursa
+  const m = t.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+  if(m){
+    let dd=+m[1], mm=+m[2], yy=+m[3]; if(yy<100) yy+=2000;
+    t = `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}T00:00:00Z`;
+  }
+
+  const d = new Date(t);
+  return isNaN(+d) ? null : d;
+}
+
+// localStorage→orders okurken tarihleri Date'e yeniden çevir
+function getOrdersCache(){
+  const raw = JSON.parse(localStorage.getItem('popdog_orders_cache') || '[]');
+  return raw.map(o => ({
+    sku: (o.sku||'').trim(),
+    qty: Number(o.qty)||0,
+    price: parseTL(o.price||0),
+    date: o.date ? new Date(o.date) : null  // <- rehydrate
+  })).filter(o => o.sku && o.qty>0 && o.date && !isNaN(+o.date));
+}
+
+/* stok listesi içinden (₺ satış değeri bazlı) top N */
+function topStockSKUs(rows, n=10){
+  const arr = (rows||[]).map(r=>({
+    sku: String(r['SKU']||'').trim(),
+    title: r['Title'] || '',
+    units: parseTL(r['TotalUnits'] || r['On hand total'] || 0),
+    unitCost: parseTL(r['UnitCost'] || 0),
+    unitPrice: parseTL(r['UnitPrice'] || 0),
+    valueCost: parseTL(r['Value@Cost'] || r['Value @Cost'] || 0),
+    valuePrice: parseTL(r['Value@Price']|| r['Value @Price']|| 0),
+  }));
+  return arr.filter(x=>x.sku && x.units>0)
+            .sort((a,b)=> b.valuePrice - a.valuePrice)
+            .slice(0,n);
+}
+
+/* Shopify orders + orders_clean (buildAll) uyumlu mapper */
+function mapOrderRow(r){
+  // SKU alias’ları: Shopify (Lineitem sku / SKU / Variant SKU) + orders_clean (sku)
+  const sku = (r['Lineitem sku'] || r['SKU'] || r['Variant SKU'] || r['sku'] || '').toString().trim();
+
+  // Qty alias’ları: Shopify (Lineitem quantity / Quantity / Qty) + orders_clean (qty)
+  const qty = parseInt(r['Lineitem quantity'] || r['Quantity'] || r['Qty'] || r['qty'] || 0, 10) || 0;
+
+  // Price (opsiyonel) – gerekirse; orders_clean’de 'price'
+  const price = parseTL(r['Lineitem price'] || r['Price'] || r['price'] || 0);
+
+  // Tarih: Shopify (Created at / …) + orders_clean (date)
+  const rawDate = r['Created at'] || r['Created At'] || r['Created at (UTC)'] || r['Processed at'] || r['Paid at'] || r['Fulfilled at'] || r['date'] || '';
+  const date = parseShopifyDate(rawDate);
+
+  return { sku, qty, price, date };
+}
+
+/* stok yaşlandırma (son satışa göre gün farkı) */
+function stockAging(inventoryRows, orderRows){
+  const today = new Date();
+  const lastSaleMap = {};
+  (orderRows||[]).forEach(o=>{
+    if(!o || !o.sku || !o.date) return;
+    if(!lastSaleMap[o.sku] || o.date > lastSaleMap[o.sku]) lastSaleMap[o.sku] = o.date;
+  });
+
+  const buckets = { '0-30':0, '31-60':0, '61-90':0, '90+':0 };
+  const bucketsVal = { '0-30':0, '31-60':0, '61-90':0, '90+':0 };
+  const ages = [];
+
+  (inventoryRows||[]).forEach(r=>{
+    const sku = String(r['SKU']||'').trim();
+    const units = parseTL(r['TotalUnits']||0);
+    const valCost = parseTL(r['Value@Cost']||r['Value @Cost']||0);
+    if(!sku || units<=0) return;
+    const last = lastSaleMap[sku];
+    const diff = last ? Math.floor((today-last)/(1000*60*60*24)) : 9999; // hiç satmamışsa 9999
+    ages.push(diff);
+
+    let bucket = '90+';
+    if(diff<=30) bucket='0-30';
+    else if(diff<=60) bucket='31-60';
+    else if(diff<=90) bucket='61-90';
+    buckets[bucket]+=units;
+    bucketsVal[bucket]+=valCost;
+  });
+
+  const sorted = ages.sort((a,b)=>a-b);
+  const medianAge = sorted.length ? sorted[Math.floor(sorted.length/2)] : 0;
+  return { buckets, bucketsVal, medianAge };
+}
+
+/* DIO: Days of Inventory = On-hand / (günlük satış ort.) */
+function daysOfInventory(inventoryRows, orderRows, days=60){
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - days*24*60*60*1000);
+  let totalUnitsSold=0;
+  (orderRows||[]).forEach(o=>{
+    if(!o.date || isNaN(+o.date) || o.date<cutoff) return;
+    totalUnitsSold += (o.qty||0);
+  });
+  const dailyAvg = totalUnitsSold / (days||1);
+  const totalOnHand = (inventoryRows||[]).reduce((a,r)=> a + parseTL(r['TotalUnits']||0), 0);
+  return dailyAvg>0 ? (totalOnHand/dailyAvg) : null;
+}
+
+/* Stok tablolarını ve KPI’ları render et */
+function renderStockBlock(){
+  // cache’lerden oku
+  const invRows   = JSON.parse(localStorage.getItem('popdog_inv_cache')   || '[]');
+  const ordersMap = getOrdersCache();
+
+  // 1) Stok değeri KPI’ları
+  const inv = summarizeInventoryValue(invRows);
+  document.getElementById('kpiInvCost').textContent  = numberTL(inv.valCost);
+  document.getElementById('kpiInvPrice').textContent = numberTL(inv.valPrice);
+
+  // USD equivalents (using latest fetched fxRateUSDPerTRY)
+  try {
+    const costUsdEl  = document.getElementById('kpiInvCost_USD');
+    const priceUsdEl = document.getElementById('kpiInvPrice_USD');
+    if (costUsdEl) {
+      if (fxRateUSDPerTRY) {
+        costUsdEl.textContent  = `≈ ${numberUSD(inv.valCost * fxRateUSDPerTRY)} USD`;
+      } else {
+        costUsdEl.textContent  = '≈ – USD';
+      }
+    }
+    if (priceUsdEl) {
+      if (fxRateUSDPerTRY) {
+        priceUsdEl.textContent = `≈ ${numberUSD(inv.valPrice * fxRateUSDPerTRY)} USD`;
+      } else {
+        priceUsdEl.textContent = '≈ – USD';
+      }
+    }
+  } catch (e) {
+    // silent
+  }
+
+  // 1.c) Türetilmiş tutarlar: Maliyet +%65 (Vergi+Navlun) ve Satış KDV Hariç (−%20)
+  try {
+    const costPlus = inv.valCost * 1.65;           // +%65 eklendi
+    const priceEx  = inv.valPrice / 1.20;          // %20 KDV çıkartıldı
+
+    const c65El      = document.getElementById('kpiInvCost_65');
+    const c65UsdEl   = document.getElementById('kpiInvCost_65_USD');
+    const exVatEl    = document.getElementById('kpiInvPrice_exVAT');
+    const exVatUsdEl = document.getElementById('kpiInvPrice_exVAT_USD');
+
+    if (c65El)    c65El.textContent    = numberTL(costPlus);
+    if (exVatEl)  exVatEl.textContent  = numberTL(priceEx);
+
+    if (c65UsdEl) {
+      c65UsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(costPlus * fxRateUSDPerTRY)} USD` : '≈ – USD';
+    }
+    if (exVatUsdEl) {
+      exVatUsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(priceEx * fxRateUSDPerTRY)} USD` : '≈ – USD';
+    }
+  } catch (e) { /* silent */ }
+
+  // 1.b) Toplam Ürün Adedi + depo bazında dağılım (Thrones / Caddebostan)
+  try {
+    // toplam on-hand (SKU bazında TotalUnits)
+    const totalUnitsAll = (invRows || []).reduce((acc, r) => acc + parseTL(r['TotalUnits'] || 0), 0);
+
+    // location sütunlarını tahmin et: Title ile TotalUnits arasındaki başlıklar
+    let thronesUnits = 0, caddeUnits = 0;
+    if (Array.isArray(invRows) && invRows.length) {
+      const hdrs = Object.keys(invRows[0] || {});
+      const iTitle = hdrs.indexOf('Title');
+      const iTotal = hdrs.indexOf('TotalUnits');
+      const locCols = (iTitle >= 0 && iTotal > iTitle) ? hdrs.slice(iTitle + 1, iTotal) : [];
+
+      invRows.forEach(row => {
+        locCols.forEach(col => {
+          const v = parseTL(row[col] || 0);
+          const key = (col || '').toLowerCase();
+          if (key.includes('thrones')) thronesUnits += v;
+          if (key.includes('caddebostan') || key.includes('ckm') || key.includes('cadde')) caddeUnits += v;
+        });
+      });
+    }
+
+    const totalEl = document.getElementById('kpiTotalUnits');
+    const noteEl  = document.getElementById('kpiTotalUnitsNote');
+    if (totalEl) totalEl.textContent = `${totalUnitsAll} adet`;
+    if (noteEl)  noteEl.textContent  = `Thrones: ${thronesUnits} • Caddebostan: ${caddeUnits}`;
+  } catch (e) {
+    console.warn('Total units KPI calc error', e);
+  }
+
+  // 2) Top 10 ₺ stok tablosu
+  const top10 = topStockSKUs(invRows, 10);
+  const topTbody = document.getElementById('tblTopStock');
+  topTbody.innerHTML = '';
+  top10.forEach(row=>{
+    // son satış tarihi & yaş (gün)
+    const lastDate = lastSaleDateForSKU(row.sku, ordersMap);
+    const age = lastDate ? Math.floor((Date.now() - lastDate.getTime())/(1000*60*60*24)) : '—';
+    const lastStr = lastDate ? lastDate.toISOString().slice(0,10) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="py-2 pr-4">${row.sku}</td>
+      <td class="py-2 pr-4">${row.title||''}</td>
+      <td class="py-2 pr-4 text-right">${row.units}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(row.valueCost)}</td>
+      <td class="py-2 pr-4 text-right">${lastStr}</td>
+      <td class="py-2 pr-4 text-right">${age}</td>
+    `;
+    topTbody.appendChild(tr);
+  });
+
+  // 3) 90+ gün elde olanlar (₺ maliyet bazında en büyük 10)
+  const agedList = (invRows||[]).map(r=>{
+    const sku = String(r['SKU']||'').trim();
+    const units = parseTL(r['TotalUnits']||0);
+    const valCost = parseTL(r['Value@Cost']||r['Value @Cost']||0);
+    const last = lastSaleDateForSKU(sku, ordersMap);
+    const age = last ? Math.floor((Date.now()-last.getTime())/(1000*60*60*24)) : 9999;
+    return { sku, title:r['Title']||'', units, valCost, last, age };
+  }).filter(x=>x.units>0 && x.age>=90)
+    .sort((a,b)=> b.valCost - a.valCost)
+    .slice(0,10);
+
+  const agedTbody = document.getElementById('tblAged90');
+  agedTbody.innerHTML='';
+  agedList.forEach(x=>{
+    const lastStr = x.last ? x.last.toISOString().slice(0,10) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="py-2 pr-4">${x.sku}</td>
+      <td class="py-2 pr-4">${x.title}</td>
+      <td class="py-2 pr-4 text-right">${x.units}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(x.valCost)}</td>
+      <td class="py-2 pr-4 text-right">${lastStr}</td>
+      <td class="py-2 pr-4 text-right">${x.age}</td>
+    `;
+    agedTbody.appendChild(tr);
+  });
+
+  // 4) Yaşlandırma KPI’ları (toplam)
+  const aging = stockAging(invRows, ordersMap);
+  const agedQty = aging.buckets['90+'] || 0;
+  const agedVal = aging.bucketsVal['90+'] || 0;
+  document.getElementById('kpiAged90Qty').textContent   = `${agedQty} adet`;
+  document.getElementById('kpiAged90Value').textContent = numberTL(agedVal);
+  document.getElementById('kpiMedianAge').textContent   = `${aging.medianAge} gün`;
+
+  // 5) DIO KPI (60 gün) + notlar
+  const dio60 = daysOfInventory(invRows, ordersMap, 60);
+  const dio30 = daysOfInventory(invRows, ordersMap, 30);
+  const dio90 = daysOfInventory(invRows, ordersMap, 90);
+  document.getElementById('kpiDIO60').textContent = dio60 ? `${dio60.toFixed(0)} gün` : '– gün';
+
+  // Patch: update kpiDIOx with 30g and 90g values
+  const dioxEl = document.getElementById('kpiDIOx');
+  if (dioxEl) dioxEl.textContent = `30g: ${dio30?dio30.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
+
+  // küçük açıklama (title attribute)
+  document.getElementById('kpiDIO60').title =
+    `DIO ~ On-hand / günlük satış ort.\n30g: ${dio30?dio30.toFixed(0):'–'} • 60g: ${dio60?dio60.toFixed(0):'–'} • 90g: ${dio90?dio90.toFixed(0):'–'}`;
+
+  // 6) Satış & Devir listeleri (son SALES_WINDOW_DAYS gün)
+  try {
+    const cutoff = new Date(Date.now() - salesWindowDays*24*60*60*1000);
+    const soldMap = new Map();   // sku -> sold qty (window)
+    const lastMap = new Map();   // sku -> last sale date
+    (ordersMap||[]).forEach(o=>{
+      if(!o || !o.sku || !o.date) return;
+      if(o.date >= cutoff){
+        soldMap.set(o.sku, (soldMap.get(o.sku)||0) + (o.qty||0));
+      }
+      if(!lastMap.get(o.sku) || o.date > lastMap.get(o.sku)){
+        lastMap.set(o.sku, o.date);
+      }
+    });
+
+    // On-hand ve title map’leri
+    const onHandMap = new Map();   // sku -> units
+    const titleMap  = new Map();   // sku -> title
+    (invRows||[]).forEach(r=>{
+      const sku = String(r['SKU']||'').trim();
+      if(!sku) return;
+      const units = parseTL(r['TotalUnits']||r['On hand total']||r['On hand (current)']||0);
+      onHandMap.set(sku, (onHandMap.get(sku)||0) + (units||0));
+      const title = r['Title'] || '';
+      if(title && !titleMap.has(sku)) titleMap.set(sku, title);
+    });
+
+    // Helper: Zee filter
+    const isZee = (sku)=>{
+      const t = (titleMap.get(sku) || '').toLowerCase();
+      return t.includes('zee');
+    };
+    // Helper (already defined above for other lists) kept here for clarity:
+
+    // 6.a En çok satan 5 (satış miktarına göre, sadece Zee)
+    const topSellers = Array.from(soldMap.entries())
+      .map(([sku,qty])=>({sku, qty, title:titleMap.get(sku)||''}))
+      .filter(x => isZee(x.sku))
+      .sort((a,b)=> b.qty - a.qty)
+      .slice(0,5);
+
+    const topSellersTbody = document.getElementById('tblTopSellers');
+    if(topSellersTbody){
+      topSellersTbody.innerHTML = topSellers.map(x=>`
+        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${x.qty}</td></tr>
+      `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
+    }
+
+    // 6.b En az satan 5 (pencerede satış yapanlar arasından en az qty, sadece Zee ve stok>0)
+    const leastSellers = Array.from(soldMap.entries())
+      .map(([sku,qty])=>({sku, qty, title:titleMap.get(sku)||'', on:onHandMap.get(sku)||0}))
+      .filter(x => x.on>0 && isZee(x.sku))
+      .sort((a,b)=> a.qty - b.qty)
+      .slice(0,5);
+
+    const leastSellersTbody = document.getElementById('tblLeastSellers');
+    if(leastSellersTbody){
+      leastSellersTbody.innerHTML = leastSellers.map(x=>`
+        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${x.qty}</td></tr>
+      `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
+    }
+
+    // 6.c Stoğu en hızlı giden 5 (satış hızı: adet/gün, sadece Zee)
+    const winDays = salesWindowDays || 1;
+    const speedArr = Array.from(new Set([...Array.from(soldMap.keys()), ...Array.from(onHandMap.keys())]))
+      .map(sku=>{
+        const sold = soldMap.get(sku)||0;
+        const on   = onHandMap.get(sku)||0;
+        const spd  = sold / winDays; // adet/gün
+        return { sku, title:titleMap.get(sku)||'', speed: spd, onHand:on };
+      })
+      .filter(x=> x.speed>0 && isZee(x.sku))
+      .sort((a,b)=> b.speed - a.speed)
+      .slice(0,5);
+
+    const fastestTbody = document.getElementById('tblFastestMoving');
+    if(fastestTbody){
+      fastestTbody.innerHTML = speedArr.map(x=>`
+        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${x.speed.toFixed(2)}</td><td class="py-1 pr-3 text-right">${x.onHand}</td></tr>
+      `).join('') || '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
+    }
+
+    // 6.d Stokta en uzun süredir kalan 5 (en yaşlı, on-hand > 0, sadece Zee)
+    const staleArr = Array.from(onHandMap.entries()).map(([sku,on])=>{
+      const last = lastMap.get(sku);
+      const age = last ? Math.floor((Date.now()-last.getTime())/(1000*60*60*24)) : 9999;
+      return { sku, title:titleMap.get(sku)||'', age, onHand:on };
+    }).filter(x=> x.onHand>0 && isZee(x.sku))
+      .sort((a,b)=> b.age - a.age)
+      .slice(0,5);
+
+    const staleTbody = document.getElementById('tblMostStale');
+    if(staleTbody){
+      staleTbody.innerHTML = staleArr.map(x=>`
+        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${x.age}</td><td class="py-1 pr-3 text-right">${x.onHand}</td></tr>
+      `).join('') || '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
+    }
+
+    const noteEl = document.getElementById('stockExtraNote');
+    if(noteEl){
+      const today = new Date(); const start = new Date(today.getTime() - salesWindowDays*24*60*60*1000);
+      const fmt = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+      noteEl.textContent = `Pencere: ${fmt(start)} – ${fmt(today)} · Kaynak: orders_raw`;
+    }
+    // 6.e Stokout Riski (≤14 gün): pencere = salesWindowDays
+    try {
+      const riskDays = 14;
+      const days = salesWindowDays || 90;
+      // sold qty per SKU in the selected window
+      const soldMapWin = new Map();
+      const cutoffWin = new Date(Date.now() - days*24*60*60*1000);
+      (ordersMap||[]).forEach(o=>{
+        if(!o || !o.sku || !o.date) return;
+        if(o.date >= cutoffWin){
+          soldMapWin.set(o.sku, (soldMapWin.get(o.sku)||0) + (o.qty||0));
+        }
+      });
+      // on-hand and titles already computed above: onHandMap, titleMap
+      // Only include SKUs where title includes "zee" (case-insensitive)
+      const riskArr = [];
+      onHandMap.forEach((on, sku)=>{
+        const title = titleMap.get(sku) || '';
+        if (!title.toLowerCase().includes('zee')) return;
+        if (on <= 0) return;
+        const sold = soldMapWin.get(sku)||0;
+        const daily = sold / (days||1);
+        if (daily > 0){
+          const remain = on / daily;
+          if (remain <= riskDays){
+            riskArr.push({
+              sku,
+              title: title,
+              onHand: on,
+              daily: daily,
+              remain: remain
+            });
+          }
+        }
+      });
+      // Sort and slice to max 25 entries
+      riskArr.sort((a,b)=> a.remain - b.remain);
+      const riskArrSliced = riskArr.slice(0, 25);
+      const riskTbody = document.getElementById('tblStockoutRisk');
+      if (riskTbody){
+        riskTbody.innerHTML = riskArrSliced.length
+          ? riskArrSliced.map(x => `
+              <tr>
+                <td class="py-2 pr-4">${x.sku}</td>
+                <td class="py-2 pr-4">${x.title}</td>
+                <td class="py-2 pr-4 text-right">${x.onHand}</td>
+                <td class="py-2 pr-4 text-right">${x.daily.toFixed(2)}</td>
+                <td class="py-2 pr-4 text-right">${x.remain.toFixed(1)}</td>
+              </tr>
+            `).join('')
+          : '<tr><td class="hint py-2 pr-4" colspan="5">Riskli ürün bulunmadı.</td></tr>';
+      }
+      const riskLbl = document.getElementById('riskWindowLbl');
+      if (riskLbl) riskLbl.textContent = `${days} gün`;
+    } catch (e) {
+      console.warn('Stockout risk render error', e);
+    }
+
+    // 6.f Stoğu En Fazla Olan (Top 25)
+    try {
+      const largest = (invRows || []).map(r => ({
+        sku: String(r['SKU'] || '').trim(),
+        title: r['Title'] || '',
+        on: parseTL(r['TotalUnits'] || r['On hand total'] || r['On hand (current)'] || 0)
+      }))
+      .filter(x => x.sku && x.on > 0)
+      .sort((a,b) => b.on - a.on)
+      .slice(0, 25);
+
+      const largestTbody = document.getElementById('tblLargestStock');
+      if (largestTbody) {
+        largestTbody.innerHTML = largest.length
+          ? largest.map(x => `
+              <tr>
+                <td class="py-2 pr-4">${x.sku}</td>
+                <td class="py-2 pr-4">${x.title}</td>
+                <td class="py-2 pr-4 text-right">${x.on}</td>
+              </tr>
+            `).join('')
+          : '<tr><td class="hint py-2 pr-4" colspan="3">Veri yok.</td></tr>';
+      }
+    } catch (e) {
+      console.warn('Largest stock render error', e);
+    }
+  } catch(err) {
+    console.warn('Sales/Turnover lists error', err);
+  }
+}
+
+function lastSaleDateForSKU(sku, ordersMap){
+  if(!sku || !Array.isArray(ordersMap)) return null;
+  let last = null;
+  for(const o of ordersMap){
+    if(o.sku!==sku || !o.date) continue;
+    if(!last || o.date>last) last = o.date;
+  }
+  return last;
+}
+function deriveTryPerUsdFromKPI(){
+  try{
+    const tlEl  = document.getElementById('kpiYTD');
+    const usdEl = document.getElementById('kpiYTD_USD');
+    if(!tlEl || !usdEl) return 0;
+
+    const tl  = parseTL(tlEl.textContent || '');
+    // "≈ $12,345 USD" benzeri metinden USD’yi çek
+    const usdText = (usdEl.textContent || '').replace(/≈/g,'').replace(/about/i,'');
+    const usd = parseUSD(usdText);
+
+    if(tl > 0 && usd > 0){
+      const usdPerTry = usd / tl;      // 1 TRY kaç USD
+      const tryPerUsd = 1 / usdPerTry; // 1 USD kaç TRY
+      // cache’le
+      try{
+        localStorage.setItem('popdog_fx_try_per_usd', String(tryPerUsd));
+        localStorage.setItem('popdog_fx_usd_per_try', String(usdPerTry));
+      }catch(e){}
+      return tryPerUsd;
+    }
+    return 0;
+  }catch(e){ return 0; }
+}
+/* ================== REVENUE AGGREGATIONS & UI ================== */
+function buildMonthly(rows){
+  const map = new Map();
+  rows.forEach(r=>{
+    if(!r.Date) return;
+    const d = new Date(r.Date + "T00:00:00Z");
+    if(isNaN(+d)) return;
+    const key = monthKey(d);
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, ckmN=+r["CKM Nakit"]||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
+    const computedTotal = tpt + onl + ckm + trn + hb;
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Total:0 };
+    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Total+=computedTotal;
+    map.set(key, prev);
+  });
+  return Array.from(map.values()).filter(m=>m.Total>0).sort((a,b)=>a.month.localeCompare(b.month));
+}
+
+function buildWeekly(rows){
+  const map = new Map();
+  rows.forEach(r=>{
+    if(!r.Date) return;
+    const d = new Date(r.Date + "T00:00:00Z");
+    if(isNaN(+d)) return;
+    const mon = toMonday(d);
+    const key = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
+    const total = tpt + onl + ckm + trn + hb;
+    const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Total:0 };
+    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Total+=total;
+    map.set(key, prev);
+  });
+  return Array.from(map.values()).sort((a,b)=>a.monday.localeCompare(b.monday));
+}
+
+/* ================== KPIs (Revenue) ================== */
+function setKPIs(monthly){
+  // === KPIs sadece bu yıl (YTD) üzerinden hesaplansın ===
+  const now = new Date();
+  const currentYearReal = now.getFullYear();
+
+  // Bu yılki aylar
+  const ytdRowsReal = (monthly || []).filter(m => m.year === currentYearReal);
+
+  // Eğer bu yıl yoksa: eldeki son yıl
+  const fallbackYear = ytdRowsReal.length
+    ? currentYearReal
+    : ((monthly || []).length ? monthly[(monthly.length - 1)].year : currentYearReal);
+
+  const thisYear = ytdRowsReal.length ? currentYearReal : fallbackYear;
+  const rowsThisYear = (monthly || []).filter(m => m.year === thisYear);
+
+  // Toplam yardımcı sadece seçilen yıl için
+  const sumTY = k => rowsThisYear.reduce((a, r) => a + (r[k] || 0), 0);
+
+  // === YTD Toplam (sadece bu yıl) ===
+  const ytdTotal = sumTY('Total');
+  const elYTD = document.getElementById('kpiYTD');
+  if (elYTD) elYTD.textContent = numberTL(ytdTotal);
+
+  const elYTD_USD = document.getElementById('kpiYTD_USD');
+  if (elYTD_USD) {
+    if (fxRateUSDPerTRY) elYTD_USD.textContent = `≈ ${numberUSD(ytdTotal * fxRateUSDPerTRY)} USD`;
+    else elYTD_USD.textContent = '≈ – USD';
+  }
+
+  // === YTD YoY: geçen yılın aynı ay sayısı ile hizalanmış toplam ===
+  try {
+    const prevYear = thisYear - 1;
+    // Bu yıl var olan ayların MM listesini çıkar
+    const monthsThisYear = rowsThisYear.map(r => r.month.slice(5, 7));
+    const mmSet = new Set(monthsThisYear);
+
+    // Geçen yıl aynı ayların toplamı
+    const prevYtd = (monthly || []).reduce((acc, r) => {
+      if (r.year !== prevYear) return acc;
+      const mm = r.month.slice(5, 7);
+      if (mmSet.has(mm)) acc += (r.Total || 0);
+      return acc;
+    }, 0);
+
+    const yoy = prevYtd ? ((ytdTotal - prevYtd) / prevYtd) : 0;
+    const elYoY = document.getElementById('kpiYTD_YoY');
+    if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy * 100).toFixed(1)}%`;
+  } catch (e) {
+    // sessiz geç
+  }
+
+  // === En büyük kanal + paylar (yalnızca bu yıl) ===
+  const channels = [
+    { k: 'Toptan',      v: sumTY('Toptan') },
+    { k: 'Online',      v: sumTY('Online') },
+    { k: 'CKM',         v: sumTY('CKM') },
+    { k: 'Trendyol',    v: sumTY('Trendyol') },
+    { k: 'Hepsiburada', v: sumTY('Hepsiburada') },
+  ].sort((a, b) => b.v - a.v);
+
+  const totalCh = channels.reduce((a, b) => a + b.v, 0) || 1;
+  const top = channels[0] || { k: '—', v: 0 };
+
+  const kpiTopEl = document.getElementById('kpiTop');
+  if (kpiTopEl) {
+    kpiTopEl.textContent =
+      `${top.k}: ${numberTL(top.v)}  •  ${fxRateUSDPerTRY ? numberUSD(top.v * fxRateUSDPerTRY) : '– USD'}`;
+  }
+
+  const ul = document.getElementById('kpiOthers');
+  if (ul) {
+    ul.innerHTML = '';
+    channels.slice(1).forEach(c => {
+      const li = document.createElement('li');
+      li.textContent = `${c.k}: ${numberTL(c.v)}  •  ${fxRateUSDPerTRY ? numberUSD(c.v * fxRateUSDPerTRY) : '– USD'}`;
+      ul.appendChild(li);
+    });
+  }
+
+  const shareTbl = document.getElementById('kpiShareTbl');
+  if (shareTbl) {
+    shareTbl.innerHTML = channels
+      .map(c => {
+        const pct = (c.v / totalCh) * 100;
+        return `<tr><td>${c.k}</td><td class="text-right">${pct.toFixed(1)}%</td></tr>`;
+      })
+      .join('');
+  }
+
+  // === MoM (bu yıl içindeki son iki ay) ===
+  const rowsSorted = rowsThisYear.slice().sort((a, b) => a.month.localeCompare(b.month));
+  let last = null, prev = null;
+  if (rowsSorted.length >= 2) {
+    last = rowsSorted.at(-1).Total;
+    prev = rowsSorted.at(-2).Total;
+  } else if (rowsSorted.length === 1) {
+    last = rowsSorted[0].Total;
+    prev = 0;
+  }
+
+  const mom = prev ? (last - prev) / prev : 0;
+  const elMoM = document.getElementById('kpiMoM');
+  if (elMoM) {
+    elMoM.textContent = `${(mom * 100).toFixed(1)}%`;
+    elMoM.classList.remove('kpi-up', 'kpi-down');
+    elMoM.classList.add(mom >= 0 ? 'kpi-up' : 'kpi-down');
+  }
+
+  const mLabels = rowsSorted.map(m => m.month);
+  const momNote = document.getElementById('momNote');
+  if (momNote) momNote.textContent = mLabels.length >= 2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
+  // Ensure expenses table re-renders after KPIs (FX may now be derived)
+  try { renderMainExpensesTable(); } catch (e) { /* silent */ }
+}
+
+/* ================== Alerts ================== */
+function buildAlerts(monthly){
+  const alerts = [];
+  if(monthly.length>=2){
+    const mLast = monthly.at(-1), mPrev = monthly.at(-2);
+    const mom = mPrev.Total ? (mLast.Total - mPrev.Total) / mPrev.Total : 0;
+    if(mom < -0.15){ alerts.push({type:'risk', text:`MoM toplam ciro düşüşü ${ (mom*100).toFixed(1) }%`}); }
+    ["Toptan","Online","CKM","Trendyol","Hepsiburada"].forEach(k=>{
+      const r = mPrev[k] ? (mLast[k]-mPrev[k]) / mPrev[k] : 0;
+      if(r < -0.20){ alerts.push({type:'warn', text:`${k} aylık -${(Math.abs(r)*100).toFixed(0)}%`}); }
+    });
+  }
+  const ul = document.getElementById('alertsList'); ul.innerHTML='';
+  if(alerts.length===0){ ul.innerHTML = `<li class="hint">Uyarı yok.</li>`; return; }
+  alerts.forEach(a=>{
+    const li = document.createElement('li');
+    const color = a.type==='risk'?'#ef4444':(a.type==='warn'?'#f59e0b':'#6366f1');
+    li.innerHTML = `<span class="dot" style="background:${color}"></span>${a.text}`;
+    ul.appendChild(li);
+  });
+}
+
+/* ================== Targets ================== */
+function computeAutoTargets(monthly){
+  const byYear = {};
+  monthly.forEach(m => { (byYear[m.year] = byYear[m.year] || []).push(m); });
+  const targets = {};
+  for(const y of Object.keys(byYear)){
+    const arr = byYear[y].sort((a,b)=> a.month.localeCompare(b.month));
+    let running = [];
+    arr.forEach((m, idx) => {
+      if(idx === 0){ targets[m.month] = m.Total; running.push(m.Total); }
+      else { const avg = running.reduce((a,b)=>a+b,0) / running.length; targets[m.month] = avg; running.push(m.Total); }
+    });
+  }
+  return targets;
+}
+function renderTargets(monthly){
+  const autoTargets = computeAutoTargets(monthly);
+  const wrap = document.getElementById('targetsWrap'); 
+  wrap.innerHTML='';
+  monthly.forEach(m=>{
+    const target = autoTargets[m.month] || 0;
+    const p = target ? Math.min(100, Math.round(m.Total/target*100)) : 0;
+    const box = document.createElement('div');
+    box.className = 'glass target-card border border-white/70';
+    box.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="ttl text-slate-700 dark:text-slate-200">${m.month}</div>
+        <div class="val text-slate-800 dark:text-slate-100">${numberTL(m.Total)}</div>
+      </div>
+      <div class="progress-wrap mt-1.5"><div class="progress-bar" style="width:${p}%"></div></div>
+      <div class="sub hint mt-1">Hedef: ${numberTL(target)} • ${p}%</div>
+    `;
+    wrap.appendChild(box);
+  });
+}
+
+/* ================== Charts ================== */
+// === iOS-like frosted glass effect for the pie chart ===
+const glassPie = {
+  id: 'glassPie',
+  beforeDatasetDraw(chart, args, pluginOptions) {
+    if (chart.config.type !== 'pie') return;
+    const { ctx } = chart;
+    ctx.save();
+    // soft drop shadow for segments
+    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate-ish
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 6;
+    ctx.shadowOffsetX = 0;
+  },
+  afterDatasetDraw(chart, args, pluginOptions) {
+    if (chart.config.type !== 'pie') return;
+    const { ctx, chartArea } = chart;
+    // subtle radial highlight over the chart for glass sheen
+    const {left, right, top, bottom} = chartArea;
+    const cx = (left + right) / 2;
+    const cy = (top + bottom) / 2;
+    const r = Math.min(right - left, bottom - top) / 2;
+    const grad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.6, r*0.05, cx, cy, r);
+    grad.addColorStop(0, 'rgba(255,255,255,0.22)');
+    grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.00)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // restore to clear the shadow for other charts
+    ctx.restore();
+  }
+};
+// === iOS-like frosted glass effect for stacked bar chart ===
+const glassBars = {
+  id: 'glassBars',
+  beforeDatasetDraw(chart, args, pluginOptions) {
+    if (chart.config.type !== 'bar') return;
+    const { ctx } = chart;
+    ctx.save();
+    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate shadow
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 6;
+    ctx.shadowOffsetX = 0;
+  },
+  afterDatasetDraw(chart, args, pluginOptions) {
+    if (chart.config.type !== 'bar') return;
+    const { ctx } = chart;
+    try {
+      const ca = chart.chartArea;
+      // If chartArea is not ready (0 size / initial render), just restore once and exit.
+      if (!ca) {
+        try { ctx.restore(); } catch(e) {}
+        return;
+      }
+      const { left, top, right, bottom } = ca;
+
+      // Draw subtle diagonal sheen
+      ctx.save();
+      const grad = ctx.createLinearGradient(left, top, right, bottom);
+      grad.addColorStop(0.0, 'rgba(255,255,255,0.12)');
+      grad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
+      grad.addColorStop(1.0, 'rgba(255,255,255,0.00)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = grad;
+      ctx.fillRect(left, top, right - left, bottom - top);
+      ctx.restore();
+
+      // Restore the save from beforeDatasetDraw (clears shadows)
+      try { ctx.restore(); } catch(e) {}
+    } catch (e) {
+      // On any error, attempt to restore context balance and continue
+      try { ctx.restore(); } catch(_) {}
+    }
+  }
+};
+Chart.register(glassPie);
+Chart.register(glassBars);
+Chart.register(ChartDataLabels);
+let lineChart, pieChart, barChart;
+let monthlyCache = [];
+let yoyEnabled = true;
+function drawCharts(monthly){
+  // ====== Safe helpers & state ======
+  const toNum = (v)=> Number.isFinite(v) ? v : (isNaN(+v) ? 0 : +v);
+
+  // Cache incoming monthly for later re-draws (toggle)
+  monthlyCache = Array.isArray(monthly) ? monthly : [];
+
+  // Eğer hiç veri yoksa: grafikleri güvenle temizle, tabloları "veri yok" göster
+  const safeDestroy = (cVarName) => {
+    try { if (window[cVarName]) { window[cVarName].destroy(); window[cVarName] = null; } } catch(e){}
+  };
+  if (!Array.isArray(monthlyCache) || monthlyCache.length === 0){
+    safeDestroy('lineChart');
+    safeDestroy('barChart');
+    const w1 = document.getElementById('lineTotalTblWrap');
+    const w2 = document.getElementById('barStackTblWrap');
+    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    return;
+  }
+
+  // ==== Build label set for the current year & an aligned prev-year series ====
+  const now = new Date();
+  const currentYear = monthlyCache.length ? monthlyCache[monthlyCache.length - 1].year : now.getFullYear();
+  const prevYear = currentYear - 1;
+
+  const curArr = monthlyCache.filter(r => r.year === currentYear);
+  const labels = Array.isArray(curArr) ? curArr.map(r => r.month) : [];
+
+  // Veri güvenlik kontrolü (label yoksa temizle ve çık)
+  if (!Array.isArray(labels) || labels.length === 0){
+    safeDestroy('lineChart');
+    safeDestroy('barChart');
+    const w1 = document.getElementById('lineTotalTblWrap');
+    const w2 = document.getElementById('barStackTblWrap');
+    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
+    return;
+  }
+
+  // Map prev-year by MM for alignment to current labels
+  const prevMap = {};
+  monthlyCache.forEach(r => {
+    if (r.year === prevYear) {
+      const mm = (r.month || '').slice(5, 7);
+      prevMap[mm] = toNum(prevMap[mm] || 0) + toNum(r.Total || 0);
+    }
+  });
+  const dataCur  = curArr.map(r => toNum(r.Total || 0));
+  const dataPrev = labels.map(m => toNum(prevMap[(m||'').slice(5, 7)] || 0));
+
+  // === Table helpers (inline) ===
+  function renderMonthlyTotalsTable(wrapperId, labelsArr, totalsArr){
+    const wrap = document.getElementById(wrapperId);
+    if(!wrap) return;
+    try{
+      const rows = (labelsArr||[]).map((m,i)=>{
+        const total = toNum(totalsArr[i] || 0);
+        const prev  = i>0 ? toNum(totalsArr[i-1] || 0) : 0;
+        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
+        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
+        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
+        return `
+          <tr>
+            <td class="py-1 pr-3">${m}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(total)}</td>
+            <td class="py-1 text-right ${momCls}">${momStr}</td>
+          </tr>
+        `;
+      });
+      wrap.innerHTML = `
+        <div class="mt-1 overflow-auto">
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">Ay</th>
+                <th class="text-right py-1 pr-3">Toplam</th>
+                <th class="text-right py-1 pr-0">MoM</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
+          </table>
+        </div>`;
+    }catch(e){ /* silent */ }
+  }
+
+  function renderChannelMonthlyTable(wrapperId, labelsArr, curMonthlyArr){
+    const wrap = document.getElementById(wrapperId);
+    if(!wrap) return;
+    try{
+      const rows = (labelsArr||[]).map((m,i)=>{
+        const r   = curMonthlyArr[i] || {};
+        const tpt = toNum(r.Toptan);
+        const onl = toNum(r.Online);
+        const ckm = toNum(r.CKM);
+        const trn = toNum(r.Trendyol);
+        const hb  = toNum(r.Hepsiburada);
+        const total = toNum(r.Total || (tpt + onl + ckm + trn + hb));
+
+        const prevR = i>0 ? (curMonthlyArr[i-1] || {}) : null;
+        const prevT = prevR ? toNum(prevR.Toptan)      : 0;
+        const prevO = prevR ? toNum(prevR.Online)      : 0;
+        const prevC = prevR ? toNum(prevR.CKM)         : 0;
+        const prevTr= prevR ? toNum(prevR.Trendyol)    : 0;
+        const prevH = prevR ? toNum(prevR.Hepsiburada) : 0;
+        const prevTotal = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
+
+        const momPct = (cur, prev) => prev ? ((cur - prev) / prev) * 100 : null;
+        const fmtPct = (v) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(1)}%`;
+        const clsPct = (v) => v==null ? 'hint' : (v>=0 ? 'kpi-up' : 'kpi-down');
+
+        const mT = momPct(tpt, prevT);
+        const mO = momPct(onl, prevO);
+        const mC = momPct(ckm, prevC);
+        const mTr= momPct(trn, prevTr);
+        const mH = momPct(hb,  prevH);
+        const mTot = momPct(total, prevTotal);
+
+        return `
+          <tr>
+            <td class="py-1 pr-3">${m}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(tpt)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mT)}">${fmtPct(mT)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(onl)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mO)}">${fmtPct(mO)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(ckm)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mC)}">${fmtPct(mC)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(trn)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mTr)}">${fmtPct(mTr)}</td>
+
+            <td class="py-1 pr-2 text-right">${numberTL(hb)}</td>
+            <td class="py-1 pr-3 text-right ${clsPct(mH)}">${fmtPct(mH)}</td>
+
+            <td class="py-1 pr-2 text-right font-medium">${numberTL(total)}</td>
+            <td class="py-1 text-right ${clsPct(mTot)}">${fmtPct(mTot)}</td>
+          </tr>
+        `;
+      });
+
+      wrap.innerHTML = `
+        <div class="mt-1 overflow-auto">
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">Ay</th>
+
+                <th class="text-right py-1 pr-2">Toptan</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Online</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">CKM</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Trendyol</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">HB</th>
+                <th class="text-right py-1 pr-3">MoM</th>
+
+                <th class="text-right py-1 pr-2">Toplam</th>
+                <th class="text-right py-1 pr-0">MoM</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
+          </table>
+        </div>`;
+    }catch(e){ /* silent */ }
+  }
+
+  // ========== Line: Aylık Toplam Ciro ==========
+  if (lineChart) { try{ lineChart.destroy(); }catch(e){} lineChart = null; }
+  const lctxEl = document.getElementById('lineTotal');
+  if (!lctxEl || !lctxEl.getContext){
+    // canvas bulunamazsa tabloları yine de bas
+    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
+    return;
+  }
+  const lctx = lctxEl.getContext('2d');
+  const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
+
+  const datasets = [{
+    label:'Bu Yıl',
+    data: dataCur,
+    tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
+    backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
+    pointRadius:3, pointHoverRadius:5
+  }];
+
+  // add prev year overlay if toggled on and we have any values
+  const hasPrevAny = (dataPrev||[]).some(v => toNum(v) > 0);
+  if (yoyEnabled && hasPrevAny) {
+    datasets.push({
+      label:'Geçen Yıl',
+      data: dataPrev,
+      tension:0.35,
+      borderWidth:2,
+      borderDash:[6,4],
+      borderColor:'#94a3b8',
+      pointRadius:0,
+      fill:false
+    });
+  }
+
+  try{
+    lineChart = new Chart(lctx, {
+      type:'line',
+      data:{ labels: labels.map(m => m), datasets },
+      options:{
+        resizeDelay: 200,
+        maintainAspectRatio: false,
+        plugins:{
+          legend:{display:true, position:'bottom'},
+          datalabels:{
+            display:(ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
+              return L.length <= 8;
+            },
+            align:'top', anchor:'end', formatter:(v)=> numberTL(toNum(v)), color:'#64748b', clip:true
+          }
+        },
+        scales:{
+          x:{ ticks:{ maxRotation:0 } },
+          y:{ ticks:{ callback:(v)=> numberTL(toNum(v)) } }
+        }
+      }
+    });
+  }catch(err){
+    console.warn('Line chart init error', err);
+    try{ if(lineChart){ lineChart.destroy(); lineChart=null; } }catch(e){}
+  }
+
+  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro ==========
+  if (barChart) { try{ barChart.destroy(); }catch(e){} barChart = null; }
+  const bctxEl = document.getElementById('barStack');
+  if (!bctxEl || !bctxEl.getContext){
+    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
+    return;
+  }
+  const bctx = bctxEl.getContext('2d');
+  const barColors = [
+    'rgba(165,180,252,0.70)',
+    'rgba(52,211,153,0.70)',
+    'rgba(96,165,250,0.70)',
+    'rgba(251,191,36,0.70)',
+    'rgba(244,114,182,0.70)'
+  ];
+  const barBorder = 'rgba(255,255,255,0.55)';
+
+  try{
+    barChart = new Chart(bctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Toptan',      data: curArr.map(r=>toNum(r.Toptan)),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Online',      data: curArr.map(r=>toNum(r.Online)),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'CKM',         data: curArr.map(r=>toNum(r.CKM)),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Trendyol',    data: curArr.map(r=>toNum(r.Trendyol)),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+          { label: 'Hepsiburada', data: curArr.map(r=>toNum(r.Hepsiburada)), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
+        ]
+      },
+      options: {
+        resizeDelay: 200,
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: 0 },
+        scales: {
+          x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
+          y: { stacked:true, ticks:{ callback:(v)=> numberTL(toNum(v)) }, grid:{ color:'rgba(148,163,184,0.15)' } }
+        },
+        plugins: {
+          legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
+          datalabels: {
+            display: (ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
+              return L.length <= 6;
+            },
+            anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
+            color: '#fff', font: { weight: '600', size: 10 }, clamp: true
+          }
+        },
+        categoryPercentage: 0.7,
+        barPercentage: 0.8
+      }
+    });
+  }catch(err){
+    console.warn('Bar chart init error', err);
+    try{ if(barChart){ barChart.destroy(); barChart=null; } }catch(e){}
+  }
+
+  // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
+  renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
+  renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
+}
+
+/* ================== Expenses (CFO) ================== */
+
+let expensesRowsCache = [];
+let expensesMonthlyCache = [];
+let expYoyEnabled = true;
+try{ const s = document.getElementById('expYoyState'); if (s) s.textContent = expYoyEnabled ? 'Açık' : 'Kapalı'; }catch(e){}
+let expensesRowsAdjustedCache = [];
+
+
+
+
+// Return the main category for a row; when grouped=true, collapse certain mains
+function mainCategoryForRow(r, grouped=false){
+  try{
+    const cats = typeof expenseCats === 'function' ? expenseCats(r) : { main: (r.Category||r.Main||'') };
+    let m = (cats && cats.main) ? String(cats.main) : String(r.Category||r.Main||'');
+    if (!m) return '';
+    if (grouped){
+      const key = m.toLowerCase();
+      // Collapse Caddebostan entries under a single bucket
+      if (key.includes('caddebostan')) m = 'Caddebostan (Toplam)';
+      // Add more grouping rules here if needed (e.g., advertising buckets)
+    }
+    return m;
+  }catch(e){ return String(r.Category||r.Main||'')||''; }
+}
+
+
+// Alt kırılım anahtarı: FinalSubcategory > Subcategory > "Diğer"
+function subKeyForRow(r){
+  const key =
+    r.FinalSubcategory || r.FinalSubCategory || r['Final Subcategory'] ||
+    r.Subcategory || r['Subcategory'] || r.SubCat || r['Sub Cat'] ||
+    '';
+  const s = String(key||'').trim();
+  return s || 'Diğer';
+}
+
+// YTD Detay kırılımı: Ana Kategori + (FinalSubcategory/Subcategory)
+function buildMainExpenseBreakdownYTD(expRows){
+  const year = new Date().getFullYear();
+  const map = new Map(); // "main||sub" -> TRY toplam
+  let sumAll = 0;
+
+  for (const r of (expRows || [])){
+    const iso = getExpenseISODate(r);
+    if (!iso || !iso.startsWith(String(year))) continue;
+
+    const main = mainCategoryForRow(r, false);
+    if (!main) continue;
+
+    const sub  = subKeyForRow(r);
+    const amt  = Math.abs(readExpenseAmountTRY(r)) || 0;
+    if (!amt) continue;
+
+    const k = `${main}||${sub}`;
+    map.set(k, (map.get(k)||0) + amt);
+    sumAll += amt;
+  }
+
+  // Diziye çevir, ana kategori + (tutar desc), sonra ana kategori alfabetik
+  const arr = Array.from(map.entries()).map(([k, v])=>{
+    const [main, sub] = k.split('||');
+    return { main, sub, total: v };
+  });
+
+  // Önce ana kategori, içinde tutara göre
+  arr.sort((a,b)=>{
+    if (a.main !== b.main) return a.main.localeCompare(b.main, 'tr');
+    return b.total - a.total;
+  });
+
+  // pay hesapları
+  return { rows: arr, sumAll: sumAll || 1 };
+}
+
+// === YTD Ana Kategori Toplamı (TRY) — robust: category via expenseCats(), amount via readExpenseAmountTRY() ===
+function buildMainExpenseTotalsYTD(expRows, grouped=false){
+  const year = new Date().getFullYear();
+  const map = new Map(); // main -> sum TRY
+  for (const r of (expRows || [])) {
+    const iso = getExpenseISODate(r);
+    if (!iso || !iso.startsWith(String(year))) continue;
+    const main = mainCategoryForRow(r, grouped);   // use grouped mapping when requested
+    const amt = readExpenseAmountTRY(r);           // convert to TRY exactly once
+    if (!main || !amt) continue;
+    map.set(main, (map.get(main) || 0) + Math.abs(amt));
+  }
+  return Array.from(map.entries())
+    .map(([k,v]) => ({ main:k, total:v }))
+    .sort((a,b) => b.total - a.total);
+}
+
+// === "Ana Kategoriler (YTD)" tablosunu bu toplamlarla render et ===
+function renderMainExpensesTable(){
+  // Kaynak diziler
+  const rowsDetail  = Array.isArray(expensesRowsCache) ? expensesRowsCache : [];
+  const rowsGrouped = (Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length)
+    ? expensesRowsAdjustedCache
+    : rowsDetail;
+
+  /* -------- Detay (FinalSubcategory/Subcategory kırılımı) -------- */
+  const { rows: detailRows, sumAll: sumDetail } = buildMainExpenseBreakdownYTD(rowsDetail);
+
+  // İsteğe bağlı: ana kategori başlığı eklemek için gruplayalım
+  const byMain = new Map();
+  for (const r of detailRows){
+    if(!byMain.has(r.main)) byMain.set(r.main, []);
+    byMain.get(r.main).push(r);
+  }
+
+  const tbodyD = document.getElementById('tblMainExpensesDetail');
+  if (tbodyD){
+    const parts = [];
+    byMain.forEach((list, main)=>{
+      // Ana kategoriye başlık satırı
+      parts.push(`
+        <tr>
+          <td class="text-left py-1 pr-3 font-medium" colspan="3">${main}</td>
+        </tr>
+      `);
+      // Alt kırılımlar (sub)
+      list.forEach(item=>{
+        parts.push(`
+          <tr>
+            <td class="text-left py-1 pr-3 pl-4">↳ ${item.sub}</td>
+            <td class="text-right py-1 pr-3">${numberTL(item.total)}</td>
+            <td class="text-right py-1 pr-0">${(item.total/sumDetail*100).toFixed(1)}%</td>
+          </tr>
+        `);
+      });
+      // Ara ayraç
+      parts.push(`<tr><td colspan="3" class="py-1"></td></tr>`);
+    });
+    tbodyD.innerHTML = parts.join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
+  }
+
+  /* -------- Gruplanmış (Ana Kategori toplamları) -------- */
+  const totalsGrouped = buildMainExpenseTotalsYTD(rowsGrouped, true);
+  const sumGrouped = totalsGrouped.reduce((a,b)=>a+b.total,0) || 1;
+
+  const tbodyG = document.getElementById('tblMainExpensesGrouped');
+  if (tbodyG) {
+    tbodyG.innerHTML = totalsGrouped.map(t => `
+      <tr>
+        <td class="text-left py-1 pr-3">${t.main}</td>
+         <td class="text-right py-1 pr-3">${numberTL(t.total)}</td>
+        <td class="text-right py-1 pr-0">${(t.total/sumGrouped*100).toFixed(1)}%</td>
+      </tr>
+    `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
+  }
+}
+
+// === Yumuşak bağlama (expensesRowsCache dolunca 1 kez çiz) ===
+(function setupMainExpensesAutoRender(){
+  let tries = 0;
+  const maxTries = 20; // ~16s
+  const iv = setInterval(()=>{
+    tries++;
+    if (Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      clearInterval(iv);
+      renderMainExpensesTable();
+    } else if (tries >= maxTries){
+      clearInterval(iv);
+    }
+  }, 800);
+  // Güvenlik için: sayfa görünür olduğunda tekrar dene
+  document.addEventListener('visibilitychange', ()=>{
+    if (!document.hidden && Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      renderMainExpensesTable();
+    }
+  });
+})();
+
+// ===== MAIN DATA LOAD (Revenue + Inventory + Orders) =====
+(function initMainLoad(){
+  if (window.__popdog_main_inited) return; // avoid double init
+  window.__popdog_main_inited = true;
+
+  async function boot(){
+    // 1) SHEET (revenue daily)
+    try{
+      const sheetUrl = localStorage.getItem('popdog_sheet_csv') || DEFAULT_SHEET_CSV;
+      if (sheetUrl){
+        const rows = await loadFromSheet(sheetUrl);
+        loadedRows = Array.isArray(rows) ? rows : [];
+        try { localStorage.setItem('popdog_sheet_cache', JSON.stringify(loadedRows)); } catch(e){}
+        const monthly = buildMonthly(loadedRows);
+        try { setKPIs(monthly); } catch(e) { console.warn('setKPIs error', e); }
+        try { drawCharts(monthly); } catch(e) { console.warn('drawCharts error', e); }
+        try { buildAlerts(monthly); } catch(e) { console.warn('buildAlerts error', e); }
+        try { renderTargets(monthly); } catch(e) { console.warn('renderTargets error', e); }
+        // FX türet: KPIs yazıldıktan sonra TRY/USD oranını çıkar (opsiyonel)
+        try {
+          const tryPerUsd = deriveTryPerUsdFromKPI();
+          if (tryPerUsd) { fxRateUSDPerTRY = 1 / tryPerUsd; }
+        } catch(e){}
+      }
+    }catch(err){ console.warn('Revenue boot error', err); }
+
+    // 2) INVENTORY
+    try{
+      const invUrl = localStorage.getItem('popdog_inv_csv') || DEFAULT_INV_CSV;
+      if (invUrl){
+        const invRows = await loadCSV(invUrl);
+        try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows||[])); } catch(e){}
+      }
+    }catch(err){ console.warn('Inventory load error', err); }
+
+    // 3) ORDERS (raw → mapped)
+    try{
+      const ordersUrl = localStorage.getItem('popdog_orders_csv') || DEFAULT_ORDERS_CSV;
+      if (ordersUrl){
+        const ordersRaw = await loadCSV(ordersUrl);
+        const mapped = (ordersRaw||[]).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+        try { localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped)); } catch(e){}
+      }
+    }catch(err){ console.warn('Orders load error', err); }
+
+    // 4) STOCK BLOCK render (after caches are ready)
+    try { renderStockBlock(); } catch(e) { console.warn('renderStockBlock error', e); }
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    boot();
+  }
+})();
+
+// ===== Ensure Expenses CSV loads on page load (idempotent) =====
+// ===== Ensure Expenses CSV loads on page load (idempotent) =====
+(function initExpensesLoader(){
+  if (window.__popdog_expenses_inited) return; // prevent double init
+  window.__popdog_expenses_inited = true;
+  async function loadExp(){
+    try{
+      const expUrl = localStorage.getItem('popdog_expenses_csv') || DEFAULT_EXPENSES_CSV;
+      if (!expUrl) return;
+      const expRows = await loadExpensesCsv(expUrl);
+      expensesRowsCache = Array.isArray(expRows) ? expRows : [];
+      if (!Array.isArray(expensesRowsAdjustedCache) || !expensesRowsAdjustedCache.length){
+        expensesRowsAdjustedCache = expensesRowsCache.slice();
+      }
+      renderMainExpensesTable();
+      refreshExpensesUI();
+    }catch(e){ console.warn('Expenses init error', e); }
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', loadExp, { once:true });
+  } else {
+    loadExp();
+  }
+})();
+
+
+// === Helper: revenue YTD (same logic as setKPIs uses) ===
+function revenueYTDForYear(year){
+  try{
+    if(!Array.isArray(monthlyCache)||!monthlyCache.length) return 0;
+    return monthlyCache.filter(m=>m.year===year).reduce((a,b)=>a+(b.Total||0),0);
+  }catch(e){ return 0; }
+}
+
+// Robustly parse expense amount in TRY, including USD->TRY conversion if needed
+// === Expense helpers: robust date parse, category mapping (Zee.Dog override), TRY amount ===
+function getExpenseISODate(r){
+  try{
+    const raw = (r && (r.Date || r.date)) ? String(r.Date || r.date).trim() : '';
+    if (!raw) return '';
+    const mIso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (mIso) return mIso[1];
+    const mTr = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+    if (mTr){
+      let dd=+mTr[1], mm=+mTr[2], yy=+mTr[3]; if(yy<100) yy+=2000;
+      return `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+    }
+    const d = new Date(raw);
+    return isNaN(+d) ? '' : d.toISOString().slice(0,10);
+  }catch(e){ return ''; }
+}
+
+function expenseCats(r){
+  const sub  = ((r && (r.FinalSubcategory || r.Subcategory || r.subcategory)) || '').toString().toLowerCase();
+  const cat  = ((r && (r.Category || r.category)) || '').toString().toLowerCase();
+
+  // --- HARD OVERRIDE: Zee.Dog görünmeli ---
+  if (sub.includes('zee')) return { main: 'Zee.Dog', sub: 'Zee.Dog' };
+
+  if (cat.includes('mal alımı') || cat.includes('cogs') || cat.includes('inventory') || cat.includes('stock')){
+    return { main: 'Mal Alımı', sub: (r.Subcategory || r.FinalSubcategory || 'Mal Alımı') };
+  }
+  if (cat.includes('kira')) return { main: 'Kira', sub: r.Subcategory || 'Kira' };
+  if (cat.includes('maaş') || cat.includes('personel') || cat.includes('sgk')) return { main: 'Personel', sub: r.Subcategory || 'Personel' };
+  if (cat.includes('pazarlama') || cat.includes('reklam') || cat.includes('ads')) return { main: 'Pazarlama', sub: r.Subcategory || 'Pazarlama' };
+  if (cat.includes('lojistik') || cat.includes('kargo') || cat.includes('shipping')) return { main: 'Lojistik', sub: r.Subcategory || 'Lojistik' };
+  if (cat.includes('genel') || cat.includes('g&a') || cat.includes('ofis')) return { main: 'Genel Gider', sub: r.Subcategory || 'Genel' };
+
+  const main = (r.Category || r.Subcategory || r.FinalSubcategory || 'Diğer').toString();
+  return { main, sub: r.Subcategory || r.FinalSubcategory || main };
+}
+
+function readExpenseAmountTRY(r){
+  try{
+    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
+    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
+    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
+    if (!amtNum) return 0;
+
+    if (cur === 'USD'){
+      let tryPerUsd = 0;
+      tryPerUsd = getTryPerUsd();
+      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
+        tryPerUsd = 1 / fxRateUSDPerTRY;
+      }
+      if (!tryPerUsd){
+        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
+      }
+      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
+      return amtNum * tryPerUsd;
+    }
+    return parseTL(amtNum);
+  }catch(e){
+    return 0;
+  }
+}
+function readExpenseAmountTRY(r){
+  try{
+    if(!r) return 0;
+
+    // 1) Currency hint from row (accept various header variants)
+    const currency = String(
+      r.Currency || r['Para Birimi'] || r['Currency Code'] || r['Currency'] || ''
+    ).trim().toUpperCase();
+
+    // 2) Candidate amount fields (robust to header variants)
+    let raw =
+      r.Amount ??
+      r.amount ??
+      r['Amount (TRY)'] ??
+      r['Amount (USD)'] ??
+      r['Expense Amount'] ??
+      r['Miktar'] ??
+      r['Value'] ??
+      r['Price'] ??
+      r['Tutar'] ??
+      r['Net Tutar'] ??
+      r['Total'] ??
+      r['Toplam'] ??
+      0;
+
+    const s = String(raw || '');
+
+    // 3) Detect sign in accounting format "(1,234.00)"
+    const isAccountingNegative = /^\s*\(.*\)\s*$/.test(s);
+
+    // 4) Detect currency from field or inline symbols
+    const looksUSD = currency === 'USD' || /\bUSD\b/i.test(s) || /^\s*\$/.test(s);
+    const looksTRY = currency === 'TRY' || /₺|TL|TRY/i.test(s);
+
+    // 5) Helper to resolve TRY per USD (₺/USD)
+    const resolveTryPerUsd = ()=>{
+      // a) direct (stored) TRY per USD
+      try{
+        const tpu = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+        if (tpu > 0) return tpu;
+      }catch(e){}
+
+      // b) we might only have USD per TRY in fxRateUSDPerTRY or storage → invert
+      let usdPerTry = 0;
+      if (typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0) usdPerTry = fxRateUSDPerTRY;
+      try{
+        const upt = Number(localStorage.getItem('popdog_fx_usd_per_try') || '0');
+        if (upt > 0) usdPerTry = usdPerTry || upt;
+      }catch(e){}
+      if (usdPerTry > 0) return 1 / usdPerTry;
+
+      // c) derive from KPI widgets on screen (kpiYTD vs kpiYTD_USD)
+      const derived = deriveTryPerUsdFromKPI();
+      if (derived > 0) return derived;
+
+      return 0;
+    };
+
+    // 6) Convert based on detection
+    if (looksUSD){
+      // Parse as USD first
+      const usd = parseUSD(s);
+      const tryPerUsd = resolveTryPerUsd();
+      if (!tryPerUsd) return 0;
+      const valTRY = usd * tryPerUsd;
+      return isAccountingNegative ? -Math.abs(valTRY) : valTRY;
+    }
+
+    // 7) Default branch: treat as TRY (also honoring accounting negatives)
+    if (isAccountingNegative){
+      const inner = s.replace(/^\(|\)$/g,'');
+      return -Math.abs(parseTL(inner));
+    }
+    if (looksTRY){
+      return parseTL(s);
+    }
+    // If currency is unknown, prefer TRY interpretation
+    return parseTL(s);
+  }catch(e){
+    return 0;
+  }
+}
+
+
+
+
+
+// === Recompute expenses monthly + KPIs + chart when cache changes ===
+function refreshExpensesUI(){
+  try{
+    expensesMonthlyCache = buildExpensesMonthly(expensesRowsCache||[]);
+    // try to derive FX if not ready (from revenue YTD box)
+    if(!fxRateUSDPerTRY){
+      const tryPerUsd = deriveTryPerUsdFromKPI();
+      if(tryPerUsd>0){ fxRateUSDPerTRY = 1 / tryPerUsd; }
+    }
+    setExpensesKPIs(expensesMonthlyCache);
+    drawExpensesCharts(expensesMonthlyCache);
+  }catch(e){ console.warn('Expenses UI refresh error', e); }
+}
+
+// Run once on load (after expensesRowsCache is filled by initExpensesLoader)
+(function(){
+  let tries = 0; const maxTries = 25; // ~20s
+  const iv = setInterval(()=>{
+    tries++;
+    if(Array.isArray(expensesRowsCache) && expensesRowsCache.length){
+      clearInterval(iv); refreshExpensesUI();
+    } else if (tries>=maxTries){ clearInterval(iv); }
+  }, 800);
+})();
+
+// === Helpers specific to Expenses (robust Zee.Dog handling) ===
+function isZeeExpense(r){
+  const re = /(zee[\s\.-]*dog|zeedog)/i;
+  const fields = [
+    r && r.FinalSubcategory, r && r.FinalCategory, r && r.MainCategory, r && r.Category, r && r.Subcategory,
+    r && r.Source, r && r.Description, r && r.Details, r && r.Note, r && r.Notes, r && r.Memo,
+    r && r.Merchant, r && r.Payee, r && r.Supplier, r && r.Vendor, r && r.Bank, r && r.Banka, r && r.Account,
+    r && r.Aciklama, r && r['Açıklama']
+  ];
+  return fields.some(f => f && re.test(String(f)));
+}
+
+// Unified category extractor with HARD Zee.Dog override
+function expenseCats(r){
+  const finalSub = (r && r.FinalSubcategory ? String(r.FinalSubcategory).trim() : '');
+  const finalCat = (r && r.FinalCategory    ? String(r.FinalCategory).trim()    : '');
+
+  // Build a combined text for fallback normalization / Zee detection
+  const parts = [
+    r && r.FinalSubcategory, r && r.FinalCategory,
+    r && r.Subcategory, r && r.Category, r && r.Kategori,
+    r && r.Source, r && r.Aciklama, r && r['Açıklama'], r && r.Description, r && r.Details, r && r.Note, r && r.Notes, r && r.Memo,
+    r && r.Merchant, r && r.Payee, r && r.Supplier, r && r.Vendor, r && r.Bank, r && r.Banka, r && r.Account
+  ].filter(Boolean).map(x => String(x).trim());
+  const combined = parts.join(' | ');
+
+  // Fallback subcategory candidate via normalization
+  const sub0 = finalSub || normalizeExpenseCategory(combined) || 'Diğer';
+
+  // --- HARD override for Zee.Dog anywhere ---
+  const zeeRegex = /(zee[\s\.-]*dog|zeedog)/i;
+  const zeeAny   = zeeRegex.test(combined) || zeeRegex.test(sub0) || zeeRegex.test(finalCat);
+
+  // Prefer explicitly provided "main" category fields from the source row.
+  // This preserves granular categories like "Kredi", "Kira", "Google", etc.
+  const explicitMainCandidates = [
+    r && r.FinalCategory,
+    r && r.MainCategory,
+    r && r.Category,
+    r && r.Kategori
+  ].filter(Boolean).map(s => String(s).trim()).filter(s => s.length > 0);
+
+  let main = '';
+  if (zeeAny) {
+    main = 'Zee.Dog';
+  } else if (explicitMainCandidates.length) {
+    // Use the first explicit main-like field
+    main = explicitMainCandidates[0];
+    // If it is literally "Diğer" but we have a better sub, promote sub to main
+    if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
+      main = sub0;
+    }
+  } else {
+    // No explicit main given → map based on normalized sub as a last resort
+    main = mapMainExpenseCategory(sub0);
+    // Avoid collapsing into "Diğer" if sub looks meaningful
+    if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
+      main = sub0;
+    }
+  }
+
+  const sub = zeeAny ? 'Zee.Dog' : (finalSub || sub0);
+  return { sub, main };
+}
+
+function getExpenseISODate(r){
+  const cands = [r && r.Date, r && r.date, r && r.DATE, r && r['Tarih'], r && r['Transaction Date'], r && r['Posting Date']];
+  for(const c of cands){
+    if(!c) continue;
+    const s = String(c).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    if(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(s)){
+      const iso = parseTRDateString(s);
+      if(iso) return iso;
+    }
+  }
+  return '';
+}
+
+
+function normalizeExpenseCategory(cat){
+  const s0 = (cat || '').toString();
+  if (!s0) return '';
+
+  // 1) Başta "Diğer -" gibi süsleri temizle
+  const s1 = s0.replace(/^diğer\s*[-:–—]\s*/i, '').replace(/^diger\s*[-:–—]\s*/i, '').trim();
+
+  // 2) Küçük harfe indir, diakritikleri normalize et
+  const toAscii = (str) => str
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // mağaza -> magaza
+
+  const s = toAscii(s1);
+
+  // 3) Ayırıcılarla böl: " | " , "/" , " - "
+  const tokens = s.split(/[|/]+/).flatMap(t => t.split(/\s+-\s+/)).map(t => t.trim()).filter(Boolean);
+
+  // 4) "other/diğer/misc" sayılacak kelimeler
+  const isOther = (t) => /^(other|others|misc|miscellaneous|cesitli|various|diverse|diger|digerleri)$/i.test(t);
+
+  // 5) İlk "diğer" olmayan etiket
+  const primary = tokens.find(t => !isOther(t)) || (tokens[0] || '');
+
+  // 6) Sık görülen ad düzeltmeleri
+  if (/^meta\s*ads?$/.test(primary) || /^facebook(\s*ads?)?$/.test(primary) || /^instagram(\s*ads?)?$/.test(primary)) return 'Facebook';
+  if (/^google(\s*ads?|adwords)$/.test(primary)) return 'Google Ads';
+  if (/^tik(tok| tok)(\s*ads?)?$/.test(primary)) return 'TikTok Ads';
+  if (/(yurtici|aras|mng|surat|ptt|ups|dhl|fedex|trendyol\s*express|hepsijet)/.test(primary)) return 'Kargo';
+  if (/(garanti|isbank|is\s*bankasi|qnb|enpara|akbank|ziraat|yapi\s*kredi|iyzico|iyzi|iyzi-co|payu|iyzico|iyzi\s*co|stripe|iyzico)/.test(primary)) return 'Banka/Ödeme';
+
+  // 7) Özel ürün/marka örnekleri
+  if (/(zee)[\s\.-]*(dog)|zeedog/.test(primary)) return 'Zee.Dog';
+
+  // 8) Boşsa Diğer
+  if (!primary || isOther(primary)) return 'Diğer';
+
+  // 9) Standart boşluk temizliği
+  return primary.replace(/\s+/g, ' ').trim();
+}
+
+function mapMainExpenseCategory(cat){
+  // `cat` = normalizeExpenseCategory çıktısı veya özgün metin
+  const s = (cat || '').toString().toLowerCase();
+
+  // 1) Dijital Reklam
+  if (/(facebook|google\s*ads?|adwords|instagram|tiktok|youtube|meta\s*ads?)/.test(s))
+    return 'Dijital Reklam';
+
+  // 2) Lojistik
+  if (/(kargo|lojistik|shipping|nakliye|kurye|yurtici|aras|mng|surat|ptt|ups|dhl|fedex|trendyol\s*express|hepsijet)/.test(s))
+    return 'Lojistik';
+
+  // 3) Banka / Komisyon / Ödeme Kuruluşları
+  if (/(banka|komisyon|pos\s*kesintisi|pos\s*ucreti|havale|eft|chargeback|kart\s*ucreti|iban\s*ucreti|iyzico|payu|stripe|paytr|papara|wise|paycell)/.test(s))
+    return 'Banka / Komisyon';
+
+  // 4) Vergiler
+  if (/(vergi|kdv|stopaj|damga|gecikme|ceza|beyanname|muhasebe\s*damga)/.test(s))
+    return 'Vergiler';
+
+  // 5) Yazılım / Abonelik
+  if (/(shopify|yazilim|abonelik|subscription|google\s*workspace|office\s*365|microsoft\s*365|slack|notion|figma|zoom|canva|trello|asana|jira|aws|gcp|azure|cloudflare)/.test(s))
+    return 'Yazılım / Abonelik';
+
+  // 6) Danışmanlık / Hizmet
+  if (/(danisman|consult|freelance|ajans|agency|hukuk|legal|avukat|muhasebe\s*hizmet|ymm|denetim|tasarim|design|fotograf|video|prodüksiyon|prodüksiyon)/.test(s))
+    return 'Danışmanlık Giderleri';
+
+  // 7) Stok / Mal Alımı
+  if (/(mal\s*al(imi|ımı)|stok|tedarik|sat(in|ın)\s*alma|purchase|supplier|tedarikci)/.test(s))
+    return 'Stok / Mal Alımı';
+
+  // 8) Mağaza Giderleri (yalnız mağaza/şube anahtarlarıyla eşle)
+  if (/(magaza|mağaza|saha|sube|ckm|caddebostan|cadde|depo|thrones)/.test(s) &&
+      /(kira|elektrik|su|dogalgaz|doğalgaz|aidat|guvenlik|güvenlik|temizlik|personel|maas|maaş|yemek|ssk|sgk|pos)/.test(s))
+    return 'Mağaza Giderleri';
+
+  // 9) Ev Giderleri (ev/konut anahtarı şart)
+  if (/(ev|konut|daire|home|house)/.test(s) &&
+      /(kira|elektrik|su|dogalgaz|doğalgaz|aidat|internet)/.test(s))
+    return 'Ev Giderleri';
+
+  // 9.b) Marka bazlı özel kasa: Zee.Dog ana kategori olarak ayrı listelensin
+  if (/(zee)[\s\.-]*dog|zeedog/.test(s)) return 'Zee.Dog';
+  // 10) Varsayılan
+  return 'Diğer';
+}
+
+
+
+function buildExpensesMonthly(rows){
+  const map = new Map();
+
+  (rows || []).forEach(r => {
+    const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(String(r.Date)))
+      ? String(r.Date).slice(0,10)
+      : getExpenseISODate(r);
+    if (!iso) return;
+
+    const d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(+d)) return;
+
+    const key = monthKey(d);
+
+   const amount = readExpenseAmountTRY(r);
+
+    const cats = expenseCats(r);
+    const subKey  = cats.sub || 'Diğer';
+    const mainKey = cats.main || 'Diğer';
+
+    const prev = map.get(key) || { month: key, year: d.getFullYear(), Total: 0, byCat: {}, byMain: {} };
+
+    prev.Total += amount;
+    prev.byCat[subKey]   = (prev.byCat[subKey]   || 0) + amount;
+    prev.byMain[mainKey] = (prev.byMain[mainKey] || 0) + amount;
+
+    map.set(key, prev);
+  });
+
+  return Array.from(map.values()).sort((a,b)=> a.month.localeCompare(b.month));
+}
+
+function setExpensesKPIs(expMonthly){
+  const now = new Date();
+  const curYear = now.getFullYear();
+  // Yıl seçimi: Bu yıl veriniz yoksa, eldeki son yılı kullan
+  const yearsExp = Array.from(new Set((expMonthly||[]).map(m=>m.year))).sort((a,b)=>a-b);
+  const expYear = yearsExp.includes(curYear) ? curYear : (yearsExp.length ? yearsExp[yearsExp.length-1] : curYear);
+  const rowsThisYear = (expMonthly||[]).filter(m=> m.year===expYear);
+  const expYTD = rowsThisYear.reduce((a, r) => a + (r.Total || 0), 0);
+
+  // YTD gider
+  const elExp = document.getElementById('kpiExpYTD'); if (elExp) elExp.textContent = numberTL(expYTD);
+  const elExpUSD = document.getElementById('kpiExpYTD_USD'); if (elExpUSD) elExpUSD.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(expYTD*fxRateUSDPerTRY)} USD` : '≈ – USD';
+
+  // YoY (aynı ay sayısı hizalı)
+  try{
+    const monthsThis = rowsThisYear.map(r=> r.month.slice(5,7));
+const prevSum = (expMonthly||[]).reduce((acc,r)=> (r.year===expYear-1 && monthsThis.includes(r.month.slice(5,7))) ? acc+(r.Total||0) : acc, 0);    const yoy = prevSum ? (expYTD - prevSum) / prevSum : 0;
+    const elYoY = document.getElementById('kpiExpYoY'); if (elYoY) elYoY.textContent = `YTD YoY: ${(yoy*100).toFixed(1)}%`;
+  }catch(e){}
+
+  // MoM
+  const sorted = rowsThisYear.slice().sort((a,b)=> a.month.localeCompare(b.month));
+  const last = sorted.at(-1)?.Total || 0; const prev = sorted.at(-2)?.Total || 0;
+  const mom = prev ? (last - prev) / prev : 0;
+  const elMoM = document.getElementById('kpiExpMoM'); if (elMoM){ elMoM.textContent = `${(mom*100).toFixed(1)}%`; elMoM.classList.remove('kpi-up','kpi-down'); elMoM.classList.add(mom<=0?'kpi-up':'kpi-down'); }
+  const elMoMNote = document.getElementById('kpiExpMoMNote'); if (elMoMNote){ const labs = sorted.map(m=>m.month); elMoMNote.textContent = labs.length>=2 ? `(${labs.at(-2)} → ${labs.at(-1)})` : ''; }
+
+  // Net (Gelir YTD - Gider YTD)
+  try{
+    const revThisYear = (monthlyCache||[]).filter(m=> m.year===expYear).reduce((a,r)=> a+(r.Total||0), 0);
+    const net = revThisYear - expYTD;
+    const elNet = document.getElementById('kpiNetYTD'); if (elNet) elNet.textContent = numberTL(net);
+    const elNetUSD = document.getElementById('kpiNetYTD_USD'); if (elNetUSD) elNetUSD.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(net*fxRateUSDPerTRY)} USD` : '≈ – USD';
+    const elNetNote = document.getElementById('kpiNetNote'); if (elNetNote) elNetNote.textContent = `Gelir (YTD): ${numberTL(revThisYear)} • Gider (YTD): ${numberTL(expYTD)}`;
+  }catch(e){}
+}
+
+function renderMainExpenseTable(){
+  try{
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
+    const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
+
+    const baseRows = (expensesRowsAdjustedCache && expensesRowsAdjustedCache.length) ? expensesRowsAdjustedCache : expensesRowsCache;
+    const rows = (baseRows || []).filter(r => {
+      const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(r.Date)) ? r.Date : getExpenseISODate(r);
+      if(!iso) return false;
+      const d = new Date(iso + 'T00:00:00Z');
+      return d && !isNaN(+d) && d.getFullYear() === expYear;
+    });
+
+    const sumByMain = {};
+    let total = 0;
+    for(const r of rows){
+      const main = (r.FinalCategory && String(r.FinalCategory).trim()) || (r.FinalSubcategory && String(r.FinalSubcategory).trim()) || r.MainCategory || mapMainExpenseCategory(r.Category || 'Diğer');
+
+      // Detect Zee across all fields
+      const zee = isZeeExpense(r) || main === 'Zee.Dog' || (r.Category === 'Zee.Dog');
+      const mainFixed = zee ? 'Zee.Dog' : main;
+
+      // Amount in TRY with USD→TRY fallback for Zee
+      let a = ('Amount' in r && r.Amount !== null && r.Amount !== '') ? (Number(r.Amount)||0) : 0;
+      if(!a){ a = readExpenseAmountTRY(r); }
+
+      sumByMain[mainFixed] = (sumByMain[mainFixed] || 0) + (a || 0);
+      total += (a || 0);
+    }
+
+    const arr = Object.entries(sumByMain)
+      .map(([k,v]) => ({ k, v, p: total ? (v/total*100) : 0 }))
+      .sort((a,b) => b.v - a.v);
+
+    const tbody = document.getElementById('tblMainExpenses');
+    if(!tbody) return;
+    tbody.innerHTML = arr.length
+      ? arr.map(x => `
+          <tr>
+            <td class="py-1 pr-3">${x.k}</td>
+            <td class="py-1 pr-3 text-right">${numberTL(x.v)}</td>
+            <td class="py-1 pr-0 text-right">${x.p.toFixed(1)}%</td>
+          </tr>
+        `).join('')
+      : '<tr><td colspan="3" class="hint py-1">Veri yok.</td></tr>';
+  }catch(e){
+    console.warn('renderMainExpenseTable error', e);
+  }
+}
+let expLineChart;
+function drawExpensesCharts(expMonthly){
+  const now = new Date();
+  const curYear = now.getFullYear();
+  // Bu yıl veri yoksa, eldeki son yılı kullan
+  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
+  const expYear = yearsWithData.includes(curYear) ? curYear : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
+  const arr = (expMonthly||[]).filter(r=> r.year===expYear);
+  const labels = arr.map(r=> r.month);
+  const dataCur = arr.map(r=> r.Total||0);
+
+  // yearsWithData yukarıda hesaplandı
+  let prevYear = expYear - 1;
+  if (!yearsWithData.includes(prevYear)){
+    for (let i = yearsWithData.length - 1; i >= 0; i--) {
+      if (yearsWithData[i] < expYear) { prevYear = yearsWithData[i]; break; }
+    }
+  }
+  // Build prev-year map aligned to current labels' months (MM)
+  const prevMap = {};
+  (expMonthly||[]).forEach(r=>{
+    if(r.year===prevYear){
+      const mm=r.month.slice(5,7);
+      prevMap[mm]=(prevMap[mm]||0)+(r.Total||0);
+    }
+  });
+  const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
+
+  if (expLineChart) expLineChart.destroy();
+  const lctx = document.getElementById('lineExpenses').getContext('2d');
+  const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
+  const ds = [
+    {
+      label: 'Bu Yıl',
+      data: dataCur,
+      tension: 0.35,
+      borderWidth: 3,
+      borderColor: '#22d3ee',
+      fill: true,
+      backgroundColor: grad('rgba(34,211,238,0.25)', 'rgba(99,102,241,0.05)'),
+      pointRadius: 3,
+      pointHoverRadius: 5
+    }
+  ];
+  if (expYoyEnabled && dataPrev.some(v => v > 0)) {
+    ds.push({
+      label: `Geçen Yıl (${prevYear})`,
+      data: dataPrev,
+      tension: 0.35,
+      borderWidth: 2,
+      borderDash: [6, 4],
+      borderColor: '#94a3b8',
+      pointRadius: 0,
+      fill: false
+    });
+  }
+  expLineChart = new Chart(lctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: ds
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: {
+          align: 'top',
+          anchor: 'end',
+          formatter: v => numberTL(v),
+          color: '#64748b',
+          clip: true
+        }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 0 } },
+        y: { ticks: { callback: v => numberTL(v) } }
+      }
+    }
+  });
+
+   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
+  try {
+    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
+    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
+    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
+    const catSum = {};
+arr.forEach(m=>{
+  (m.rows || []).forEach(r=>{
+    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
+                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
+                r.MainCategory ||
+                r.Category || 'Diğer';
+    const a = +r.Amount || 0;
+    catSum[key] = (catSum[key]||0) + a;
+  });
+});
+
+    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+
+    // Etiketleri tutara göre sırala
+    const sorted = Object.entries(catSum)
+      .map(([k, v]) => ({ k, v }))
+      .sort((a, b) => b.v - a.v);
+
+    const labels = sorted.map(x => x.k);
+    const data   = sorted.map(x => x.v);
+
+  } catch (e) {
+    console.warn('drawExpensesCharts pie error', e);
+  }
+}
+
+/* ================== Expenses: Load & Refresh ================== */
+function refreshExpenses(){
+  try{
+    // Amount alanları zaten readExpenseAmountTRY() ile TRY’ye normalize edilmiş durumda.
+    expensesRowsAdjustedCache = Array.isArray(expensesRowsCache) ? expensesRowsCache.slice() : [];
+
+    // Aylık agregasyonları doğrudan bu cache'ten oluştur
+    expensesMonthlyCache = buildExpensesMonthly(expensesRowsAdjustedCache);
+
+    // KPI + grafik + tablo
+    setExpensesKPIs(expensesMonthlyCache);
+    drawExpensesCharts(expensesMonthlyCache);
+    renderMainExpensesTable();
+  }catch(e){
+    console.warn('refreshExpenses error', e);
+  }
+}
+
+// URL / localStorage config for expenses CSV
+const EXPENSES_CSV_URL =
+  getParam('expenses') ||
+  getParam('expenses_csv') ||
+  localStorage.getItem('popdog_expenses_csv_url') ||
+  DEFAULT_EXPENSES_CSV;
+
+// YoY toggle for expenses chart
+(function initExpYoyToggle(){
+  const tgl = document.getElementById('expYoyToggle');
+  const stateEl = document.getElementById('expYoyState');
+  if (!tgl) return;
+  tgl.addEventListener('click', ()=>{
+    expYoyEnabled = !expYoyEnabled;
+    if (stateEl) stateEl.textContent = expYoyEnabled ? 'Açık' : 'Kapalı';
+    if (expensesMonthlyCache && expensesMonthlyCache.length) {
+      drawExpensesCharts(expensesMonthlyCache);
+    }
+  });
+})();
+
+/* ================== Hook expenses into global refreshAll ================== */
+(function patchRefreshAll(){
+  const prev = window.refreshAll;
+  window.refreshAll = function(...args){
+    if (typeof prev === 'function') {
+      try { prev.apply(this, args); } catch(e){ console.warn('refreshAll (prev) error', e); }
+    }
+    try { refreshExpenses(); } catch(e){ console.warn('refreshAll→refreshExpenses error', e); }
+  };
+})();
+
+
+
+/* ================== Weekly UI ================== */
+let weeklyAgg = [];
+let selectedMondayISO = null;
+function renderWeek(){
+  if(!weeklyAgg.length){
+    document.getElementById('weekCards').innerHTML = '<div class="hint text-sm">Haftalık veri yok.</div>';
+    document.getElementById('weekWoW').textContent='';
+    document.getElementById('weekLabel').textContent='';
+    return;
+  }
+  if(!selectedMondayISO){ selectedMondayISO = weeklyAgg.at(-1).monday; }
+  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
+  const cur = weeklyAgg[idx];
+  const prev = weeklyAgg[idx-1] || null;
+
+  document.getElementById('weekLabel').textContent = weekRangeLabel(new Date(cur.monday + "T00:00:00"));
+
+  const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada'];
+  const labels = {Total:'Toplam', Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada'};
+  const wrap = document.getElementById('weekCards'); wrap.innerHTML='';
+  keys.forEach(k=>{
+    const v = cur[k]||0;
+    const p = prev ? prev[k]||0 : 0;
+    const wow = p ? (v-p)/p : 0;
+    const card = document.createElement('div');
+    card.className='glass card-3d rounded-2xl p-3';
+    card.innerHTML = `<div class="hint text-xs">${labels[k]}</div>
+      <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(v)}</div>
+      <div class="${wow>=0?'kpi-up':'kpi-down'} text-xs">${(wow*100).toFixed(1)}%</div>`;
+    wrap.appendChild(card);
+  });
+
+  const wowTotal = prev ? (cur.Total - prev.Total) / prev.Total : 0;
+  document.getElementById('weekWoW').textContent = `WoW (Toplam): ${(wowTotal*100).toFixed(1)}%`;
+}
+document.getElementById('weekPrev').onclick = ()=>{
+  if(!weeklyAgg.length || !selectedMondayISO) return;
+  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
+  if(idx>0){ selectedMondayISO = weeklyAgg[idx-1].monday; renderWeek(); }
+};
+document.getElementById('weekNext').onclick = ()=>{
+  if(!weeklyAgg.length || !selectedMondayISO) return;
+  const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
+  if(idx<weeklyAgg.length-1){ selectedMondayISO = weeklyAgg[idx+1].monday; renderWeek(); }
+};
+
+/* ================== WhatsApp Paste → stage table ================== */
+function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
+function extractValue(line){
+  const m=line.match(/-?\d[\d\s.,]*/);
+  if(!m) return 0;
+  return parseTL(m[0]);
+}
+function parseDailyText(txt){
+  const lines = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  let dateISO = '', kk=0, qnb=0, nakit=0, toplam=0, kasaNakit=0, online=0, toptan=0, trendyol=0, hb=0;
+  for(const line of lines){
+    const low=line.toLowerCase();
+    if(low.includes('tarih')){ dateISO = parseTRDateString(line); continue; }
+    if(grab(low,['kredi kartı','kredi karti'])){ kk=extractValue(line); continue; }
+    if(grab(low,['qnb','iş','is','garanti'])){ qnb=extractValue(line); continue; }
+    if((low.includes('nakit') && !low.includes('kasa'))){ nakit=extractValue(line); continue; }
+    if(low.includes('toplam ciro')){ toplam=extractValue(line); continue; }
+    if(low.includes('kasa nakit')){ kasaNakit=extractValue(line); continue; }
+    if(low.includes('pop dog online')){ online=extractValue(line); continue; }
+    if(low.includes('pop dog toptan')){ toptan=extractValue(line); continue; }
+    if(low.startsWith('trendyol')){ trendyol=extractValue(line); continue; }
+    if(low.startsWith('hepsiburada')){ hb=extractValue(line); continue; }
+  }
+  const ckm = toplam || (kk + qnb + nakit);
+  return {
+    Date: dateISO || '',
+    Toptan: toptan||0,
+    Online: online||0,
+    CKM: ckm||0,
+    "CKM Nakit": nakit||0,
+    "Kasa Nakit (EoD)": kasaNakit||0,
+    Trendyol: trendyol||0,
+    Hepsiburada: hb||0,
+    Total: (toptan + online + ckm + trendyol + hb)
+  };
+}
+document.getElementById('parseAddBtn').onclick = ()=>{
+  const txt=document.getElementById('dailyText').value;
+  if(!txt.trim()){ document.getElementById('parseInfo').textContent='Metin boş.'; return; }
+  const row=parseDailyText(txt);
+  if(!row.Date){ document.getElementById('parseInfo').textContent='Tarih bulunamadı. "Tarih 07/09/2025" gibi.'; return; }
+  stagedRows.push(row);
+  document.getElementById('parseInfo').textContent=`Eklendi: ${row.Date}`;
+  document.getElementById('dailyText').value='';
+  refreshAll();
+};
+function renderStaged(){
+  const tbody = document.getElementById('stagedTbody'); tbody.innerHTML='';
+  for(const r of stagedRows){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="py-2 pr-4">${r.Date}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.Toptan)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.Online)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.CKM)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r["CKM Nakit"]||0)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r["Kasa Nakit (EoD)"]||0)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.Trendyol)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.Hepsiburada)}</td>
+      <td class="py-2 pr-4 text-right">${numberTL(r.Total)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+/* ================== CSV I/O (local import/export) ================== */
+document.getElementById('uploadBtn').onclick = ()=> document.getElementById('fileInput').click();
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const file = e.target.files && e.target.files[0]; if(!file) return;
+  Papa.parse(file, { header:true, skipEmptyLines:true, complete:(res)=>{
+    const data = (res.data||[]).map(r=>{
+      const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
+      const row = {
+        Date: iso,
+        Toptan: parseTL(r.Toptan), Online: parseTL(r.Online),
+        CKM: parseTL(r.CKM), ["CKM Nakit"]: parseTL(r["CKM Nakit"]),
+        Trendyol: parseTL(r.Trendyol), Hepsiburada: parseTL(r.Hepsiburada),
+      };
+      row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
+      return row;
+    }).filter(r=>r.Date);
+    loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
+    refreshAll();
+  }});
+});
+document.getElementById('downloadBtn').onclick = ()=>{
+  // loaded + staged → tekilleştir ve tarihe göre sırala
+  const mergedRaw = [...loadedRows, ...stagedRows];
+  const merged = dedupeDailyRows(mergedRaw); // aynı güne ait en anlamlı satırı seçer
+
+  const headers = ["Date","Toptan","Online","CKM","CKM Nakit","Trendyol","Hepsiburada","Total"];
+  const lines = [headers.join(",")].concat(merged.map(r=>[
+    r.Date, r.Toptan, r.Online, r.CKM, r["CKM Nakit"]||0, r.Trendyol, r.Hepsiburada, r.Total
+  ].join(",")));
+
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'revenue_2025_YTD.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/* ================== FX (TRY→USD) ================== */
+async function fetchFX(){
+  try{
+    const r = await fetch('https://open.er-api.com/v6/latest/TRY');
+    const j = await r.json();
+    if(j && j.rates && j.rates.USD){
+      fxRateUSDPerTRY = j.rates.USD;
+      fxDate = j.time_last_update_utc ? new Date(j.time_last_update_utc) : new Date();
+      const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
+      document.getElementById('fxNote').textContent =
+  tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+try { refreshExpenses(); } catch(e) {}
+try { renderMainExpensesTable(); } catch(e) {}
+return;
+    }
+  }catch(e){}
+  try{
+    const r2 = await fetch('https://api.exchangerate.host/latest?base=TRY&symbols=USD');
+    const j2 = await r2.json();
+    if(j2 && j2.rates && j2.rates.USD){
+      fxRateUSDPerTRY = j2.rates.USD;
+      fxDate = j2.date ? new Date(j2.date) : new Date();
+      const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
+      document.getElementById('fxNote').textContent =
+  tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+try { refreshExpenses(); } catch(e) {}
+try { renderMainExpensesTable(); } catch(e) {}
+return;
+    }
+  }catch(e){}
+  document.getElementById('fxNote').textContent = `Kur alınamadı`;
+}
+
+/* ================== DEDUPE HELPERS (daily revenue rows) ================== */
+function dedupeDailyRows(rows){
+  if (!Array.isArray(rows)) return [];
+  const byDate = new Map();
+  for (const r of rows){
+    if (!r || !r.Date) continue;
+    const key = String(r.Date).slice(0,10);
+    const cur = byDate.get(key);
+    // Daha büyük Total'ı seç. Eşitse dolu sütunu fazla olanı al.
+    if (!cur) { byDate.set(key, r); continue; }
+    const tNew = (+r.Total||0);
+    const tOld = (+cur.Total||0);
+    if (tNew > tOld) { byDate.set(key, r); continue; }
+    if (tNew === tOld) {
+      const nzNew = ((+r.Toptan||0)>0) + ((+r.Online||0)>0) + ((+r.CKM||0)>0) + ((+r.Trendyol||0)>0) + ((+r.Hepsiburada||0)>0);
+      const nzOld = ((+cur.Toptan||0)>0) + ((+cur.Online||0)>0) + ((+cur.CKM||0)>0) + ((+cur.Trendyol||0)>0) + ((+cur.Hepsiburada||0)>0);
+      if (nzNew > nzOld) byDate.set(key, r);
+    }
+  }
+  // Tarihe göre sırala
+  return Array.from(byDate.values()).sort((a,b)=> (a.Date||'').localeCompare(b.Date||''));
+}
+/* ================== PIPELINE (Revenue) ================== */
+function refreshAll(){
+  // 1) loaded + staged → tekilleştir (aynı güne ait satırlarda en anlamlı olanı seç)
+  const mergedRaw = [...loadedRows, ...stagedRows];
+  const merged = dedupeDailyRows(mergedRaw); // zaten tarihe göre sıralı döner
+
+  // 2) cache
+  mergedRowsCache = merged;
+
+  // 3) agregasyonlar
+  const monthly = buildMonthly(merged);
+  monthlyCache = monthly;
+  const weekly  = buildWeekly(merged); weeklyAgg = weekly;
+
+  // 4) Haftalık seçimi güncel son haftaya sabitle (varsa)
+  const lastMonday = weeklyAgg.length ? weeklyAgg[weeklyAgg.length - 1].monday : null;
+  if (
+    !selectedMondayISO ||
+    !weeklyAgg.some(w => w.monday === selectedMondayISO) ||
+    (lastMonday && selectedMondayISO < lastMonday)
+  ) {
+    selectedMondayISO = lastMonday;
+  }
+
+  // 5) KPI + UI
+  setKPIs(monthly);
+  buildAlerts(monthly);
+  drawCharts(monthly);
+  renderTargets(monthly);
+  renderStaged();
+  renderWeek();
+  renderLast7();
+
+  // 6) Stok bloğu
+  renderStockBlock();
+ // === Expenses (CFO) render ===
+try {
+  if (Array.isArray(expensesMonthlyCache) && expensesMonthlyCache.length) {
+    drawExpensesCharts(expensesMonthlyCache);
+  }
+} catch (e) {
+  console.warn('Expenses render error', e);
+}
+}
+// ================== BOOTSTRAP (safe, idempotent) ==================
+(function bootPopdog(){
+  if (window.__popdog_bootstrapped) return; // idempotent
+  window.__popdog_bootstrapped = true;
+
+  // Quick placeholders to avoid blank UI perception
+  try{
+    const el1 = document.getElementById('kpiYTD');
+    if (el1) el1.textContent = 'yükleniyor…';
+    const el2 = document.getElementById('kpiInvCost');
+    if (el2) el2.textContent = 'yükleniyor…';
+    const el3 = document.getElementById('kpiInvPrice');
+    if (el3) el3.textContent = 'yükleniyor…';
+    const t = document.getElementById('tblMainExpenses');
+    if (t) t.innerHTML = '<tr><td class="hint py-1" colspan="3">Yükleniyor…</td></tr>';
+  }catch(e){}
+
+  async function boot(){
+    try {
+      // START ALL LOADS IN PARALLEL (guard against missing defaults)
+      const sheetUrl = localStorage.getItem('popdog_sheet_csv')    || (window.DEFAULT_SHEET_CSV    || '');
+      const invUrl   = localStorage.getItem('popdog_inv_csv')      || (window.DEFAULT_INV_CSV      || '');
+      const ordUrl   = localStorage.getItem('popdog_orders_csv')   || (window.DEFAULT_ORDERS_CSV   || '');
+      const expUrl   = localStorage.getItem('popdog_expenses_csv') || (window.DEFAULT_EXPENSES_CSV || '');
+
+      const pRev = (async()=>{
+        try{
+          if(!sheetUrl) return;
+          const revRows = await loadFromSheet(sheetUrl);
+          loadedRows = Array.isArray(revRows) ? revRows : [];
+          const monthly = buildMonthly(loadedRows);
+          setKPIs(monthly);
+          try { renderMainExpensesTable(); } catch(e) {}
+          drawCharts(monthly);
+          buildAlerts(monthly);
+          renderTargets(monthly);
+        } catch(e){ console.warn('Revenue render error', e); }
+      })();
+
+      const pInv = (async()=>{
+        try{
+          if(!invUrl) return;
+          const invRows = await loadCSV(invUrl);
+          try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows || [])); } catch(e){}
+          renderStockBlock();
+        } catch(e){ console.warn('Inventory load/render error', e); }
+      })();
+
+      const pOrd = (async()=>{
+        try{
+          if(!ordUrl) return;
+          const ordRaw = await loadCSV(ordUrl);
+          const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+          const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString() }));
+          try { localStorage.setItem('popdog_orders_cache', JSON.stringify(persist)); } catch(e){}
+          renderStockBlock();
+        } catch(e){ console.warn('Orders load/render error', e); }
+      })();
+
+      const pExp = (async()=>{
+        try{
+          if(!expUrl) return;
+          const expRows = await loadCSV(expUrl);
+          expensesRowsCache = Array.isArray(expRows) ? expRows : [];
+          if (!Array.isArray(expensesRowsAdjustedCache) || !expensesRowsAdjustedCache.length){
+            expensesRowsAdjustedCache = expensesRowsCache.slice();
+          }
+          // Build monthly + KPIs + charts
+          try { refreshExpenses(); } catch(e) { console.warn('refreshExpenses error', e); }
+          // Ensure main table visible ASAP
+          try { renderMainExpensesTable(); } catch(e){}
+        } catch(e){ console.warn('Expenses load/render error', e); }
+      })();
+
+      await Promise.allSettled([pRev, pInv, pOrd, pExp]);
+
+      // Derive FX once (if needed) after first paints
+      try {
+        if (!fxRateUSDPerTRY){
+          const tryPerUsd = deriveTryPerUsdFromKPI();
+          if (tryPerUsd && isFinite(tryPerUsd)){
+            fxRateUSDPerTRY = 1 / tryPerUsd;
+          }
+        }
+      } catch(e){}
+    } catch(err){
+      console.error('BOOT error', err);
+    }
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    // DOM is already ready
+    boot();
+  }
+})();
+
+/* ================== Last 7 Days Summary ================== */
+function startOfDayLocal(d){
+  const x = new Date(d);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+function renderLast7(){
+  const wrap = document.getElementById('last7Wrap');
+  if(!wrap) return;
+  const note = document.getElementById('last7Note');
+
+  const rows = Array.isArray(mergedRowsCache) ? mergedRowsCache : [];
+  if(!rows.length){
+    wrap.innerHTML = '<div class="hint text-sm">Veri yok.</div>';
+    if (note) note.textContent = '';
+    return;
+  }
+
+  // Gün gün toplamlar (bugün dahil son 7 gün)
+  const dayMs = 24*60*60*1000;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = [];
+  for(let i=6; i>=0; i--){
+    const d = new Date(today.getTime() - i*dayMs);
+    days.push(d);
+  }
+
+  const byDate = new Map(); // ISO-> {Total, Toptan, Online, CKM, Trendyol, Hepsiburada}
+  rows.forEach(r=>{
+    if(!r.Date) return;
+    const d = new Date(r.Date + 'T00:00:00'); d.setHours(0,0,0,0);
+    const iso = d.toISOString().slice(0,10);
+    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
+    acc.Total += (tpt+onl+ckm+trn+hb);
+    acc.Toptan += tpt; acc.Online += onl; acc.CKM += ckm; acc.Trendyol += trn; acc.Hepsiburada += hb;
+    byDate.set(iso, acc);
+  });
+
+  wrap.innerHTML = '';
+  days.forEach(d=>{
+    const iso = d.toISOString().slice(0,10);
+    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
+    const card = document.createElement('div');
+    card.className = 'glass card-3d rounded-2xl p-3';
+    const lbl = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    card.innerHTML = `
+      <div class="hint text-xs">${lbl}</div>
+      <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(acc.Total)}</div>
+      <div class="hint text-[11px]">T:${numberTL(acc.Toptan)} • O:${numberTL(acc.Online)} • C:${numberTL(acc.CKM)} • Tr:${numberTL(acc.Trendyol)} • H:${numberTL(acc.Hepsiburada)}</div>
+    `;
+    wrap.appendChild(card);
+  });
+
+  if (note) {
+    const first = days[0], last = days[days.length-1];
+    const fmt = x => `${String(x.getDate()).padStart(2,'0')}.${String(x.getMonth()+1).padStart(2,'0')}`;
+    note.textContent = `Gün gün: ${fmt(first)} – ${fmt(last)} (bugün dahil)`;
+  }
+}
+
+/* ================== BOOT & SAVE ================== */
+// No longer binding Data Source DOM elements
+
+async function boot(){
+  // 0) URL query param override (sheet, inv, orders) → directly persist
+  const qpSheet  = getParam('sheet');
+  const qpInv    = getParam('inv');
+  const qpOrders = getParam('orders');
+  if (qpSheet)  localStorage.setItem('popdog_sheet_csv_url',  qpSheet);
+  if (qpInv)    localStorage.setItem('popdog_inv_csv_url',    qpInv);
+  if (qpOrders) localStorage.setItem('popdog_orders_csv_url', qpOrders);
+
+  // Optional: persist clean flag from URL (?clean=1/0)
+  (function(){
+    const p = getParam('clean');
+    if (p === '1' || p === '0') {
+      try { localStorage.setItem('popdog_clean_on_load', p); } catch(e){}
+    }
+  })();
+
+  // 1) config.json (same folder) fallback if nothing set yet
+  const hasAnyStored = !!(localStorage.getItem('popdog_sheet_csv_url')   ||
+                          localStorage.getItem('popdog_inv_csv_url')     ||
+                          localStorage.getItem('popdog_orders_csv_url')  ||
+                          localStorage.getItem('popdog_expenses_csv_url'));
+  if (!hasAnyStored) {
+    try {
+      const r = await fetch('config.json', { cache: 'no-store' });
+      if (r.ok) {
+        const cfg = await r.json();
+        if (cfg.sheetCsv)     localStorage.setItem('popdog_sheet_csv_url',     cfg.sheetCsv);
+        if (cfg.inventoryCsv) localStorage.setItem('popdog_inv_csv_url',       cfg.inventoryCsv);
+        if (cfg.ordersCsv)    localStorage.setItem('popdog_orders_csv_url',    cfg.ordersCsv);
+        if (cfg.expensesCsv)  localStorage.setItem('popdog_expenses_csv_url',  cfg.expensesCsv);
+      }
+    } catch (e) { /* silent */ }
+  }
+
+  // 2) Resolve URLs: localStorage → defaults
+  const sheetUrl    = localStorage.getItem('popdog_sheet_csv_url')     || (typeof DEFAULT_SHEET_CSV     !== 'undefined' ? DEFAULT_SHEET_CSV     : '');
+  const invUrl      = localStorage.getItem('popdog_inv_csv_url')       || (typeof DEFAULT_INV_CSV       !== 'undefined' ? DEFAULT_INV_CSV       : '');
+  const ordersUrl   = localStorage.getItem('popdog_orders_csv_url')    || (typeof DEFAULT_ORDERS_CSV    !== 'undefined' ? DEFAULT_ORDERS_CSV    : '');
+  const expensesUrl = localStorage.getItem('popdog_expenses_csv_url')  || (typeof DEFAULT_EXPENSES_CSV  !== 'undefined' ? DEFAULT_EXPENSES_CSV  : '');
+
+  console.log('Data URLs →', { sheetUrl, invUrl, ordersUrl, expensesUrl });
+
+// Expenses load (CSV)
+try {
+  expensesRowsCache = await loadExpensesCsv(expensesUrl);
+  expensesMonthlyCache = []; // eskiden buildExpensesMonthly(...) idi
+} catch(e) {
+  expensesRowsCache = [];
+  expensesMonthlyCache = [];
+}
+  // 3) FX
+  try { await fetchFX(); } catch(e){}
+
+
+
+  // 5) Load revenue (sheet)
+  if (sheetUrl) {
+    console.log('Sheet’ten veri çekiliyor...');
+    try {
+      const data = await loadFromSheet(sheetUrl);
+      if (!data.length) throw new Error('Sheet boş döndü');
+      loadedRows = data;
+      localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
+      const first = loadedRows[0]?.Date || '—';
+      const last  = loadedRows.at(-1)?.Date || '—';
+      console.log(`Sheet yüklendi (${loadedRows.length} satır) • ${first} → ${last}`);
+    } catch (e) {
+      console.warn('Sheet yüklenemedi. URL ve yayınlama ayarlarını kontrol et.', e);
+    }
+  } else {
+    console.warn('CSV URL yok: Sheet verisi yüklenemedi.');
+  }
+
+  // 6) inventory_value
+  try {
+    if (invUrl) {
+      const invRows = await loadCSV(invUrl);
+      localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+    }
+  } catch (e) { console.warn('INV CSV error', e); }
+
+  // 7) orders_raw (Shopify)
+  try {
+    if (ordersUrl) {
+      const rawRows = await loadCSV(ordersUrl);
+      const mapped = rawRows.map(mapOrderRow)
+                            .filter(o => o.sku && o.qty > 0 && o.date && !isNaN(+o.date));
+      localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
+    }
+  } catch (e) { console.warn('ORDERS CSV error', e); }
+
+  initSalesWindowSelector();
+  refreshAll();
+  (function(){
+    const t = document.getElementById('yoyToggle');
+    if (!t) return;
+    const syncLabel = () => {
+      const s = document.getElementById('yoyState');
+      if (s) s.textContent = yoyEnabled ? 'Açık' : 'Kapalı';
+    };
+    t.onclick = () => {
+      yoyEnabled = !yoyEnabled;
+      syncLabel();
+      drawCharts(monthlyCache || []);
+    };
+    syncLabel();
+  })();
+}
+
+/* ================== WRITE TO SHEET ================== */
+async function writeStagedToSheet(){
+  const rows = [...stagedRows];
+  if (!rows.length) { document.getElementById('parseInfo').textContent = 'Yazılacak satır yok.'; return; }
+  document.getElementById('parseInfo').textContent = 'Sheet’e yazılıyor...';
+  try {
+    const r = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ rows })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'WRITE_FAILED');
+    const added = (typeof j.added === 'number')
+      ? j.added
+      : (j.received && Array.isArray(j.received.rows) ? j.received.rows.length : 0);
+    document.getElementById('parseInfo').textContent = `Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`;
+    stagedRows = [];
+    renderStaged();
+  } catch (err) {
+    document.getElementById('parseInfo').textContent = `Hata: ${String(err)}`;
+  }
+}
+document.getElementById('writeSheetBtn').onclick = writeStagedToSheet;
+document.getElementById('pushRowsBtn').onclick  = writeStagedToSheet;
+
+/* ================== BOOT! ================== */
+boot();
+// === FUND AUTO QUOTES (FI5 / SAS / ISY) — frontend fetch to Apps Script ===
+(function(){
+  const HOUR = 60*60*1000;
+  const STALE_MS = 22*HOUR;
+
+  const FUND = {
+    fi5: { inputId:'fi5UnitInput', unitKey:'popdog_fi5_unit_try', tsKey:'popdog_fi5_updated_at', stateKey:'fi5UnitTRY' },
+    sas: { inputId:'sasUnitInput', unitKey:'popdog_sas_unit_try', tsKey:'popdog_sas_updated_at', stateKey:'sasUnitTRY' },
+    isy: { inputId:'isyUnitInput', unitKey:'popdog_isy_unit_try', tsKey:'popdog_isy_updated_at', stateKey:'isyUnitTRY' },
+  };
+
+  function now(){ return Date.now(); }
+  function isStale(ts){ if(!ts) return true; const age = now() - Number(ts||0); return !(age>0) || age > STALE_MS; }
+
+  async function fetchFundQuote(type){
+    const url = getSheetWebAppURL();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) throw new Error('Apps Script URL geçersiz.');
+    const req = `${url}?action=fundQuote&type=${encodeURIComponent(type)}`;
+    const r = await fetch(req, { method:'GET', cache:'no-store' });
+    let j = null; try{ j = await r.json(); }catch(_){}
+    if (!r.ok || !j || j.ok === false) throw new Error(`HTTP ${r.status}`);
+    const val = Number(j.unitTRY ?? j.price ?? j.value ?? 0);
+    if (!val || isNaN(val)) throw new Error('Geçersiz değer');
+    return { unit: val, source: j.source || 'server' };
+  }
+
+  function applyFundUnit(type, unit, source){
+    const cfg = FUND[type]; if(!cfg) return;
+    try{
+      localStorage.setItem(cfg.unitKey, String(unit));
+      localStorage.setItem(cfg.tsKey, String(now()));
+    }catch(_){}
+    try{
+      const st = getLoansState();
+      if (st && st.demoBank){ st.demoBank[cfg.stateKey] = unit; setLoansState(st); }
+    }catch(_){}
+    try{
+      const inp = document.getElementById(cfg.inputId);
+      if (inp && !inp.value) inp.value = String(unit);
+      if (typeof renderLoansBlock === 'function') renderLoansBlock();
+    }catch(_){}
+    console.log(`[fundQuote] ${type.toUpperCase()} = ${unit} (${source||'server'})`);
+  }
+
+  async function maybeRefreshFund(type){
+    const cfg = FUND[type]; if(!cfg) return;
+
+    // If user has entered a value into the input, don't override
+    const manual = (function(){
+      try{
+        const el = document.getElementById(cfg.inputId);
+        return parseTL(el && el.value ? el.value : 0);
+      }catch(_){ return 0; }
+    })();
+    if (manual > 0) return;
+
+    const cached = Number(localStorage.getItem(cfg.unitKey) || 0);
+    const ts     = Number(localStorage.getItem(cfg.tsKey)   || 0);
+    if (cached > 0 && !isStale(ts)) return; // fresh enough
+
+    try{
+      const { unit, source } = await fetchFundQuote(type);
+      if (unit && unit > 0) applyFundUnit(type, unit, source);
+    }catch(e){
+      console.warn('fundQuote fetch failed:', type, e && e.message ? e.message : e);
+    }
+  }
+
+  // Run after DOM is ready so inputs exist
+  document.addEventListener('DOMContentLoaded', ()=>{
+    ['fi5','sas','isy'].forEach(maybeRefreshFund);
+    // periodic gentle refresh
+    setInterval(()=> ['fi5','sas','isy'].forEach(maybeRefreshFund), 6*HOUR);
+  });
+})();
+// ===== Auto fund unit price fetchers (FI5 / SAS / ISY) =====
+async function fetchFundQuote_(kind){
+  const base = getSheetWebAppURL();
+  const url = `${base}?action=${encodeURIComponent(kind + 'Quote')}`; // expects doPost/doGet handler fi5Quote/sasQuote/isyQuote
+  try{
+    const r = await fetch(url, { method:'GET', cache:'no-store' });
+    if(!r.ok) return null;
+    const j = await r.json().catch(()=>null);
+    if (!j || j.ok === false) return null;
+    const v = Number(j.unitTRY || j.unit || j.price || 0);
+    return (v && v>0) ? { unitTRY: v, source: j.source || kind } : null;
+  }catch(_){ return null; }
+}
+
+async function autoUpdateFI5(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.fi5UnitTRY || Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0;
+    const input = document.getElementById('fi5UnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return; // don't overwrite user-entered value
+    const q = await fetchFundQuote_('fi5');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.fi5UnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_fi5_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_fi5_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateSAS(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.sasUnitTRY || Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0;
+    const input = document.getElementById('sasUnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return;
+    const q = await fetchFundQuote_('sas');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.sasUnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_sas_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_sas_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateISY(){
+  try{
+    const st = getLoansState();
+    const cur = st.demoBank?.isyUnitTRY || Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0;
+    const input = document.getElementById('isyUnitInput');
+    const need = !(cur>0) && input && !String(input.value||'').trim();
+    if(!need) return;
+    const q = await fetchFundQuote_('isy');
+    if(q && q.unitTRY>0){
+      if(input) input.value = String(q.unitTRY);
+      st.demoBank.isyUnitTRY = q.unitTRY;
+      setLoansState(st);
+      try{
+        localStorage.setItem('popdog_isy_unit_try', String(q.unitTRY));
+        localStorage.setItem('popdog_isy_updated_at', String(Date.now()));
+      }catch(_){ }
+      try{ renderLoansBlock(); }catch(_){}
+    }
+  }catch(_){ }
+}
+
+async function autoUpdateFunds(){
+  await Promise.all([ autoUpdateFI5(), autoUpdateSAS(), autoUpdateISY() ]);
+}
+
+// Run once on load; do not overwrite user input if present
+try{ document.addEventListener('DOMContentLoaded', ()=>{ autoUpdateFunds(); }, { once:true }); }catch(_){ }
+
+// Optional: refresh quotes every 6h if fields are still empty
+try{ setInterval(()=>{ autoUpdateFunds(); }, 6*60*60*1000); }catch(_){ }
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Eski Service Worker’ları iptal et
+  if ('serviceWorker' in navigator) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    } catch (e) { /* yoksay */ }
+  }
+
+  // Cache Storage’ı temizle
+  if ('caches' in window) {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch (e) { /* yoksay */ }
+  }
+
+  // İstersen localStorage da sıfırlanabilir (tamamen cachesiz istiyorsan):
+  // localStorage.clear();
+
+  // UI render’dan sonra canlı veriyi çek
+  setTimeout(refreshFundQuotes, 300);
+
+  // Çift tıklamada tazele (kullanışlı)
+  ['fi5UnitInput','sasUnitInput','isyUnitInput'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el){
+      el.title = 'Çift tıkla: sunucudan en son birim fiyatı çek';
+      el.addEventListener('dblclick', refreshFundQuotes);
+    }
+  });
+});
+// === Krediler & Bekleyen Ödemeler bloğunu başlangıçta bir kez render et ===
+document.addEventListener('DOMContentLoaded', function(){
+  try{ renderLoansBlock(); }catch(_){}
+  // Yeni: expenses_master'tan dinamik sayım yap
+  try{ refreshLoansFromExpenses(); }catch(_){}
+}, { once:true });
+</script>
+</body>
+</html>
