@@ -173,7 +173,7 @@ th, td { white-space: nowrap; }
   display: block;
   width: 100% !important;
   /* Force a stable height controlled purely by CSS (not content size) */
-  height: clamp(220px, 40vw, 320px) !important;
+  height: clamp(260px, 38vw, 380px) !important;
 }
 
 /* Desktop override for a bit more headroom */
@@ -181,7 +181,7 @@ th, td { white-space: nowrap; }
   #lineTotal,
   #barStack,
   #lineExpenses{
-    height: 220px !important;
+    height: 320px !important;
   }
 }
 
@@ -220,12 +220,12 @@ th, td { white-space: nowrap; }
 .chart-can{
   width:100%;
   display:block;
-  /* Aynı mantık: min 220, max 320 */
-  height: clamp(220px, 40vw, 320px);
+  /* Aynı mantık: min 260, max 380 */
+  height: clamp(260px, 38vw, 380px);
 }
 @media (min-width:1024px){
   /* Desktop’ta biraz daha nefes alan yükseklik */
-  .chart-can{ height: 260px; }
+  .chart-can{ height: 320px; }
 }
 
 /* Fallback for older Safari that doesn’t support clamp() on height */
@@ -233,7 +233,7 @@ th, td { white-space: nowrap; }
   #lineTotal,
   #barStack,
   #pieShare,
-  #lineExpenses{ height: 260px !important; }
+  #lineExpenses{ height: 320px !important; }
 }
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
