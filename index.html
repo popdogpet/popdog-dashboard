@@ -1038,50 +1038,61 @@ th, td { white-space: nowrap; }
   }catch(_){}
 })();
 
-/* === Normalize chart axis labels (font & rotation) for all charts === */
-(function(){
-  function normalizeChartAxes(){
-    if (!window.Chart || !Chart.instances) return false;
-    const instances = Object.values(Chart.instances || {});
-    if (!instances.length) return false;
+// === Chart.js: Aylık Toplam Ciro (lineTotal) ===
+// ... (other code above) ...
 
-    instances.forEach(ch => {
-      if (!ch || !ch.options || !ch.options.scales) return;
-      ['x','y'].forEach(axis => {
-        const s = ch.options.scales[axis];
-        if (!s) return;
-        if (!s.ticks) s.ticks = {};
-        const ticks = s.ticks;
-        // Keep everything horizontal and readable
-        ticks.maxRotation = 0;
-        ticks.minRotation = 0;
-        ticks.autoSkip = true;
-        // Unify font size for all axes
-        ticks.font = Object.assign({}, ticks.font || {}, { size: 12 });
-      });
-    });
-
-    // Trigger a redraw with the updated options
-    instances.forEach(ch => {
-      try{ ch.update(); }catch(_){}
-    });
-
-    return true;
-  }
-
-  // Poll a few times after load so that charts have time to be created
-  let tries = 0;
-  const timer = setInterval(() => {
-    tries++;
-    const done = normalizeChartAxes();
-    if (done || tries > 20){
-      clearInterval(timer);
+// Chart.js initialization for Aylık Toplam Ciro (lineTotal)
+new Chart(document.getElementById('lineTotal'), {
+  type: 'line',
+  data: {/* ... data ... */},
+  options: {
+    // ...other options...
+    // Remove aspectRatio if present; ensure height is CSS-driven
+    // axis/tick font/rotation overrides:
+    scales: {
+      x: {
+        ticks: {
+          autoSkip: true,
+          maxRotation: 0,
+          minRotation: 0,
+          font: { size: 14 }
+        }
+      },
+      y: {
+        ticks: {
+          font: { size: 14 }
+        }
+      }
     }
-  }, 500);
+    // ...other options...
+  }
+});
 
-  // Expose a manual hook in case charts are re-rendered later
-  window.normalizeChartAxes = normalizeChartAxes;
-})();
+// Chart.js initialization for Kanal Bazlı Aylık Ciro (barStack)
+new Chart(document.getElementById('barStack'), {
+  type: 'bar',
+  data: {/* ... data ... */},
+  options: {
+    // ...other options...
+    // Remove aspectRatio if present; ensure height is CSS-driven
+    scales: {
+      x: {
+        ticks: {
+          autoSkip: true,
+          maxRotation: 0,
+          minRotation: 0,
+          font: { size: 14 }
+        }
+      },
+      y: {
+        ticks: {
+          font: { size: 14 }
+        }
+      }
+    }
+    // ...other options...
+  }
+});
 
 /* === Apply themed colors to Chart.js axes, legend and tooltips === */
 function applyChartTheme(mode){
