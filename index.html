@@ -104,24 +104,10 @@
     .badge { font-size:10px; padding:.15rem .45rem; border-radius:999px; background:#eef2ff; color:#334155; }
     .dark .badge { background:#0b1220; color:#cbd5e1; border:1px solid rgba(255,255,255,.08); }
     .progress-wrap{height:4px;background:rgba(0,0,0,.06);border-radius:999px;overflow:hidden}
-    .target-card{
-      padding:.35rem .5rem;
-      border-radius:.75rem;
-    }
-    .target-card .ttl{
-      font-size:.7rem;
-      line-height:1.1;
-    }
-    .target-card .val{
-      font-weight:600;
-      font-size:.75rem;
-      line-height:1.1;
-    }
-    .target-card .sub{
-      font-size:.65rem;
-      opacity:.75;
-      line-height:1.1;
-    }
+    .target-card{padding:.65rem .75rem;border-radius:1rem}
+    .target-card .ttl{font-size:.8rem}
+    .target-card .val{font-weight:600; font-size:.8rem}
+    .target-card .sub{font-size:.7rem; opacity:.75}
     .progress-bar{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
     .kpi-up{color:#10b981}.kpi-down{color:#ef4444}
     .dot{width:.5rem;height:.5rem;border-radius:999px;display:inline-block;margin-right:.4rem}
@@ -495,19 +481,17 @@ th, td { white-space: nowrap; }
           <div class="hint text-xs">USD → TRY çeviri için KPI’dan türetilen kur kullanılır</div>
         </div>
         <div class="overflow-auto mt-2">
-  <table class="min-w-full text-sm">
-        <thead class="text-slate-600 dark:text-slate-300">
-        <tr>
-      <th class="text-left py-1 pr-3">ID</th>
-      <th class="text-right py-1 pr-3">Tutar (USD)</th>
-      <th class="text-right py-1 pr-3">≈ TRY</th>
-      <th class="text-right py-1 pr-3">Ödenen (USD)</th>
-      <th class="text-right py-1 pr-3">Kalan (USD)</th>
-      <th class="text-left py-1 pr-0">Durum</th>
-    </tr>
-  </thead>
-  <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
-</table>
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-3">ID</th>
+                <th class="text-right py-1 pr-3">Tutar (USD)</th>
+                <th class="text-right py-1 pr-3">≈ TRY</th>
+                <th class="text-left py-1 pr-0">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="tblZeeAwait" class="text-slate-800 dark:text-slate-100"></tbody>
+          </table>
         </div>
       </div>
     
@@ -942,7 +926,7 @@ th, td { white-space: nowrap; }
         <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Aylık Hedefler (YTD ortalama)</div>
         <div class="hint text-xs">Her ay: aynı yıl o aya kadar ortalama</div>
       </div>
-      <div class="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1 mt-2" id="targetsWrap"></div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-3" id="targetsWrap"></div>
     </section>
 
     <footer class="text-xs hint text-right">
@@ -1834,7 +1818,7 @@ async function refreshZeeAwaitFromExpenses(){
       const m = String(s||'').match(/YK#\d+(?:\.\d+)?/i);
       return m ? m[0].toUpperCase() : '';
     };
-    // Fallback: satırdaki tüm string alanlarda ID ara (YK#033, YK#034.1 vb.)
+    // Fallback: scan all string fields on the row for an ID like YK#033 or YK#033.1
     const idFromAnyField = (row) => {
       try{
         for (const k in row){
@@ -1852,51 +1836,39 @@ async function refreshZeeAwaitFromExpenses(){
       return /zee\.?dog/.test(sub);
     };
 
-    // 3) YK ID -> toplam ödenen USD map'i oluştur
-    const paidMap = new Map();
+    const paidIds = new Set();
     for (const r of rows) {
       if (!isZeeRow(r)) continue;
       let id = idFromNote(getNote(r));
       if (!id) id = idFromAnyField(r);
-      if (!id) continue;
-
-      // USD/TL tutarını oku — önce USD kolonu, yoksa TRY'den çevir
-      let usd = 0;
-      const usdRaw = getFieldCI(r, ['AmountUSD','USD','Amount (USD)','USD Amount']);
-      if (usdRaw !== ''){
-        usd = parseUSD(usdRaw);
-      }else{
-        const tryAmt = readExpenseAmountTRY(r);
-        const fx = getTryPerUsd();
-        if (tryAmt > 0 && fx > 0){
-          usd = tryAmt / fx;
-        }
-      }
-      if (!(usd > 0)) continue;
-
-      paidMap.set(id, (paidMap.get(id) || 0) + usd);
+      if (id) paidIds.add(id);
     }
 
-    // 4) Loans state'ini güncelle
-    const st = (typeof getLoansState === 'function') ? getLoansState() : { loans:{}, zeeAwait: DEFAULT_ZEE_AWAIT.slice() };
-    const fx = getTryPerUsd();
+    // 3) State'i al + yoksa default listeyi kullan
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || { zeeAwait: [] });
+    if (!Array.isArray(st.zeeAwait) || st.zeeAwait.length===0) {
+      st.zeeAwait = DEFAULT_ZEE_AWAIT.slice();
+    }
 
-    st.zeeAwait = (st.zeeAwait && st.zeeAwait.length) ? st.zeeAwait : DEFAULT_ZEE_AWAIT.slice();
+    // 4) Kur (USD→TRY)
+    const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
 
-    st.zeeAwait = st.zeeAwait.map(item=>{
-      const baseUSD = Number(item.usd || 0);
-      const id = String(item.id || '').toUpperCase();
-      const paidUSD = paidMap.get(id) || 0;
-      const remainUSD = Math.max(0, baseUSD - paidUSD);
-      return Object.assign({}, item, {
-        paidUSD,
-        remainUSD
-      });
+    // 5) Güncelle
+    st.zeeAwait = st.zeeAwait.map(it => {
+      const id = String(it.id || '').toUpperCase();
+      const usd = Number(it.usd || 0);
+      const paid = paidIds.has(id);
+      const prevTRY = (typeof it.try === 'number') ? it.try : null;
+      const nextTRY = (fx > 0 && usd > 0) ? (usd * fx) : prevTRY;
+      return {
+        ...it,
+        status: paid ? 'paid' : 'waiting',
+        try: nextTRY
+      };
     });
 
+    // 6) Kaydet + UI
     if (typeof setLoansState === 'function') setLoansState(st);
-
-    // 5) UI'ı tazele
     if (typeof renderLoansBlock === 'function') renderLoansBlock();
   }catch(e){
     console.warn('refreshZeeAwaitFromExpenses() error:', e);
@@ -2795,43 +2767,24 @@ function renderLoansBlock(){
       const list = Array.isArray(st.zeeAwait) && st.zeeAwait.length ? st.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
 
       if (!list.length){
-        // 6 kolon: ID, Tutar(USD), ≈TRY, Ödenen, Kalan, Durum
-        tbody.innerHTML = '<tr><td class="hint py-2" colspan="6">Kayıt bulunamadı.</td></tr>';
+        tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Kayıt bulunamadı.</td></tr>';
       } else {
         const rows = list.map(it => {
-          const usd       = Number(it.usd || 0);
-          const paidUSD   = Number(it.paidUSD || 0);
-          const remainUSD = ('remainUSD' in it)
-            ? Number(it.remainUSD || 0)
-            : Math.max(0, usd - paidUSD);
-
+          const usd = Number(it.usd || 0);
           const tryVal = (typeof it.try === 'number' && it.try > 0)
             ? it.try
             : (fx > 0 ? usd * fx : 0);
-
-          let statusText = 'Bekliyor';
-          let badgeCls   = 'badge-wait';
-
-          if (usd > 0 && remainUSD <= 0.01){
-            statusText = 'Ödendi';
-            badgeCls   = 'badge-paid';
-          } else if (paidUSD > 0 && remainUSD > 0.01){
-            statusText = 'Kısmi';
-            badgeCls   = 'badge-wait';
-          }
-
-          const paidText   = paidUSD   > 0 ? numberUSD(paidUSD)     : '–';
-          const remainText = remainUSD > 0.01 ? numberUSD(remainUSD) : '–';
-
+          const status = (it.status || '').toLowerCase();
+          const paid = status === 'paid';
+          const badgeCls = paid ? 'badge-paid' : 'badge-wait';
+          const badgeText = paid ? 'Ödendi' : 'Bekliyor';
           return `
             <tr>
               <td class="py-1 pr-3">${it.id || ''}</td>
               <td class="py-1 pr-3 text-right">${usd > 0 ? numberUSD(usd) : '–'}</td>
               <td class="py-1 pr-3 text-right">${tryVal > 0 ? numberTL(tryVal) : '–'}</td>
-              <td class="py-1 pr-3 text-right">${paidText}</td>
-              <td class="py-1 pr-3 text-right">${remainText}</td>
               <td class="py-1 pr-0">
-                <span class="${badgeCls}">${statusText}</span>
+                <span class="${badgeCls}">${badgeText}</span>
               </td>
             </tr>`;
         }).join('');
@@ -2847,7 +2800,23 @@ function renderLoansBlock(){
 
   window.renderLoansBlock = renderLoansBlock;
 
+  // Zee listesi
+  const tbody = document.getElementById('tblZeeAwait');
+  const st = (typeof getLoansState === 'function') ? getLoansState() : defaultLoansState;
 
+  const k = tryPerUsd();
+  tbody.innerHTML = st.zeeAwaitUSD.map(z=>{
+    const tryEq = k ? numberTL(z.usd * k) : '–';
+    const badge = z.paid ? '<span class="badge-paid">paid</span>' : '<span class="badge-wait">waiting</span>';
+    return `
+      <tr>
+        <td class="py-1 pr-3">${z.id}</td>
+        <td class="py-1 pr-3 text-right">$ ${z.usd.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+        <td class="py-1 pr-3 text-right">${tryEq}</td>
+        <td class="py-1 pr-0">${badge}</td>
+      </tr>
+    `;
+  }).join('');
 
   // Altın
   const gInput = document.getElementById('goldGramInput');
