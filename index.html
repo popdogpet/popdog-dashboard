@@ -157,7 +157,8 @@
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
 /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
-#lineTotal,
+#
+lineTotal,
 #barStack,
 #pieShare,
 #lineExpenses{
@@ -172,18 +173,11 @@ th, td { white-space: nowrap; }
   contain: layout size;
   display: block;
   width: 100% !important;
-  /* Force a stable height controlled purely by CSS (not content size) */
-  height: clamp(300px, 40vw, 460px) !important;
+  /* Force a stable height controlled by CSS (not content size) */
+  height: 480px !important;
 }
 
-/* Desktop override for a bit more headroom */
-@media (min-width:1024px){
-  #lineTotal,
-  #barStack,
-  #lineExpenses{
-    height: 380px !important;
-  }
-}
+
 
 /* Keep table wrappers aligned below the canvases */
 #lineTotalTblWrap,
@@ -212,7 +206,6 @@ th, td { white-space: nowrap; }
 .chart-can{
   width: 100%;
   display: block;
-  height: 420px !important;
 }
 
 
@@ -221,7 +214,7 @@ th, td { white-space: nowrap; }
   #lineTotal,
   #barStack,
   #pieShare,
-  #lineExpenses{ height: 380px !important; }
+  #lineExpenses{ height: 480px !important; }
 }
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
@@ -1003,7 +996,7 @@ th, td { white-space: nowrap; }
   // Global typography & axis defaults (safe, non-scriptable)
   Chart.defaults.font = Chart.defaults.font || {};
   Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  Chart.defaults.font.size = 12;
+  Chart.defaults.font.size = 14;
 
   // Use a light but readable default text color for axes/labels
   Chart.defaults.color = '#e5e7eb';
@@ -1019,7 +1012,7 @@ th, td { white-space: nowrap; }
     maxRotation: 0,
     minRotation: 0,
     autoSkip: true,
-    font: Object.assign({}, baseTicks.font || {}, { size: 12 })
+    font: Object.assign({}, baseTicks.font || {}, { size: 14 })
   });
 })();
 
