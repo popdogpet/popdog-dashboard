@@ -327,6 +327,7 @@ th, td { white-space: nowrap; }
         <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache + hesaplamaları tazeler">↻ Yenile</button>
       </div>
     </header>
 
@@ -1008,6 +1009,57 @@ th, td { white-space: nowrap; }
 
 
 
+/* ================== APP CONFIG (config.json) ================== */
+// We prefer config.json (published with the site) to avoid drift between code and config.
+// Falls back to the existing hardcoded defaults if config.json is missing.
+window.POPDOG_CONFIG = window.POPDOG_CONFIG || null;
+
+async function loadAppConfig(){
+  try{
+    // Cache-bust to avoid stale CDN edge caches when you deploy
+    const res = await fetch('config.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('config.json not ok');
+    const j = await res.json();
+    if (!j || typeof j !== 'object') throw new Error('config.json invalid');
+    window.POPDOG_CONFIG = j;
+    return j;
+  }catch(_){
+    return null;
+  }
+}
+
+function cfgGet(path, fallback){
+  try{
+    const o = window.POPDOG_CONFIG;
+    if (!o) return fallback;
+    const parts = String(path||'').split('.');
+    let cur = o;
+    for (const p of parts){
+      if (!cur || typeof cur !== 'object' || !(p in cur)) return fallback;
+      cur = cur[p];
+    }
+    return (cur == null) ? fallback : cur;
+  }catch(_){
+    return fallback;
+  }
+}
+
+// CSV cache helpers (localStorage)
+const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+function cacheKeyFor(url){
+  return CSV_CACHE_PREFIX + String(url||'');
+}
+function clearCsvCaches(){
+  try{
+    const keys = [];
+    for (let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+  }catch(_){ }
+}
+
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1310,11 +1362,24 @@ async function setupWebAppCompat(infoEl){
     return null;
   }
 }
-// === Hardcoded default CSV URLs (fallbacks if nothing set) ===
-const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
-const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
-const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
-const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+// === Default CSV URLs (fallbacks). These can be overridden by config.json at runtime. ===
+let DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+let DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+let DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+let DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+
+// Boot-time override from config.json (non-blocking; app will still work without it)
+(async function(){
+  const cfg = await loadAppConfig();
+  if (!cfg) return;
+  try{
+    // expected shape: { endpoints: { sheetCsv, invCsv, ordersCsv, expensesCsv } }
+    DEFAULT_SHEET_CSV   = String(cfgGet('endpoints.sheetCsv', DEFAULT_SHEET_CSV) || DEFAULT_SHEET_CSV);
+    DEFAULT_INV_CSV     = String(cfgGet('endpoints.invCsv', DEFAULT_INV_CSV) || DEFAULT_INV_CSV);
+    DEFAULT_ORDERS_CSV  = String(cfgGet('endpoints.ordersCsv', DEFAULT_ORDERS_CSV) || DEFAULT_ORDERS_CSV);
+    DEFAULT_EXPENSES_CSV= String(cfgGet('endpoints.expensesCsv', DEFAULT_EXPENSES_CSV) || DEFAULT_EXPENSES_CSV);
+  }catch(_){ }
+})();
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1326,7 +1391,19 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
+(document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+// Refresh: clear cached CSVs and reload
+(function(){
+  const b = document.getElementById('refreshBtn');
+  if (!b) return;
+  b.onclick = ()=>{
+    try{ clearCsvCaches(); }catch(_){ }
+    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
+    try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
+    try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
+    location.reload();
+  };
+})();
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
