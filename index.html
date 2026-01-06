@@ -328,6 +328,7 @@ th, td { white-space: nowrap; }
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
         <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache + hesaplamaları tazeler">↻ Yenile</button>
+        <span id="csvFreshness" class="chip-ios text-xs" title="CSV cache yaşı">CSV: –</span>
       </div>
     </header>
 
@@ -1486,9 +1487,15 @@ const DEFAULT_ZEE_AWAIT = [
         if (!s) return;
         const amt = Number(amountTRY || 0);
         const st = getLoansState();
-        const isBiz = /ticari|işletme|taksitli.*ticari/.test(s);
-        const isCar = /araç|oto|otomobil|taşıt/.test(s);
-        if (isBiz){
+        const isBiz2 = /(ticari\s*kredi\s*2|kredi\s*2|biz2|ticari2)/.test(s);
+        const isBiz  = !isBiz2 && /ticari|işletme|taksitli.*ticari/.test(s);
+        const isCar  = /araç|oto|otomobil|taşıt/.test(s);
+        if (isBiz2){
+          st.loans.biz2 = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.biz2||{});
+          st.loans.biz2.paid = Math.max(0, Number(st.loans.biz2.paid || 0)) + 1;
+          if (amt > 0) st.loans.biz2.remainTRY = Math.max(0, Number(st.loans.biz2.remainTRY || 0) - amt);
+          setLoansState(st);
+        } else if (isBiz){
           st.loans.biz.paid = Math.max(0, Number(st.loans.biz.paid || 0)) + 1;
           if (amt > 0) st.loans.biz.remainTRY = Math.max(0, Number(st.loans.biz.remainTRY || 0) - amt);
           setLoansState(st);
@@ -1807,116 +1814,76 @@ async function renderThisMonthExpensesByCategory(){
 /* === Expenses CSV'den kredi taksitlerini say ve Loans UI'ı güncelle === */
 async function refreshLoansFromExpenses(){
   try{
-    // CSV'yi oku (mevcut loader'ını kullanıyoruz)
     const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+    const st = getLoansState();
 
-    // Mevcut loans config/state'i al
-    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {
-      loans:{
-        biz:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
-        car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
-        biz2: { total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }
-      },
-      zeeAwait:[]
-    });
+    // Init
+    st.loans = st.loans || {};
+    st.loans.biz  = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.biz||{});
+    st.loans.car  = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.car||{});
+    st.loans.biz2 = Object.assign({ total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }, st.loans.biz2||{});
 
-    // === Filtre koşulları (daha sıkı ve AY bazında tekil sayım) ===
-    // "Taksitli Ticari Kredi" sayımı:
-    //  - Subcategory = "Kredi" (case-insensitive, tam eşleşme)
-    //  - Tutar ≈ 143.155 TL (instTRY varsa ona ±500 TL tolerans; yoksa hedefe ±500 TL)
-    //  - Aynı ay içinde birden fazla satır varsa 1 taksit say (month-dedup)
-    //
-    // "Araç Kredisi":
-    //  - Subcategory "Kredi" ve satırda araç/taşıt ipucu (subcategory veya final sub)
-    //  - Tutar mantıklı bandda; AY bazında tekil.
-    const NORM = s => String(s||'').toLowerCase().trim();
-
-    const BIZ_TARGET = Number(st?.loans?.biz?.instTRY) > 0 ? Number(st.loans.biz.instTRY) : 143_155;
-    const BIZ_EPS    = 500; // ±500 TL tolerans
-
-    // Araç ipuçları
-    const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
-    const CAR_TARGET  = Number(st?.loans?.car?.instTRY) > 0 ? Number(st.loans.car.instTRY) : 30_000;
-    const CAR_EPS     = 1_500; // ±1.5K TL varsayılan tolerans
-
-    // Distinct month sets (YYYY-MM)
     const bizMonths = new Set();
+    const biz2Months = new Set();
     const carMonths = new Set();
 
-    // Yardımcı: YYYY-MM anahtarı
-    const monthKeyFromRow = (r) => {
-      try{
-        const dstr = String(r.Date || r.date || '').slice(0,10);
-        if(!dstr) return '';
-        const dt = new Date(dstr);
-        if (isNaN(+dt)) return '';
-        return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
-      }catch(_){ return ''; }
-    };
+    // Targets (fallback to defaults if missing)
+    const BIZ_TARGET  = Number(st.loans.biz.instTRY)  > 0 ? Number(st.loans.biz.instTRY)  : 0;
+    const CAR_TARGET  = Number(st.loans.car.instTRY)  > 0 ? Number(st.loans.car.instTRY)  : 0;
+    const BIZ2_TARGET = Number(st.loans.biz2.instTRY) > 0 ? Number(st.loans.biz2.instTRY) : 71452.86;
+
+    const BIZ_EPS  = 900;
+    const CAR_EPS  = 900;
+    const BIZ2_EPS = 900;
 
     (rows||[]).forEach(r=>{
-      const subRaw = readExpenseSubcat(r);
-      const sub = NORM(subRaw);
+      const sub = String(readExpenseSubcat(r) || '').toLowerCase();
       if (!sub) return;
 
       const amt = readExpenseAmountTRY(r);
       if (!(amt > 0)) return;
 
-      const monthK = monthKeyFromRow(r);
+      const monthK = String(r.Date||'').slice(0,7);
       if (!monthK) return;
 
-      // FinalSubcategory’yi de ipucu olarak okuyalım
-      const finSub = NORM(r.FinalSubcategory || r['Final Subcategory'] || r.Final || '');
+      const isCarHint = /araç|oto|taşıt|otomobil/.test(sub);
+      const isSubKredi = /kredi|taksit|loan/.test(sub) || /ticari|işletme/.test(sub);
 
-      // --- Araç kredisi ayıklama ---
-      const isCarHint = CAR_HINT_RE.test(sub) || CAR_HINT_RE.test(finSub);
-
-      // Yalnızca "Kredi" alt kategorisini say (tam eşleşme)
-      const isSubKredi = sub === 'kredi' || finSub === 'kredi';
-
-      // === İşletme/Ticari kredi ===
-      if (isSubKredi && !isCarHint){
-        const near = Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
-        if (near) bizMonths.add(monthK);
+      if (isCarHint){
+        if (CAR_TARGET>0 && Math.abs(amt - CAR_TARGET) <= CAR_EPS) carMonths.add(monthK);
+        return;
       }
 
-      // === Araç kredisi ===
-      if (isSubKredi && isCarHint){
-        const nearCar = Math.abs(amt - CAR_TARGET) <= CAR_EPS;
-        if (nearCar) carMonths.add(monthK);
+      if (isSubKredi){
+        const nearBiz2 = Math.abs(amt - BIZ2_TARGET) <= BIZ2_EPS;
+        const nearBiz  = BIZ_TARGET>0 && Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
+
+        if (nearBiz2) biz2Months.add(monthK);
+        else if (nearBiz) bizMonths.add(monthK);
       }
     });
 
-    // AY bazında tekil sayım
-    const bizPaid = bizMonths.size;
-    const carPaid = carMonths.size;
+    const bizPaid  = bizMonths.size;
+    const carPaid  = carMonths.size;
+    const biz2Paid = biz2Months.size;
 
-    // State'i güncelle
-    st.loans = st.loans || {};
-    st.loans.biz = Object.assign({ total:24, instTRY:143000, remainTRY:0 }, st.loans.biz||{});
-    st.loans.car = Object.assign({ total:24, instTRY:30000,  remainTRY:0 }, st.loans.car||{});
-    st.loans.biz2 = Object.assign(
-      { total:24, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0, paid:0 },
-      st.loans.biz2 || {}
-    );
     st.loans.biz.paid = bizPaid;
     st.loans.car.paid = carPaid;
+    st.loans.biz2.paid = biz2Paid;
 
-    // Kalan toplamı kabaca taksit* (kalan adet) olarak güncelle (opsiyonel)
-    const bizRemainCnt = Math.max(0, (st.loans.biz.total||0) - bizPaid);
-    const carRemainCnt = Math.max(0, (st.loans.car.total||0) - carPaid);
-    if (st.loans.biz.instTRY>0) st.loans.biz.remainTRY = bizRemainCnt * Number(st.loans.biz.instTRY||0);
-    if (st.loans.car.instTRY>0) st.loans.car.remainTRY = carRemainCnt * Number(st.loans.car.instTRY||0);
+    // Recompute remain (only if instTRY known)
+    const bizRemainCnt  = Math.max(0, (st.loans.biz.total||0)  - bizPaid);
+    const carRemainCnt  = Math.max(0, (st.loans.car.total||0)  - carPaid);
+    const biz2RemainCnt = Math.max(0, (st.loans.biz2.total||0) - biz2Paid);
 
-    // Kaydet + UI
-    if (typeof setLoansState === 'function') setLoansState(st);
-    try{
-      localStorage.removeItem('popdog_expenses_cache');
-    }catch(_){}
-    if (typeof renderLoansBlock === 'function') renderLoansBlock();
+    if (Number(st.loans.biz.instTRY||0)  > 0) st.loans.biz.remainTRY  = bizRemainCnt  * Number(st.loans.biz.instTRY||0);
+    if (Number(st.loans.car.instTRY||0)  > 0) st.loans.car.remainTRY  = carRemainCnt  * Number(st.loans.car.instTRY||0);
+    if (Number(st.loans.biz2.instTRY||0) > 0) st.loans.biz2.remainTRY = biz2RemainCnt * Number(st.loans.biz2.instTRY||0);
 
+    setLoansState(st);
+    try{ renderLoansBlock(); }catch(_){}
   }catch(e){
-    console.warn('refreshLoansFromExpenses() error:', e);
+    console.warn('refreshLoansFromExpenses() error:', e && e.message ? e.message : e);
   }
 }
 
@@ -2038,6 +2005,106 @@ function withCacheBust(url){
   if(!url) return '';
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}t=${Date.now()}`;
+}
+
+
+/* ================== CSV (TTL Cache + Parser) ================== */
+// 10 dakika TTL (yenile butonu her şeyi temizler)
+const CSV_TTL_MINUTES = 10;
+
+// CSV cache helpers (localStorage)
+const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+function cacheKeyFor(url){
+  return CSV_CACHE_PREFIX + String(url||'');
+}
+
+function clearCsvCaches(){
+  try{
+    const keys = [];
+    for (let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+  }catch(_){ }
+}
+
+function csvCacheRead(url){
+  try{
+    const raw = localStorage.getItem(cacheKeyFor(url));
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object' || !Array.isArray(obj.rows)) return null;
+    const fetchedAt = Number(obj.fetchedAt || 0);
+    return { rows: obj.rows, fetchedAt: fetchedAt || 0 };
+  }catch(_){ return null; }
+}
+
+function csvCacheWrite(url, rows){
+  try{
+    localStorage.setItem(cacheKeyFor(url), JSON.stringify({ rows: rows || [], fetchedAt: Date.now() }));
+  }catch(_){ }
+}
+
+function csvAgeMinutes(url){
+  const c = csvCacheRead(url);
+  if (!c || !c.fetchedAt) return null;
+  return Math.max(0, Math.round((Date.now() - c.fetchedAt) / 60000));
+}
+
+async function fetchCsvText(url){
+  const u = new URL(String(url||''), location.href);
+  u.searchParams.set('_', String(Date.now()));
+  const res = await fetch(u.toString(), { method:'GET', cache:'no-store' });
+  if (!res.ok) throw new Error('CSV_FETCH_FAILED_' + res.status);
+  return await res.text();
+}
+
+function parseCsvText(text){
+  const r = Papa.parse(String(text||''), { header:true, skipEmptyLines:true });
+  if (r && r.data && Array.isArray(r.data)) return r.data;
+  return [];
+}
+
+async function loadCsvWithTTL(url, ttlMinutes){
+  const ttlMs = (Number(ttlMinutes || CSV_TTL_MINUTES) * 60 * 1000);
+  const cached = csvCacheRead(url);
+  const now = Date.now();
+
+  if (cached && cached.fetchedAt && (now - cached.fetchedAt) <= ttlMs){
+    return { rows: cached.rows, meta: { fromCache:true, ageMin: Math.round((now - cached.fetchedAt)/60000) } };
+  }
+
+  try{
+    const txt = await fetchCsvText(url);
+    const rows = parseCsvText(txt);
+    csvCacheWrite(url, rows);
+    return { rows, meta: { fromCache:false, ageMin: 0 } };
+  }catch(e){
+    if (cached && Array.isArray(cached.rows) && cached.rows.length){
+      const ageMin = cached.fetchedAt ? Math.round((now - cached.fetchedAt)/60000) : null;
+      return { rows: cached.rows, meta: { fromCache:true, ageMin, stale:true } };
+    }
+    throw e;
+  }
+}
+
+function updateCsvFreshnessUI(){
+  try{
+    const el = document.getElementById('csvFreshness');
+    if (!el) return;
+    const parts = [];
+    if (typeof DEFAULT_EXPENSES_CSV !== 'undefined'){
+      const a = csvAgeMinutes(DEFAULT_EXPENSES_CSV); if (a!=null) parts.push('exp ' + a + 'dk');
+    }
+    if (typeof DEFAULT_ORDERS_CSV !== 'undefined'){
+      const b = csvAgeMinutes(DEFAULT_ORDERS_CSV); if (b!=null) parts.push('ord ' + b + 'dk');
+    }
+    if (typeof DEFAULT_INV_CSV !== 'undefined'){
+      const c = csvAgeMinutes(DEFAULT_INV_CSV); if (c!=null) parts.push('inv ' + c + 'dk');
+    }
+    el.textContent = parts.length ? ('CSV: ' + parts.join(' • ')) : 'CSV: –';
+  }catch(_){ }
 }
 
 // === Missing helpers (used by CSV loaders) ===
@@ -2381,25 +2448,17 @@ function parseExpenseRow(r){
 
 // Correct CSV loader for Expenses (fetch text, then Papa.parse on string)
 async function loadExpensesCsv(url){
-  if (!url) return [];
   try{
-    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
-    if (!resp.ok) return [];
-    const text = await resp.text();
-
-    return await new Promise((resolve) => {
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) => {
-const rows = (res.data || [])
-  .map(parseExpenseRow)
-  .filter(r => r.Date);          resolve(rows);
-        },
-        error: () => resolve([])
-      });
-    });
+    const res = await loadCsvWithTTL(url, CSV_TTL_MINUTES);
+    const exp = (res.rows||[]).map(parseExpenseRow).filter(r=> r.Date);
+    try{ localStorage.setItem('popdog_expenses_cache', JSON.stringify(exp)); }catch(_){}
+    try{ updateCsvFreshnessUI(); }catch(_){}
+    return exp;
   }catch(e){
+    try{
+      const c = localStorage.getItem('popdog_expenses_cache');
+      if (c) return JSON.parse(c) || [];
+    }catch(_){}
     return [];
   }
 }
