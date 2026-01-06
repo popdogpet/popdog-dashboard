@@ -321,12 +321,21 @@ th, td { white-space: nowrap; }
         <button id="navExpenses" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Giderler</button>
         <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-wrap">
         <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
         <input id="fileInput" type="file" accept=".csv" class="hidden">
         <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+
+        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache temizle + her şeyi tazele">
+          ↻ Yenile
+        </button>
+
+        <span id="csvFreshness" class="chip-ios text-xs" title="CSV tazelik durumu">
+          <span class="label">CSV:</span>
+          <span class="val">–</span>
+        </span>
       </div>
     </header>
 
@@ -1129,7 +1138,7 @@ function cacheless(url){
 async function refreshFundQuotes(){
   try{
     const funds = [
-      { code:'FI5', input:'fi5UnitInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
+      { code:'FI5', input:'fi5Un2itInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
       { code:'SAS', input:'sasUnitInput', lsUnit:'popdog_sas_unit_try', lsAt:'popdog_sas_updated_at' },
       { code:'TI3', input:'isyUnitInput', lsUnit:'popdog_isy_unit_try', lsAt:'popdog_isy_updated_at' }, // İŞY = TI3
     ];
@@ -1326,7 +1335,44 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
+(document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+// === Header: Refresh button (safe) ===
+(function(){
+  // Define a safe cache clearer if missing
+  if (typeof window.clearCsvCaches !== 'function'){
+    window.clearCsvCaches = function(){
+      try{
+        var prefix = (typeof window.CSV_CACHE_PREFIX !== 'undefined') ? window.CSV_CACHE_PREFIX : 'popdog_csv_cache:';
+        var keys = [];
+        for (var i=0; i<localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (k && k.indexOf(prefix) === 0) keys.push(k);
+        }
+        keys.forEach(function(k){ localStorage.removeItem(k); });
+      }catch(_){ }
+    };
+  }
+
+  function bindRefresh(){
+    var b = document.getElementById('refreshBtn');
+    if (!b) return;
+    b.onclick = function(){
+      try{ window.clearCsvCaches(); }catch(_){ }
+      try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
+      try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
+      try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
+      try{ localStorage.removeItem('popdog_csv_last_ok'); }catch(_){ }
+      // reload to re-run all fetches
+      location.reload();
+    };
+  }
+
+  // Bind now + after DOM is ready (in case scripts move)
+  try{ bindRefresh(); }catch(_){ }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ try{ bindRefresh(); }catch(_){ } });
+  }
+})();
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
