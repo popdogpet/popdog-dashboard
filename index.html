@@ -1010,6 +1010,16 @@ th, td { white-space: nowrap; }
 
 
 /* ================== APP CONFIG (config.json) ================== */
+// Global namespace (keeps things organized without changing build/deploy)
+window.POPDOG = window.POPDOG || {
+  Config: {},
+  Cache: {},
+  CSV: {},
+  State: {},
+  UI: {},
+  Charts: {},
+  App: {}
+};
 // We prefer config.json (published with the site) to avoid drift between code and config.
 // Falls back to the existing hardcoded defaults if config.json is missing.
 window.POPDOG_CONFIG = window.POPDOG_CONFIG || null;
@@ -1028,6 +1038,9 @@ async function loadAppConfig(){
   }
 }
 
+// Export (module-style)
+window.POPDOG.Config.loadAppConfig = loadAppConfig;
+
 function cfgGet(path, fallback){
   try{
     const o = window.POPDOG_CONFIG;
@@ -1044,11 +1057,16 @@ function cfgGet(path, fallback){
   }
 }
 
+window.POPDOG.Config.cfgGet = cfgGet;
+
 // CSV cache helpers (localStorage)
 const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+window.POPDOG.Cache.CSV_CACHE_PREFIX = CSV_CACHE_PREFIX;
 function cacheKeyFor(url){
   return CSV_CACHE_PREFIX + String(url||'');
 }
+
+window.POPDOG.Cache.cacheKeyFor = cacheKeyFor;
 function clearCsvCaches(){
   try{
     const keys = [];
@@ -1059,6 +1077,8 @@ function clearCsvCaches(){
     keys.forEach(k => localStorage.removeItem(k));
   }catch(_){ }
 }
+
+window.POPDOG.Cache.clearCsvCaches = clearCsvCaches;
 
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
