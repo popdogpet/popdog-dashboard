@@ -2011,26 +2011,6 @@ function withCacheBust(url){
 }
 
 
-/* ================== CSV (TTL Cache + Parser) ================== */
-// 10 dakika TTL (yenile butonu her şeyi temizler)
-const CSV_TTL_MINUTES = 10;
-
-// CSV cache helpers (localStorage)
-const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
-function cacheKeyFor(url){
-  return CSV_CACHE_PREFIX + String(url||'');
-}
-
-function clearCsvCaches(){
-  try{
-    const keys = [];
-    for (let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
-    }
-    keys.forEach(k => localStorage.removeItem(k));
-  }catch(_){ }
-}
 
 function csvCacheRead(url){
   try{
