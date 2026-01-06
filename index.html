@@ -1060,8 +1060,7 @@ function cfgGet(path, fallback){
 
 window.POPDOG.Config.cfgGet = cfgGet;
 
-// CSV cache helpers (localStorage)
-// (dedup) declare once on window
+// CSV cache helpers (single source of truth)
 if (typeof window.CSV_CACHE_PREFIX === 'undefined'){
   window.CSV_CACHE_PREFIX = 'popdog_csv_cache:';
 }
