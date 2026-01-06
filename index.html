@@ -1061,7 +1061,11 @@ function cfgGet(path, fallback){
 window.POPDOG.Config.cfgGet = cfgGet;
 
 // CSV cache helpers (localStorage)
-var CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+// (dedup) declare once on window
+if (typeof window.CSV_CACHE_PREFIX === 'undefined'){
+  window.CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+}
+var CSV_CACHE_PREFIX = window.CSV_CACHE_PREFIX;
 window.POPDOG.Cache.CSV_CACHE_PREFIX = CSV_CACHE_PREFIX;
 function cacheKeyFor(url){
   return CSV_CACHE_PREFIX + String(url||'');
