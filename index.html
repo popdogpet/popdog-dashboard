@@ -8,7 +8,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2025.10.09-01'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.01.06-02'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -327,8 +327,6 @@ th, td { white-space: nowrap; }
         <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
-        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache + hesaplamaları tazeler">↻ Yenile</button>
-        <span id="csvFreshness" class="chip-ios text-xs" title="CSV cache yaşı">CSV: –</span>
       </div>
     </header>
 
@@ -1010,80 +1008,6 @@ th, td { white-space: nowrap; }
 
 
 
-/* ================== APP CONFIG (config.json) ================== */
-// Global namespace (keeps things organized without changing build/deploy)
-window.POPDOG = window.POPDOG || {
-  Config: {},
-  Cache: {},
-  CSV: {},
-  State: {},
-  UI: {},
-  Charts: {},
-  App: {}
-};
-// We prefer config.json (published with the site) to avoid drift between code and config.
-// Falls back to the existing hardcoded defaults if config.json is missing.
-window.POPDOG_CONFIG = window.POPDOG_CONFIG || null;
-
-async function loadAppConfig(){
-  try{
-    // Cache-bust to avoid stale CDN edge caches when you deploy
-    const res = await fetch('config.json?_=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('config.json not ok');
-    const j = await res.json();
-    if (!j || typeof j !== 'object') throw new Error('config.json invalid');
-    window.POPDOG_CONFIG = j;
-    return j;
-  }catch(_){
-    return null;
-  }
-}
-
-// Export (module-style)
-window.POPDOG.Config.loadAppConfig = loadAppConfig;
-
-function cfgGet(path, fallback){
-  try{
-    const o = window.POPDOG_CONFIG;
-    if (!o) return fallback;
-    const parts = String(path||'').split('.');
-    let cur = o;
-    for (const p of parts){
-      if (!cur || typeof cur !== 'object' || !(p in cur)) return fallback;
-      cur = cur[p];
-    }
-    return (cur == null) ? fallback : cur;
-  }catch(_){
-    return fallback;
-  }
-}
-
-window.POPDOG.Config.cfgGet = cfgGet;
-
-// CSV cache helpers (single source of truth)
-if (typeof window.CSV_CACHE_PREFIX === 'undefined'){
-  window.CSV_CACHE_PREFIX = 'popdog_csv_cache:';
-}
-var CSV_CACHE_PREFIX = window.CSV_CACHE_PREFIX;
-window.POPDOG.Cache.CSV_CACHE_PREFIX = CSV_CACHE_PREFIX;
-function cacheKeyFor(url){
-  return CSV_CACHE_PREFIX + String(url||'');
-}
-
-window.POPDOG.Cache.cacheKeyFor = cacheKeyFor;
-function clearCsvCaches(){
-  try{
-    const keys = [];
-    for (let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
-    }
-    keys.forEach(k => localStorage.removeItem(k));
-  }catch(_){ }
-}
-
-window.POPDOG.Cache.clearCsvCaches = clearCsvCaches;
-
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1386,24 +1310,11 @@ async function setupWebAppCompat(infoEl){
     return null;
   }
 }
-// === Default CSV URLs (fallbacks). These can be overridden by config.json at runtime. ===
-let DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
-let DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
-let DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
-let DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
-
-// Boot-time override from config.json (non-blocking; app will still work without it)
-(async function(){
-  const cfg = await loadAppConfig();
-  if (!cfg) return;
-  try{
-    // expected shape: { endpoints: { sheetCsv, invCsv, ordersCsv, expensesCsv } }
-    DEFAULT_SHEET_CSV   = String(cfgGet('endpoints.sheetCsv', DEFAULT_SHEET_CSV) || DEFAULT_SHEET_CSV);
-    DEFAULT_INV_CSV     = String(cfgGet('endpoints.invCsv', DEFAULT_INV_CSV) || DEFAULT_INV_CSV);
-    DEFAULT_ORDERS_CSV  = String(cfgGet('endpoints.ordersCsv', DEFAULT_ORDERS_CSV) || DEFAULT_ORDERS_CSV);
-    DEFAULT_EXPENSES_CSV= String(cfgGet('endpoints.expensesCsv', DEFAULT_EXPENSES_CSV) || DEFAULT_EXPENSES_CSV);
-  }catch(_){ }
-})();
+// === Hardcoded default CSV URLs (fallbacks if nothing set) ===
+const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1415,19 +1326,7 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-(document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
-// Refresh: clear cached CSVs and reload
-(function(){
-  const b = document.getElementById('refreshBtn');
-  if (!b) return;
-  b.onclick = ()=>{
-    try{ clearCsvCaches(); }catch(_){ }
-    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
-    try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
-    try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
-    location.reload();
-  };
-})();
+document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
@@ -1490,15 +1389,9 @@ const DEFAULT_ZEE_AWAIT = [
         if (!s) return;
         const amt = Number(amountTRY || 0);
         const st = getLoansState();
-        const isBiz2 = /(ticari\s*kredi\s*2|kredi\s*2|biz2|ticari2)/.test(s);
-        const isBiz  = !isBiz2 && /ticari|işletme|taksitli.*ticari/.test(s);
-        const isCar  = /araç|oto|otomobil|taşıt/.test(s);
-        if (isBiz2){
-          st.loans.biz2 = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.biz2||{});
-          st.loans.biz2.paid = Math.max(0, Number(st.loans.biz2.paid || 0)) + 1;
-          if (amt > 0) st.loans.biz2.remainTRY = Math.max(0, Number(st.loans.biz2.remainTRY || 0) - amt);
-          setLoansState(st);
-        } else if (isBiz){
+        const isBiz = /ticari|işletme|taksitli.*ticari/.test(s);
+        const isCar = /araç|oto|otomobil|taşıt/.test(s);
+        if (isBiz){
           st.loans.biz.paid = Math.max(0, Number(st.loans.biz.paid || 0)) + 1;
           if (amt > 0) st.loans.biz.remainTRY = Math.max(0, Number(st.loans.biz.remainTRY || 0) - amt);
           setLoansState(st);
@@ -1588,40 +1481,66 @@ function getFieldCI(row, candidates){
 
 // === Expenses'tan TRY tutarı güvenli okuma (USD ise kurla çevirir) — case-insensitive ===
 function readExpenseAmountTRY(row){
-  // 1) Doğrudan TRY kolonları
-  const TRY_KEYS = ['AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount'];
-  {
-    const v = getFieldCI(row, TRY_KEYS);
-    if (v !== '') {
-      const n = parseTL(v);
-      if (n > 0) return n;
+  try{
+    if(!row) return 0;
+
+    const unwrapAccounting = (v)=>{
+      const t = String(v||'').trim();
+      if (/^\(.*\)$/.test(t)) return { s: t.slice(1,-1), neg:true };
+      return { s: t, neg:false };
+    };
+
+    // Explicit column names (case-insensitive via getFieldCI)
+    const TRY_KEYS = [
+      'AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount','Amount TRY',
+      'Tutar (TRY)','Tutar TRY','AmountTL','TL','Amount (TL)'
+    ];
+    const USD_KEYS = [
+      'AmountUSD','USD','Amount (USD)','USD Amount','Amount USD','Tutar (USD)'
+    ];
+
+    // 1) Direct TRY columns
+    const vTry = getFieldCI(row, TRY_KEYS);
+    if (vTry !== ''){
+      const u = unwrapAccounting(vTry);
+      const n = parseTL(u.s);
+      if (!isNaN(n) && n !== 0) return Math.abs(u.neg ? -n : n);
     }
-  }
-  // 2) USD kolonlarından çeviri
-  const USD_KEYS = ['AmountUSD','USD','Amount (USD)','USD Amount'];
-  {
-    const v = getFieldCI(row, USD_KEYS);
-    if (v !== ''){
-      const usd = parseUSD(v);
-      const fx = getTryPerUsd();
-      if (usd > 0 && fx > 0) return usd * fx;
-    }
-  }
-  // 3) Tek bir generic "Amount" kolonu varsa dene
-  {
-    const v = getFieldCI(row, ['Amount']);
-    if (v !== ''){
-      const s = String(v);
-      if (/\$|USD/i.test(s)){
-        const usd = parseUSD(s);
-        const fx = getTryPerUsd();
-        if (usd > 0 && fx > 0) return usd * fx;
+
+    // 2) Direct USD columns (convert)
+    const vUsd = getFieldCI(row, USD_KEYS);
+    if (vUsd !== ''){
+      const u = unwrapAccounting(vUsd);
+      const usd = parseUSD(u.s);
+      const fx = getTryPerUsd(); // TRY per USD
+      if (!isNaN(usd) && usd !== 0 && fx > 0){
+        const val = (u.neg ? -usd : usd) * fx;
+        return Math.abs(val);
       }
-      const n = parseTL(s);
-      if (n > 0) return n;
     }
+
+    // 3) Generic "Amount" style columns (with currency hint)
+    const vAmt = getFieldCI(row, ['Amount','amount','Value','Total','Toplam','Net Tutar']);
+    if (vAmt !== ''){
+      const u = unwrapAccounting(vAmt);
+      const curHint = String(getFieldCI(row, ['Currency','Para Birimi','Currency Code','CurrencyCode']) || '').trim().toUpperCase();
+      const isUSD = curHint === 'USD' || /\$|USD/i.test(u.s);
+      if (isUSD){
+        const usd = parseUSD(u.s);
+        const fx = getTryPerUsd();
+        if (!isNaN(usd) && usd !== 0 && fx > 0){
+          const val = (u.neg ? -usd : usd) * fx;
+          return Math.abs(val);
+        }
+      }
+      const n = parseTL(u.s);
+      if (!isNaN(n) && n !== 0) return Math.abs(u.neg ? -n : n);
+    }
+
+    return 0;
+  }catch(_){
+    return 0;
   }
-  return 0;
 }
 
 // === Satırdan subcategory metnini okuma (case-insensitive) ===
@@ -1817,76 +1736,116 @@ async function renderThisMonthExpensesByCategory(){
 /* === Expenses CSV'den kredi taksitlerini say ve Loans UI'ı güncelle === */
 async function refreshLoansFromExpenses(){
   try{
+    // CSV'yi oku (mevcut loader'ını kullanıyoruz)
     const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
-    const st = getLoansState();
 
-    // Init
-    st.loans = st.loans || {};
-    st.loans.biz  = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.biz||{});
-    st.loans.car  = Object.assign({ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 }, st.loans.car||{});
-    st.loans.biz2 = Object.assign({ total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }, st.loans.biz2||{});
+    // Mevcut loans config/state'i al
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {
+      loans:{
+        biz:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
+        car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
+        biz2: { total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }
+      },
+      zeeAwait:[]
+    });
 
+    // === Filtre koşulları (daha sıkı ve AY bazında tekil sayım) ===
+    // "Taksitli Ticari Kredi" sayımı:
+    //  - Subcategory = "Kredi" (case-insensitive, tam eşleşme)
+    //  - Tutar ≈ 143.155 TL (instTRY varsa ona ±500 TL tolerans; yoksa hedefe ±500 TL)
+    //  - Aynı ay içinde birden fazla satır varsa 1 taksit say (month-dedup)
+    //
+    // "Araç Kredisi":
+    //  - Subcategory "Kredi" ve satırda araç/taşıt ipucu (subcategory veya final sub)
+    //  - Tutar mantıklı bandda; AY bazında tekil.
+    const NORM = s => String(s||'').toLowerCase().trim();
+
+    const BIZ_TARGET = Number(st?.loans?.biz?.instTRY) > 0 ? Number(st.loans.biz.instTRY) : 143_155;
+    const BIZ_EPS    = 500; // ±500 TL tolerans
+
+    // Araç ipuçları
+    const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
+    const CAR_TARGET  = Number(st?.loans?.car?.instTRY) > 0 ? Number(st.loans.car.instTRY) : 30_000;
+    const CAR_EPS     = 1_500; // ±1.5K TL varsayılan tolerans
+
+    // Distinct month sets (YYYY-MM)
     const bizMonths = new Set();
-    const biz2Months = new Set();
     const carMonths = new Set();
 
-    // Targets (fallback to defaults if missing)
-    const BIZ_TARGET  = Number(st.loans.biz.instTRY)  > 0 ? Number(st.loans.biz.instTRY)  : 0;
-    const CAR_TARGET  = Number(st.loans.car.instTRY)  > 0 ? Number(st.loans.car.instTRY)  : 0;
-    const BIZ2_TARGET = Number(st.loans.biz2.instTRY) > 0 ? Number(st.loans.biz2.instTRY) : 71452.86;
-
-    const BIZ_EPS  = 900;
-    const CAR_EPS  = 900;
-    const BIZ2_EPS = 900;
+    // Yardımcı: YYYY-MM anahtarı
+    const monthKeyFromRow = (r) => {
+      try{
+        const dstr = String(r.Date || r.date || '').slice(0,10);
+        if(!dstr) return '';
+        const dt = new Date(dstr);
+        if (isNaN(+dt)) return '';
+        return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
+      }catch(_){ return ''; }
+    };
 
     (rows||[]).forEach(r=>{
-      const sub = String(readExpenseSubcat(r) || '').toLowerCase();
+      const subRaw = readExpenseSubcat(r);
+      const sub = NORM(subRaw);
       if (!sub) return;
 
       const amt = readExpenseAmountTRY(r);
       if (!(amt > 0)) return;
 
-      const monthK = String(r.Date||'').slice(0,7);
+      const monthK = monthKeyFromRow(r);
       if (!monthK) return;
 
-      const isCarHint = /araç|oto|taşıt|otomobil/.test(sub);
-      const isSubKredi = /kredi|taksit|loan/.test(sub) || /ticari|işletme/.test(sub);
+      // FinalSubcategory’yi de ipucu olarak okuyalım
+      const finSub = NORM(r.FinalSubcategory || r['Final Subcategory'] || r.Final || '');
 
-      if (isCarHint){
-        if (CAR_TARGET>0 && Math.abs(amt - CAR_TARGET) <= CAR_EPS) carMonths.add(monthK);
-        return;
+      // --- Araç kredisi ayıklama ---
+      const isCarHint = CAR_HINT_RE.test(sub) || CAR_HINT_RE.test(finSub);
+
+      // Yalnızca "Kredi" alt kategorisini say (tam eşleşme)
+      const isSubKredi = sub === 'kredi' || finSub === 'kredi';
+
+      // === İşletme/Ticari kredi ===
+      if (isSubKredi && !isCarHint){
+        const near = Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
+        if (near) bizMonths.add(monthK);
       }
 
-      if (isSubKredi){
-        const nearBiz2 = Math.abs(amt - BIZ2_TARGET) <= BIZ2_EPS;
-        const nearBiz  = BIZ_TARGET>0 && Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
-
-        if (nearBiz2) biz2Months.add(monthK);
-        else if (nearBiz) bizMonths.add(monthK);
+      // === Araç kredisi ===
+      if (isSubKredi && isCarHint){
+        const nearCar = Math.abs(amt - CAR_TARGET) <= CAR_EPS;
+        if (nearCar) carMonths.add(monthK);
       }
     });
 
-    const bizPaid  = bizMonths.size;
-    const carPaid  = carMonths.size;
-    const biz2Paid = biz2Months.size;
+    // AY bazında tekil sayım
+    const bizPaid = bizMonths.size;
+    const carPaid = carMonths.size;
 
+    // State'i güncelle
+    st.loans = st.loans || {};
+    st.loans.biz = Object.assign({ total:24, instTRY:143000, remainTRY:0 }, st.loans.biz||{});
+    st.loans.car = Object.assign({ total:24, instTRY:30000,  remainTRY:0 }, st.loans.car||{});
+    st.loans.biz2 = Object.assign(
+      { total:24, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0, paid:0 },
+      st.loans.biz2 || {}
+    );
     st.loans.biz.paid = bizPaid;
     st.loans.car.paid = carPaid;
-    st.loans.biz2.paid = biz2Paid;
 
-    // Recompute remain (only if instTRY known)
-    const bizRemainCnt  = Math.max(0, (st.loans.biz.total||0)  - bizPaid);
-    const carRemainCnt  = Math.max(0, (st.loans.car.total||0)  - carPaid);
-    const biz2RemainCnt = Math.max(0, (st.loans.biz2.total||0) - biz2Paid);
+    // Kalan toplamı kabaca taksit* (kalan adet) olarak güncelle (opsiyonel)
+    const bizRemainCnt = Math.max(0, (st.loans.biz.total||0) - bizPaid);
+    const carRemainCnt = Math.max(0, (st.loans.car.total||0) - carPaid);
+    if (st.loans.biz.instTRY>0) st.loans.biz.remainTRY = bizRemainCnt * Number(st.loans.biz.instTRY||0);
+    if (st.loans.car.instTRY>0) st.loans.car.remainTRY = carRemainCnt * Number(st.loans.car.instTRY||0);
 
-    if (Number(st.loans.biz.instTRY||0)  > 0) st.loans.biz.remainTRY  = bizRemainCnt  * Number(st.loans.biz.instTRY||0);
-    if (Number(st.loans.car.instTRY||0)  > 0) st.loans.car.remainTRY  = carRemainCnt  * Number(st.loans.car.instTRY||0);
-    if (Number(st.loans.biz2.instTRY||0) > 0) st.loans.biz2.remainTRY = biz2RemainCnt * Number(st.loans.biz2.instTRY||0);
+    // Kaydet + UI
+    if (typeof setLoansState === 'function') setLoansState(st);
+    try{
+      localStorage.removeItem('popdog_expenses_cache');
+    }catch(_){}
+    if (typeof renderLoansBlock === 'function') renderLoansBlock();
 
-    setLoansState(st);
-    try{ renderLoansBlock(); }catch(_){}
   }catch(e){
-    console.warn('refreshLoansFromExpenses() error:', e && e.message ? e.message : e);
+    console.warn('refreshLoansFromExpenses() error:', e);
   }
 }
 
@@ -2008,86 +1967,6 @@ function withCacheBust(url){
   if(!url) return '';
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}t=${Date.now()}`;
-}
-
-
-
-function csvCacheRead(url){
-  try{
-    const raw = localStorage.getItem(cacheKeyFor(url));
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object' || !Array.isArray(obj.rows)) return null;
-    const fetchedAt = Number(obj.fetchedAt || 0);
-    return { rows: obj.rows, fetchedAt: fetchedAt || 0 };
-  }catch(_){ return null; }
-}
-
-function csvCacheWrite(url, rows){
-  try{
-    localStorage.setItem(cacheKeyFor(url), JSON.stringify({ rows: rows || [], fetchedAt: Date.now() }));
-  }catch(_){ }
-}
-
-function csvAgeMinutes(url){
-  const c = csvCacheRead(url);
-  if (!c || !c.fetchedAt) return null;
-  return Math.max(0, Math.round((Date.now() - c.fetchedAt) / 60000));
-}
-
-async function fetchCsvText(url){
-  const u = new URL(String(url||''), location.href);
-  u.searchParams.set('_', String(Date.now()));
-  const res = await fetch(u.toString(), { method:'GET', cache:'no-store' });
-  if (!res.ok) throw new Error('CSV_FETCH_FAILED_' + res.status);
-  return await res.text();
-}
-
-function parseCsvText(text){
-  const r = Papa.parse(String(text||''), { header:true, skipEmptyLines:true });
-  if (r && r.data && Array.isArray(r.data)) return r.data;
-  return [];
-}
-
-async function loadCsvWithTTL(url, ttlMinutes){
-  const ttlMs = (Number(ttlMinutes || CSV_TTL_MINUTES) * 60 * 1000);
-  const cached = csvCacheRead(url);
-  const now = Date.now();
-
-  if (cached && cached.fetchedAt && (now - cached.fetchedAt) <= ttlMs){
-    return { rows: cached.rows, meta: { fromCache:true, ageMin: Math.round((now - cached.fetchedAt)/60000) } };
-  }
-
-  try{
-    const txt = await fetchCsvText(url);
-    const rows = parseCsvText(txt);
-    csvCacheWrite(url, rows);
-    return { rows, meta: { fromCache:false, ageMin: 0 } };
-  }catch(e){
-    if (cached && Array.isArray(cached.rows) && cached.rows.length){
-      const ageMin = cached.fetchedAt ? Math.round((now - cached.fetchedAt)/60000) : null;
-      return { rows: cached.rows, meta: { fromCache:true, ageMin, stale:true } };
-    }
-    throw e;
-  }
-}
-
-function updateCsvFreshnessUI(){
-  try{
-    const el = document.getElementById('csvFreshness');
-    if (!el) return;
-    const parts = [];
-    if (typeof DEFAULT_EXPENSES_CSV !== 'undefined'){
-      const a = csvAgeMinutes(DEFAULT_EXPENSES_CSV); if (a!=null) parts.push('exp ' + a + 'dk');
-    }
-    if (typeof DEFAULT_ORDERS_CSV !== 'undefined'){
-      const b = csvAgeMinutes(DEFAULT_ORDERS_CSV); if (b!=null) parts.push('ord ' + b + 'dk');
-    }
-    if (typeof DEFAULT_INV_CSV !== 'undefined'){
-      const c = csvAgeMinutes(DEFAULT_INV_CSV); if (c!=null) parts.push('inv ' + c + 'dk');
-    }
-    el.textContent = parts.length ? ('CSV: ' + parts.join(' • ')) : 'CSV: –';
-  }catch(_){ }
 }
 
 // === Missing helpers (used by CSV loaders) ===
@@ -2431,17 +2310,25 @@ function parseExpenseRow(r){
 
 // Correct CSV loader for Expenses (fetch text, then Papa.parse on string)
 async function loadExpensesCsv(url){
+  if (!url) return [];
   try{
-    const res = await loadCsvWithTTL(url, CSV_TTL_MINUTES);
-    const exp = (res.rows||[]).map(parseExpenseRow).filter(r=> r.Date);
-    try{ localStorage.setItem('popdog_expenses_cache', JSON.stringify(exp)); }catch(_){}
-    try{ updateCsvFreshnessUI(); }catch(_){}
-    return exp;
+    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+
+    return await new Promise((resolve) => {
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+const rows = (res.data || [])
+  .map(parseExpenseRow)
+  .filter(r => r.Date);          resolve(rows);
+        },
+        error: () => resolve([])
+      });
+    });
   }catch(e){
-    try{
-      const c = localStorage.getItem('popdog_expenses_cache');
-      if (c) return JSON.parse(c) || [];
-    }catch(_){}
     return [];
   }
 }
@@ -4712,7 +4599,7 @@ function expenseCats(r){
   return { main, sub: r.Subcategory || r.FinalSubcategory || main };
 }
 
-function readExpenseAmountTRY(r){
+function readExpenseAmountTRY__legacy1(r){
   try{
     const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
     const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
@@ -4736,7 +4623,7 @@ function readExpenseAmountTRY(r){
     return 0;
   }
 }
-function readExpenseAmountTRY(r){
+function readExpenseAmountTRY__legacy2(r){
   try{
     if(!r) return 0;
 
@@ -5166,8 +5053,22 @@ function drawExpensesCharts(expMonthly){
   });
   const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
 
-  if (expLineChart) expLineChart.destroy();
-  const lctx = document.getElementById('lineExpenses').getContext('2d');
+  const canvasEl = document.getElementById('lineExpenses');
+  if (!canvasEl || !window.Chart) return;
+
+  // Always destroy any existing Chart.js instance bound to this canvas
+  try{
+    const existing = Chart.getChart(canvasEl);
+    if (existing) existing.destroy();
+  }catch(_){}
+
+  // Also destroy the last instance we tracked (safe double-destroy guard)
+  if (expLineChart){
+    try{ expLineChart.destroy(); }catch(_){}
+    expLineChart = null;
+  }
+
+  const lctx = canvasEl.getContext('2d');
   const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
   const ds = [
     {
