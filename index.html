@@ -8,7 +8,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.01.06-02'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2025.10.09-01'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -80,9 +80,7 @@
   })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     .badge-paid{
       background: #16a34a1a;
@@ -159,9 +157,7 @@ th, td { white-space: nowrap; }
 /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
 #lineTotal,
 #barStack,
-#pieShare,
-#lineExpenses,
-#pieExpenses{
+#pieShare{
   background: rgba(255,255,255,0.25);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -323,21 +319,12 @@ th, td { white-space: nowrap; }
         <button id="navExpenses" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Giderler</button>
         <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-3">
         <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
         <input id="fileInput" type="file" accept=".csv" class="hidden">
         <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
-
-        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache temizle + her şeyi tazele">
-          ↻ Yenile
-        </button>
-
-        <span id="csvFreshness" class="chip-ios text-xs" title="CSV tazelik durumu">
-          <span class="label">CSV:</span>
-          <span class="val">–</span>
-        </span>
       </div>
     </header>
 
@@ -558,27 +545,12 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid grid-cols-1 gap-6" data-page="revenue">
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
-          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
-            <span class="label">YoY</span>
-            <span id="yoyState" class="val">Açık</span>
-          </button>
-        </div>
-        <canvas id="lineTotal" class="chart-can"></canvas>
-        <div id="lineTotalTblWrap"></div>
-      </div>
+<div class="glass card-3d rounded-3xl p-5" data-page="revenue">
+  <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Grafikler kaldırıldı</div>
+  <div class="hint text-sm mt-1">Bu sayfada artık Chart.js grafikleri yok. Tablo/özetler korunur.</div>
+</div>
 
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-        <canvas id="barStack" class="chart-can"></canvas>
-        <div id="barStackTblWrap"></div>
-      </div>
-    </div>
-
-    <!-- === Expenses (CFO) === -->
+<!-- === Expenses (CFO) === -->
     <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
       <div class="flex items-center justify-between mb-3">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Giderler (YTD) & Net Kâr</div>
@@ -615,16 +587,7 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <canvas id="lineExpenses" height="160"></canvas>
-          <div class="glass card-3d rounded-2xl p-4 mt-4">
-  <div class="flex items-center justify-between mb-2">
-    <div class="text-slate-700 dark:text-slate-200">Gider Dağılımı (YTD)</div>
-    <div class="hint text-[11px]">Ana kategori</div>
-  </div>
-  <div style="height:260px">
-    <canvas id="pieExpenses"></canvas>
-  </div>
-</div>
+          <div class="hint text-sm">Grafikler kaldırıldı (Chart.js kapatıldı).</div>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -990,44 +953,6 @@ th, td { white-space: nowrap; }
   </div>
 
 <script>
-/* === Chart.js global safe defaults (iPad/Safari) === */
-(function(){
-  if (!window.Chart) return;
-  // Prevent aspect-ratio oscillations; size is driven by CSS height
-  Chart.defaults.responsive = true;
-  Chart.defaults.maintainAspectRatio = false;
-  // Debounce layout-driven resizes
-  Chart.defaults.resizeDelay = 180;
-  // Tame DPR thrash on Safari zoom/orientation changes
-  try {
-    Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
-  } catch(_) {}
-
-  // Global typography & axis defaults (safe, non-scriptable)
-  Chart.defaults.font = Chart.defaults.font || {};
-  Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  Chart.defaults.font.size = 14;
-
-  // Use a light but readable default text color for axes/labels
-  Chart.defaults.color = '#e5e7eb';
-
-  // Add some padding around charts so labels are not visually "squeezed"
-  Chart.defaults.layout = Chart.defaults.layout || {};
-  Chart.defaults.layout.padding = { top: 20, right: 16, bottom: 24, left: 28 };
-
-  // Global scale tick styling (X/Y axis labels)
-  Chart.defaults.scale = Chart.defaults.scale || {};
-  const baseTicks = Chart.defaults.scale.ticks || {};
-  Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
-    maxRotation: 0,
-    minRotation: 0,
-    autoSkip: true,
-    font: Object.assign({}, baseTicks.font || {}, { size: 14 })
-  });
-})();
-
-
-
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1149,7 +1074,7 @@ function cacheless(url){
 async function refreshFundQuotes(){
   try{
     const funds = [
-      { code:'FI5', input:'fi5Un2itInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
+      { code:'FI5', input:'fi5UnitInput', lsUnit:'popdog_fi5_unit_try', lsAt:'popdog_fi5_updated_at' },
       { code:'SAS', input:'sasUnitInput', lsUnit:'popdog_sas_unit_try', lsAt:'popdog_sas_updated_at' },
       { code:'TI3', input:'isyUnitInput', lsUnit:'popdog_isy_unit_try', lsAt:'popdog_isy_updated_at' }, // İŞY = TI3
     ];
@@ -1346,49 +1271,7 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-{
-  const themeBtn = document.getElementById('themeBtn');
-  if (themeBtn) {
-    themeBtn.onclick = () =>
-      setTheme(root.classList.contains('dark') ? 'light' : 'dark');
-  }
-}// === Header: Refresh button (safe) ===
-(function(){
-  // Define a safe cache clearer if missing
-  if (typeof window.clearCsvCaches !== 'function'){
-    window.clearCsvCaches = function(){
-      try{
-        var prefix = (typeof window.CSV_CACHE_PREFIX !== 'undefined') ? window.CSV_CACHE_PREFIX : 'popdog_csv_cache:';
-        var keys = [];
-        for (var i=0; i<localStorage.length; i++){
-          var k = localStorage.key(i);
-          if (k && k.indexOf(prefix) === 0) keys.push(k);
-        }
-        keys.forEach(function(k){ localStorage.removeItem(k); });
-      }catch(_){ }
-    };
-  }
-
-  function bindRefresh(){
-    var b = document.getElementById('refreshBtn');
-    if (!b) return;
-    b.onclick = function(){
-      try{ window.clearCsvCaches(); }catch(_){ }
-      try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
-      try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
-      try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
-      try{ localStorage.removeItem('popdog_csv_last_ok'); }catch(_){ }
-      // reload to re-run all fetches
-      location.reload();
-    };
-  }
-
-  // Bind now + after DOM is ready (in case scripts move)
-  try{ bindRefresh(); }catch(_){ }
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ try{ bindRefresh(); }catch(_){ } });
-  }
-})();
+document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
@@ -1543,66 +1426,40 @@ function getFieldCI(row, candidates){
 
 // === Expenses'tan TRY tutarı güvenli okuma (USD ise kurla çevirir) — case-insensitive ===
 function readExpenseAmountTRY(row){
-  try{
-    if(!row) return 0;
-
-    const unwrapAccounting = (v)=>{
-      const t = String(v||'').trim();
-      if (/^\(.*\)$/.test(t)) return { s: t.slice(1,-1), neg:true };
-      return { s: t, neg:false };
-    };
-
-    // Explicit column names (case-insensitive via getFieldCI)
-    const TRY_KEYS = [
-      'AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount','Amount TRY',
-      'Tutar (TRY)','Tutar TRY','AmountTL','TL','Amount (TL)'
-    ];
-    const USD_KEYS = [
-      'AmountUSD','USD','Amount (USD)','USD Amount','Amount USD','Tutar (USD)'
-    ];
-
-    // 1) Direct TRY columns
-    const vTry = getFieldCI(row, TRY_KEYS);
-    if (vTry !== ''){
-      const u = unwrapAccounting(vTry);
-      const n = parseTL(u.s);
-      if (!isNaN(n) && n !== 0) return Math.abs(u.neg ? -n : n);
+  // 1) Doğrudan TRY kolonları
+  const TRY_KEYS = ['AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount'];
+  {
+    const v = getFieldCI(row, TRY_KEYS);
+    if (v !== '') {
+      const n = parseTL(v);
+      if (n > 0) return n;
     }
-
-    // 2) Direct USD columns (convert)
-    const vUsd = getFieldCI(row, USD_KEYS);
-    if (vUsd !== ''){
-      const u = unwrapAccounting(vUsd);
-      const usd = parseUSD(u.s);
-      const fx = getTryPerUsd(); // TRY per USD
-      if (!isNaN(usd) && usd !== 0 && fx > 0){
-        const val = (u.neg ? -usd : usd) * fx;
-        return Math.abs(val);
-      }
-    }
-
-    // 3) Generic "Amount" style columns (with currency hint)
-    const vAmt = getFieldCI(row, ['Amount','amount','Value','Total','Toplam','Net Tutar']);
-    if (vAmt !== ''){
-      const u = unwrapAccounting(vAmt);
-      const curHint = String(getFieldCI(row, ['Currency','Para Birimi','Currency Code','CurrencyCode']) || '').trim().toUpperCase();
-      const isUSD = curHint === 'USD' || /\$|USD/i.test(u.s);
-      if (isUSD){
-        const usd = parseUSD(u.s);
-        const fx = getTryPerUsd();
-        if (!isNaN(usd) && usd !== 0 && fx > 0){
-          const val = (u.neg ? -usd : usd) * fx;
-          return Math.abs(val);
-        }
-      }
-      const n = parseTL(u.s);
-      if (!isNaN(n) && n !== 0) return Math.abs(u.neg ? -n : n);
-    }
-
-    return 0;
-  }catch(_){
-    return 0;
   }
+  // 2) USD kolonlarından çeviri
+  const USD_KEYS = ['AmountUSD','USD','Amount (USD)','USD Amount'];
+  {
+    const v = getFieldCI(row, USD_KEYS);
+    if (v !== ''){
+      const usd = parseUSD(v);
+      const fx = getTryPerUsd();
+      if (usd > 0 && fx > 0) return usd * fx;
+    }
+  }
+  // 3) Tek bir generic "Amount" kolonu varsa dene
+  {
+    const v = getFieldCI(row, ['Amount']);
+    if (v !== ''){
+      const s = String(v);
+      if (/\$|USD/i.test(s)){
+        const usd = parseUSD(s);
+        const fx = getTryPerUsd();
+        if (usd > 0 && fx > 0) return usd * fx;
+      }
+      const n = parseTL(s);
+      if (n > 0) return n;
+    }
+  }
+  return 0;
 }
 
 // === Satırdan subcategory metnini okuma (case-insensitive) ===
@@ -4049,9 +3906,11 @@ const glassBars = {
     }
   }
 };
-Chart.register(glassPie);
-Chart.register(glassBars);
-Chart.register(ChartDataLabels);
+if (window.Chart && typeof window.Chart.register === 'function'){
+  try{ window.Chart.register(glassPie); }catch(_){ }
+  try{ window.Chart.register(glassBars); }catch(_){ }
+  try{ if (window.ChartDataLabels) window.Chart.register(window.ChartDataLabels); }catch(_){ }
+}
 let lineChart, pieChart, barChart;
 let monthlyCache = [];
 let yoyEnabled = true;
@@ -4232,7 +4091,6 @@ function drawCharts(monthly){
 
   // ========== Line: Aylık Toplam Ciro ==========
   if (lineChart) { try{ lineChart.destroy(); }catch(e){} lineChart = null; }
-  const lctxEl = document.getElementById('lineTotal');
   if (!lctxEl || !lctxEl.getContext){
     // canvas bulunamazsa tabloları yine de bas
     renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
@@ -4240,7 +4098,6 @@ function drawCharts(monthly){
     return;
   }
   const lctx = lctxEl.getContext('2d');
-  if (!lctx) return;
   const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
 
   const datasets = [{
@@ -4267,7 +4124,6 @@ function drawCharts(monthly){
   }
 
   try{
-    lineChart = new Chart(lctx, {
       type:'line',
       data:{ labels: labels.map(m => m), datasets },
       options:{
@@ -4296,14 +4152,12 @@ function drawCharts(monthly){
 
   // ========== Stacked Bar: Kanal Bazlı Aylık Ciro ==========
   if (barChart) { try{ barChart.destroy(); }catch(e){} barChart = null; }
-  const bctxEl = document.getElementById('barStack');
   if (!bctxEl || !bctxEl.getContext){
     renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
     renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
     return;
   }
   const bctx = bctxEl.getContext('2d');
-  if (!bctx) return;
   const barColors = [
     'rgba(165,180,252,0.70)',
     'rgba(52,211,153,0.70)',
@@ -4314,7 +4168,6 @@ function drawCharts(monthly){
   const barBorder = 'rgba(255,255,255,0.55)';
 
   try{
-    barChart = new Chart(bctx, {
       type: 'bar',
       data: {
         labels,
@@ -4339,14 +4192,10 @@ function drawCharts(monthly){
           legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
           tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
           datalabels: {
-            display: (ctx) => {
-  try {
-    const labels = ctx?.chart?.data?.labels;
-    return Array.isArray(labels) && labels.length > 0 && labels.length <= 8;
-  } catch (_) {
-    return false;
-  }
-},
+            display: (ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
+              return L.length <= 6;
+            },
             anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
             color: '#fff', font: { weight: '600', size: 10 }, clamp: true
           }
@@ -4667,7 +4516,7 @@ function expenseCats(r){
   return { main, sub: r.Subcategory || r.FinalSubcategory || main };
 }
 
-function readExpenseAmountTRY__legacy1(r){
+function readExpenseAmountTRY(r){
   try{
     const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
     const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
@@ -4691,7 +4540,7 @@ function readExpenseAmountTRY__legacy1(r){
     return 0;
   }
 }
-function readExpenseAmountTRY__legacy2(r){
+function readExpenseAmountTRY(r){
   try{
     if(!r) return 0;
 
@@ -4845,12 +4694,12 @@ function expenseCats(r){
     r && r.Kategori
   ].filter(Boolean).map(s => String(s).trim()).filter(s => s.length > 0);
 
-let main = '';
+  let main = '';
   if (zeeAny) {
     main = 'Zee.Dog';
-  } else if ((explicitMainCandidates || []).length) {
+  } else if (explicitMainCandidates.length) {
     // Use the first explicit main-like field
-    main = (explicitMainCandidates || [])[0];
+    main = explicitMainCandidates[0];
     // If it is literally "Diğer" but we have a better sub, promote sub to main
     if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
       main = sub0;
@@ -5094,245 +4943,23 @@ function renderMainExpenseTable(){
   }
 }
 let expLineChart;
-function drawExpensesCharts(expMonthly){
-    // 🔥 HARD RESET (canvas reuse fix)
-  try {
-    if (window.expLineChart) {
-      window.expLineChart.destroy();
-      window.expLineChart = null;
-    }
-    if (window.expPieChart) {
-      window.expPieChart.destroy();
-      window.expPieChart = null;
-    }
-  } catch (_) {}
-  // Guard: Chart.js or canvases not ready
-  if (!window.Chart) return;
+function drawExpensesCharts(){
+  // Charts removed intentionally.
+  return;
+});
 
-  const rows = Array.isArray(expMonthly) ? expMonthly : [];
+    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
 
-  // Pick a sensible year for charts:
-  // - If the real current year exists in data, use it.
-  // - Otherwise, fall back to the latest year present in data (prevents empty charts early in the year).
-  const realYear = (new Date()).getFullYear();
-  const yearsInData = rows
-    .map(r => Number(r.year ?? r.Year ?? r.Yıl ?? 0))
-    .filter(y => y > 0 && Number.isFinite(y));
+    // Etiketleri tutara göre sırala
+    const sorted = Object.entries(catSum)
+      .map(([k, v]) => ({ k, v }))
+      .sort((a, b) => b.v - a.v);
 
-  if (!yearsInData.length) return;
+    const labels = sorted.map(x => x.k);
+    const data   = sorted.map(x => x.v);
 
-  const latestYear = yearsInData.reduce((a,b)=> Math.max(a,b), yearsInData[0]);
-  const curYear = yearsInData.includes(realYear) ? realYear : latestYear;
-
-  const lineCanvas = document.getElementById('lineExpenses');
-  if (!lineCanvas || typeof lineCanvas.getContext !== 'function') {
-    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
-    return;
-  }
-  const lctx = lineCanvas.getContext('2d');
-  if (!lctx) {
-    console.warn('drawExpensesCharts: lineExpenses ctx unavailable');
-    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
-    return;
-  }
-
-  // Ensure datalabels plugin is registered (safe to call multiple times)
-  try{
-    if (window.ChartDataLabels && window.Chart && window.Chart.register) window.Chart.register(window.ChartDataLabels);
-  }catch(_){}
-
-  const cur = rows
-    .map(r => ({
-      year: Number(r.year ?? r.Year ?? r.Yıl ?? 0),
-      month: Number(r.month ?? r.Month ?? r.Ay ?? 0),
-      total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? r.tutar ?? r.Tutar ?? 0),
-      rows: Array.isArray(r.rows) ? r.rows : (Array.isArray(r.items) ? r.items : [])
-    }))
-    .filter(r => r.year === curYear && r.month >= 1 && r.month <= 12)
-    .sort((a,b)=> a.month - b.month);
-
-  const labels = cur.map(r => `${r.year}-${String(r.month).padStart(2,'0')}`);
-  const data = cur.map(r => Number(r.total||0));
-
-  // Optional YoY series (previous year)
-  let yoyData = [];
-  try{
-    if (typeof expYoyEnabled === 'undefined' || expYoyEnabled){
-      const prev = rows
-        .map(r => ({
-          year: Number(r.year ?? r.Year ?? r.Yıl ?? 0),
-          month: Number(r.month ?? r.Month ?? r.Ay ?? 0),
-          total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? r.tutar ?? r.Tutar ?? 0)
-        }))
-        .filter(r => r.year === (curYear-1) && r.month >= 1 && r.month <= 12)
-        .sort((a,b)=> a.month - b.month);
-      yoyData = prev.map(r => Number(r.total||0));
-    }
-  }catch(_){ yoyData = []; }
-
-  // Destroy previous line chart instance
-  try{
-    if (window.expLineChart && typeof window.expLineChart.destroy === 'function') {
-      window.expLineChart.destroy();
-      window.expLineChart = null;
-    }
-  }catch(_){}
-
-  try{
-    const gradient = lctx.createLinearGradient(0,0,0,240);
-    gradient.addColorStop(0, 'rgba(99,102,241,0.45)');
-    gradient.addColorStop(1, 'rgba(99,102,241,0.05)');
-
-    const datasets = [{
-      label: `${curYear}`,
-      data,
-      tension: 0.25,
-      fill: true,
-      backgroundColor: gradient,
-      borderColor: '#6366f1',
-      borderWidth: 2,
-      pointRadius: 2
-    }];
-
-    if (yoyData && yoyData.length){
-      datasets.push({
-        label: `${curYear-1}`,
-        data: yoyData,
-        tension: 0.25,
-        fill: false,
-        borderColor: '#94a3b8',
-        borderWidth: 1.5,
-        pointRadius: 1.5,
-        borderDash: [4,4]
-      });
-    }
-
-    window.expLineChart = new Chart(lctx, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        resizeDelay: 200,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom' },
-          datalabels: {
-            display: (ctx) => {
-  try {
-    const labels = ctx?.chart?.data?.labels;
-    return Array.isArray(labels) && labels.length > 0 && labels.length <= 8;
-  } catch (_) {
-    return false;
-  }
-},
-            align: 'top',
-            anchor: 'end',
-            formatter: v => numberTL(Number(v||0)),
-            color: '#64748b',
-            clip: true
-          }
-        },
-        scales: {
-          y: { ticks: { callback: (v)=> numberTL(Number(v||0)) } }
-        }
-      }
-    });
-  } catch (e) {
-    console.warn('drawExpensesCharts line error', e);
-    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
-  }
-
-  // === PIE: Category share (YTD) ===
-  const pieCanvas = document.getElementById('pieExpenses');
-  if (!pieCanvas || typeof pieCanvas.getContext !== 'function') {
-    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
-    return;
-  }
-  const pctx = pieCanvas.getContext('2d');
-  if (!pctx) {
-    console.warn('drawExpensesCharts: pieExpenses ctx unavailable');
-    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
-    return;
-  }
-
-  const catSum = {};
-  (cur || []).forEach(m=>{
-    const rr = Array.isArray(m.rows) ? m.rows : [];
-    rr.forEach(r=>{
-      const main = String(r.main || r.Category || r.Kategori || r.cat || r.sub || 'Diğer').trim() || 'Diğer';
-      const amt = Number(r.amountTRY || r.amount || r.total || r.value || r.Amount || 0);
-      if (!(amt > 0)) return;
-      catSum[main] = (catSum[main]||0) + amt;
-    });
-  });
-
-  const entries = Object.entries(catSum).sort((a,b)=> b[1]-a[1]);
-  const pieCanvasEl = document.getElementById('pieExpenses');
-  if (!entries.length || !pieCanvasEl) {
-    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
-    return;
-  }
-
-  const TOP = 10;
-  const top = entries.slice(0, TOP);
-  const rest = entries.slice(TOP);
-  if (rest.length){
-    const restSum = rest.reduce((a, [,v])=> a + (Number(v)||0), 0);
-    if (restSum > 0) top.push(['Diğer', restSum]);
-  }
-
-  const pieLabels = top.map(([k])=>k);
-  const pieData   = top.map(([,v])=>Number(v||0));
-
-  try{
-    if (window.expPieChart && typeof window.expPieChart.destroy === 'function') {
-      window.expPieChart.destroy();
-      window.expPieChart = null;
-    }
-  }catch(_){}
-
-  try{
-    window.expPieChart = new Chart(pctx, {
-      type: 'pie',
-      data: { labels: pieLabels, datasets: [{ data: pieData }] },
-      options: {
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const v = Number(ctx.raw || 0);
-                const total = pieData.reduce((a,b)=>a+(b||0),0) || 1;
-                const pct = (v / total) * 100;
-                return `${ctx.label}: ${numberTL(v)} (${pct.toFixed(1)}%)`;
-              }
-            }
-          },
-          datalabels: {
-            display: (c)=> (c && c.chart && c.chart.data && (c.chart.data.labels||[]).length)
-              ? ((c.chart.data.labels||[]).length <= 8)
-              : false,
-            formatter: (v, ctx) => {
-  try {
-    const data = ctx?.chart?.data?.datasets?.[0]?.data;
-    if (!Array.isArray(data)) return '';
-    const total = data.reduce((a,b)=>a+(Number(b)||0),0);
-    if (!total) return '';
-    const pct = (Number(v||0) / total) * 100;
-    return pct >= 6 ? `${pct.toFixed(0)}%` : '';
-  } catch (_) {
-    return '';
-  }
-},
-            color: '#ffffff',
-            font: { weight: '600', size: 10 },
-            clamp: true
-          }
-        }
-      }
-    });
   } catch (e) {
     console.warn('drawExpensesCharts pie error', e);
-    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
   }
 }
 
