@@ -80,7 +80,9 @@
   })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     .badge-paid{
       background: #16a34a1a;
@@ -545,12 +547,27 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-<div class="glass card-3d rounded-3xl p-5" data-page="revenue">
-  <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Grafikler kaldırıldı</div>
-  <div class="hint text-sm mt-1">Bu sayfada artık Chart.js grafikleri yok. Tablo/özetler korunur.</div>
-</div>
+    <div class="grid grid-cols-1 gap-6" data-page="revenue">
+      <div class="glass card-3d rounded-3xl p-5">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
+            <span class="label">YoY</span>
+            <span id="yoyState" class="val">Açık</span>
+          </button>
+        </div>
+        <canvas id="lineTotal" class="chart-can"></canvas>
+        <div id="lineTotalTblWrap"></div>
+      </div>
 
-<!-- === Expenses (CFO) === -->
+      <div class="glass card-3d rounded-3xl p-5">
+        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
+        <canvas id="barStack" class="chart-can"></canvas>
+        <div id="barStackTblWrap"></div>
+      </div>
+    </div>
+
+    <!-- === Expenses (CFO) === -->
     <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
       <div class="flex items-center justify-between mb-3">
         <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Giderler (YTD) & Net Kâr</div>
@@ -587,7 +604,7 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <div class="hint text-sm">Grafikler kaldırıldı (Chart.js kapatıldı).</div>
+          <canvas id="lineExpenses" height="160"></canvas>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -953,6 +970,44 @@ th, td { white-space: nowrap; }
   </div>
 
 <script>
+/* === Chart.js global safe defaults (iPad/Safari) === */
+(function(){
+  if (!window.Chart) return;
+  // Prevent aspect-ratio oscillations; size is driven by CSS height
+  Chart.defaults.responsive = true;
+  Chart.defaults.maintainAspectRatio = false;
+  // Debounce layout-driven resizes
+  Chart.defaults.resizeDelay = 180;
+  // Tame DPR thrash on Safari zoom/orientation changes
+  try {
+    Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
+  } catch(_) {}
+
+  // Global typography & axis defaults (safe, non-scriptable)
+  Chart.defaults.font = Chart.defaults.font || {};
+  Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.font.size = 14;
+
+  // Use a light but readable default text color for axes/labels
+  Chart.defaults.color = '#e5e7eb';
+
+  // Add some padding around charts so labels are not visually "squeezed"
+  Chart.defaults.layout = Chart.defaults.layout || {};
+  Chart.defaults.layout.padding = { top: 20, right: 16, bottom: 24, left: 28 };
+
+  // Global scale tick styling (X/Y axis labels)
+  Chart.defaults.scale = Chart.defaults.scale || {};
+  const baseTicks = Chart.defaults.scale.ticks || {};
+  Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
+    maxRotation: 0,
+    minRotation: 0,
+    autoSkip: true,
+    font: Object.assign({}, baseTicks.font || {}, { size: 14 })
+  });
+})();
+
+
+
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -3826,394 +3881,10 @@ function renderTargets(monthly){
 }
 
 /* ================== Charts ================== */
-// === iOS-like frosted glass effect for the pie chart ===
-const glassPie = {
-  id: 'glassPie',
-  beforeDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'pie') return;
-    const { ctx } = chart;
-    ctx.save();
-    // soft drop shadow for segments
-    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate-ish
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 6;
-    ctx.shadowOffsetX = 0;
-  },
-  afterDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'pie') return;
-    const { ctx, chartArea } = chart;
-    // subtle radial highlight over the chart for glass sheen
-    const {left, right, top, bottom} = chartArea;
-    const cx = (left + right) / 2;
-    const cy = (top + bottom) / 2;
-    const r = Math.min(right - left, bottom - top) / 2;
-    const grad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.6, r*0.05, cx, cy, r);
-    grad.addColorStop(0, 'rgba(255,255,255,0.22)');
-    grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
-    grad.addColorStop(1, 'rgba(255,255,255,0.00)');
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // restore to clear the shadow for other charts
-    ctx.restore();
-  }
-};
-// === iOS-like frosted glass effect for stacked bar chart ===
-const glassBars = {
-  id: 'glassBars',
-  beforeDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'bar') return;
-    const { ctx } = chart;
-    ctx.save();
-    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate shadow
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 6;
-    ctx.shadowOffsetX = 0;
-  },
-  afterDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'bar') return;
-    const { ctx } = chart;
-    try {
-      const ca = chart.chartArea;
-      // If chartArea is not ready (0 size / initial render), just restore once and exit.
-      if (!ca) {
-        try { ctx.restore(); } catch(e) {}
-        return;
-      }
-      const { left, top, right, bottom } = ca;
-
-      // Draw subtle diagonal sheen
-      ctx.save();
-      const grad = ctx.createLinearGradient(left, top, right, bottom);
-      grad.addColorStop(0.0, 'rgba(255,255,255,0.12)');
-      grad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
-      grad.addColorStop(1.0, 'rgba(255,255,255,0.00)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = grad;
-      ctx.fillRect(left, top, right - left, bottom - top);
-      ctx.restore();
-
-      // Restore the save from beforeDatasetDraw (clears shadows)
-      try { ctx.restore(); } catch(e) {}
-    } catch (e) {
-      // On any error, attempt to restore context balance and continue
-      try { ctx.restore(); } catch(_) {}
-    }
-  }
-};
-if (window.Chart && typeof window.Chart.register === 'function'){
-  try{ window.Chart.register(glassPie); }catch(_){ }
-  try{ window.Chart.register(glassBars); }catch(_){ }
-  try{ if (window.ChartDataLabels) window.Chart.register(window.ChartDataLabels); }catch(_){ }
-}
-let lineChart, pieChart, barChart;
+// Charts removed (stability + simpler maintenance)
+// Keep `monthlyCache` as the shared revenue monthly cache used by other blocks.
 let monthlyCache = [];
-let yoyEnabled = true;
-function drawCharts(monthly){
-  // ====== Safe helpers & state ======
-  const toNum = (v)=> Number.isFinite(v) ? v : (isNaN(+v) ? 0 : +v);
-
-  // Cache incoming monthly for later re-draws (toggle)
-  monthlyCache = Array.isArray(monthly) ? monthly : [];
-
-  // Eğer hiç veri yoksa: grafikleri güvenle temizle, tabloları "veri yok" göster
-  const safeDestroy = (cVarName) => {
-    try { if (window[cVarName]) { window[cVarName].destroy(); window[cVarName] = null; } } catch(e){}
-  };
-  if (!Array.isArray(monthlyCache) || monthlyCache.length === 0){
-    safeDestroy('lineChart');
-    safeDestroy('barChart');
-    const w1 = document.getElementById('lineTotalTblWrap');
-    const w2 = document.getElementById('barStackTblWrap');
-    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    return;
-  }
-
-  // ==== Build label set for the current year & an aligned prev-year series ====
-  const now = new Date();
-  const currentYear = monthlyCache.length ? monthlyCache[monthlyCache.length - 1].year : now.getFullYear();
-  const prevYear = currentYear - 1;
-
-  const curArr = monthlyCache.filter(r => r.year === currentYear);
-  const labels = Array.isArray(curArr) ? curArr.map(r => r.month) : [];
-
-  // Veri güvenlik kontrolü (label yoksa temizle ve çık)
-  if (!Array.isArray(labels) || labels.length === 0){
-    safeDestroy('lineChart');
-    safeDestroy('barChart');
-    const w1 = document.getElementById('lineTotalTblWrap');
-    const w2 = document.getElementById('barStackTblWrap');
-    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    return;
-  }
-
-  // Map prev-year by MM for alignment to current labels
-  const prevMap = {};
-  monthlyCache.forEach(r => {
-    if (r.year === prevYear) {
-      const mm = (r.month || '').slice(5, 7);
-      prevMap[mm] = toNum(prevMap[mm] || 0) + toNum(r.Total || 0);
-    }
-  });
-  const dataCur  = curArr.map(r => toNum(r.Total || 0));
-  const dataPrev = labels.map(m => toNum(prevMap[(m||'').slice(5, 7)] || 0));
-
-  // === Table helpers (inline) ===
-  function renderMonthlyTotalsTable(wrapperId, labelsArr, totalsArr){
-    const wrap = document.getElementById(wrapperId);
-    if(!wrap) return;
-    try{
-      const rows = (labelsArr||[]).map((m,i)=>{
-        const total = toNum(totalsArr[i] || 0);
-        const prev  = i>0 ? toNum(totalsArr[i-1] || 0) : 0;
-        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
-        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
-        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
-        return `
-          <tr>
-            <td class="py-1 pr-3">${m}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(total)}</td>
-            <td class="py-1 text-right ${momCls}">${momStr}</td>
-          </tr>
-        `;
-      });
-      wrap.innerHTML = `
-        <div class="mt-1 overflow-auto">
-          <table class="min-w-full text-xs">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Ay</th>
-                <th class="text-right py-1 pr-3">Toplam</th>
-                <th class="text-right py-1 pr-0">MoM</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
-          </table>
-        </div>`;
-    }catch(e){ /* silent */ }
-  }
-
-  function renderChannelMonthlyTable(wrapperId, labelsArr, curMonthlyArr){
-    const wrap = document.getElementById(wrapperId);
-    if(!wrap) return;
-    try{
-      const rows = (labelsArr||[]).map((m,i)=>{
-        const r   = curMonthlyArr[i] || {};
-        const tpt = toNum(r.Toptan);
-        const onl = toNum(r.Online);
-        const ckm = toNum(r.CKM);
-        const trn = toNum(r.Trendyol);
-        const hb  = toNum(r.Hepsiburada);
-        const total = toNum(r.Total || (tpt + onl + ckm + trn + hb));
-
-        const prevR = i>0 ? (curMonthlyArr[i-1] || {}) : null;
-        const prevT = prevR ? toNum(prevR.Toptan)      : 0;
-        const prevO = prevR ? toNum(prevR.Online)      : 0;
-        const prevC = prevR ? toNum(prevR.CKM)         : 0;
-        const prevTr= prevR ? toNum(prevR.Trendyol)    : 0;
-        const prevH = prevR ? toNum(prevR.Hepsiburada) : 0;
-        const prevTotal = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
-
-        const momPct = (cur, prev) => prev ? ((cur - prev) / prev) * 100 : null;
-        const fmtPct = (v) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(1)}%`;
-        const clsPct = (v) => v==null ? 'hint' : (v>=0 ? 'kpi-up' : 'kpi-down');
-
-        const mT = momPct(tpt, prevT);
-        const mO = momPct(onl, prevO);
-        const mC = momPct(ckm, prevC);
-        const mTr= momPct(trn, prevTr);
-        const mH = momPct(hb,  prevH);
-        const mTot = momPct(total, prevTotal);
-
-        return `
-          <tr>
-            <td class="py-1 pr-3">${m}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(tpt)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mT)}">${fmtPct(mT)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(onl)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mO)}">${fmtPct(mO)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(ckm)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mC)}">${fmtPct(mC)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(trn)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mTr)}">${fmtPct(mTr)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(hb)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mH)}">${fmtPct(mH)}</td>
-
-            <td class="py-1 pr-2 text-right font-medium">${numberTL(total)}</td>
-            <td class="py-1 text-right ${clsPct(mTot)}">${fmtPct(mTot)}</td>
-          </tr>
-        `;
-      });
-
-      wrap.innerHTML = `
-        <div class="mt-1 overflow-auto">
-          <table class="min-w-full text-xs">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Ay</th>
-
-                <th class="text-right py-1 pr-2">Toptan</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Online</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">CKM</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Trendyol</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">HB</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Toplam</th>
-                <th class="text-right py-1 pr-0">MoM</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
-          </table>
-        </div>`;
-    }catch(e){ /* silent */ }
-  }
-
-  // ========== Line: Aylık Toplam Ciro ==========
-  if (lineChart) { try{ lineChart.destroy(); }catch(e){} lineChart = null; }
-  if (!lctxEl || !lctxEl.getContext){
-    // canvas bulunamazsa tabloları yine de bas
-    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-    return;
-  }
-  const lctx = lctxEl.getContext('2d');
-  const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
-
-  const datasets = [{
-    label:'Bu Yıl',
-    data: dataCur,
-    tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
-    backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
-    pointRadius:3, pointHoverRadius:5
-  }];
-
-  // add prev year overlay if toggled on and we have any values
-  const hasPrevAny = (dataPrev||[]).some(v => toNum(v) > 0);
-  if (yoyEnabled && hasPrevAny) {
-    datasets.push({
-      label:'Geçen Yıl',
-      data: dataPrev,
-      tension:0.35,
-      borderWidth:2,
-      borderDash:[6,4],
-      borderColor:'#94a3b8',
-      pointRadius:0,
-      fill:false
-    });
-  }
-
-  try{
-      type:'line',
-      data:{ labels: labels.map(m => m), datasets },
-      options:{
-        resizeDelay: 200,
-        maintainAspectRatio: false,
-        plugins:{
-          legend:{display:true, position:'bottom'},
-          datalabels:{
-            display:(ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
-              return L.length <= 8;
-            },
-            align:'top', anchor:'end', formatter:(v)=> numberTL(toNum(v)), color:'#64748b', clip:true
-          }
-        },
-        scales:{
-          x:{ ticks:{ maxRotation:0 } },
-          y:{ ticks:{ callback:(v)=> numberTL(toNum(v)) } }
-        }
-      }
-    });
-  }catch(err){
-    console.warn('Line chart init error', err);
-    try{ if(lineChart){ lineChart.destroy(); lineChart=null; } }catch(e){}
-  }
-
-  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro ==========
-  if (barChart) { try{ barChart.destroy(); }catch(e){} barChart = null; }
-  if (!bctxEl || !bctxEl.getContext){
-    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-    return;
-  }
-  const bctx = bctxEl.getContext('2d');
-  const barColors = [
-    'rgba(165,180,252,0.70)',
-    'rgba(52,211,153,0.70)',
-    'rgba(96,165,250,0.70)',
-    'rgba(251,191,36,0.70)',
-    'rgba(244,114,182,0.70)'
-  ];
-  const barBorder = 'rgba(255,255,255,0.55)';
-
-  try{
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Toptan',      data: curArr.map(r=>toNum(r.Toptan)),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Online',      data: curArr.map(r=>toNum(r.Online)),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'CKM',         data: curArr.map(r=>toNum(r.CKM)),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Trendyol',    data: curArr.map(r=>toNum(r.Trendyol)),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Hepsiburada', data: curArr.map(r=>toNum(r.Hepsiburada)), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        ]
-      },
-      options: {
-        resizeDelay: 200,
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: 0 },
-        scales: {
-          x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
-          y: { stacked:true, ticks:{ callback:(v)=> numberTL(toNum(v)) }, grid:{ color:'rgba(148,163,184,0.15)' } }
-        },
-        plugins: {
-          legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
-          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
-          datalabels: {
-            display: (ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
-              return L.length <= 6;
-            },
-            anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
-            color: '#fff', font: { weight: '600', size: 10 }, clamp: true
-          }
-        },
-        categoryPercentage: 0.7,
-        barPercentage: 0.8
-      }
-    });
-  }catch(err){
-    console.warn('Bar chart init error', err);
-    try{ if(barChart){ barChart.destroy(); barChart=null; } }catch(e){}
-  }
-
-  // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
-  renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-  renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-}
-
+function drawCharts(){ /* no-op */ }
 /* ================== Expenses (CFO) ================== */
 
 let expensesRowsCache = [];
@@ -4942,26 +4613,8 @@ function renderMainExpenseTable(){
     console.warn('renderMainExpenseTable error', e);
   }
 }
-let expLineChart;
-function drawExpensesCharts(){
-  // Charts removed intentionally.
-  return;
-});
-
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
-
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
-
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
-
-  } catch (e) {
-    console.warn('drawExpensesCharts pie error', e);
-  }
-}
+// Expenses charts removed (stability + simpler maintenance)
+function drawExpensesCharts(){ return; }
 
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
