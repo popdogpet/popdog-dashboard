@@ -5091,130 +5091,167 @@ function renderMainExpenseTable(){
 }
 let expLineChart;
 function drawExpensesCharts(expMonthly){
+  // Guard: Chart.js or canvases not ready
   if (!window.Chart) return;
 
+  const rows = Array.isArray(expMonthly) ? expMonthly : [];
+
+  // Pick a sensible year for charts:
+  // - If the real current year exists in data, use it.
+  // - Otherwise, fall back to the latest year present in data (prevents empty charts early in the year).
+  const realYear = (new Date()).getFullYear();
+  const yearsInData = rows
+    .map(r => Number(r.year ?? r.Year ?? r.Yıl ?? 0))
+    .filter(y => y > 0 && Number.isFinite(y));
+
+  if (!yearsInData.length) return;
+
+  const latestYear = yearsInData.reduce((a,b)=> Math.max(a,b), yearsInData[0]);
+  const curYear = yearsInData.includes(realYear) ? realYear : latestYear;
+
   const lineCanvas = document.getElementById('lineExpenses');
-  const pieCanvas  = document.getElementById('pieExpenses');
-
-  // Hard-destroy any chart bound to these canvases (prevents infinite re-init / resize loops)
-  function hardDestroy(canvas, refName){
-    try{
-      if (canvas && Chart.getChart) {
-        const existing = Chart.getChart(canvas);
-        if (existing) existing.destroy();
-      }
-    }catch(_){}
-    try{
-      if (refName && window[refName] && typeof window[refName].destroy === 'function'){
-        window[refName].destroy();
-        window[refName] = null;
-      }
-    }catch(_){}
-  }
-
-  if (!lineCanvas || typeof lineCanvas.getContext !== 'function'){
-    hardDestroy(lineCanvas, 'expLineChart');
+  if (!lineCanvas || typeof lineCanvas.getContext !== 'function') {
+    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
     return;
   }
   const lctx = lineCanvas.getContext('2d');
-  if (!lctx){
-    hardDestroy(lineCanvas, 'expLineChart');
+  if (!lctx) {
+    console.warn('drawExpensesCharts: lineExpenses ctx unavailable');
+    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
     return;
   }
 
-  const rows = Array.isArray(expMonthly) ? expMonthly : [];
-  const now = new Date();
-  const curYear = now.getFullYear();
+  // Ensure datalabels plugin is registered (safe to call multiple times)
+  try{
+    if (window.ChartDataLabels && window.Chart && window.Chart.register) window.Chart.register(window.ChartDataLabels);
+  }catch(_){}
 
-  // Current year monthly totals (cap to 12 months, sorted)
   const cur = rows
-    .filter(r => Number(r.year) === curYear)
     .map(r => ({
-      month: Number(r.month || r.Month || 0),
-      total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? 0),
-      byMain: r.byMain,
-      rows: r.rows
+      year: Number(r.year ?? r.Year ?? r.Yıl ?? 0),
+      month: Number(r.month ?? r.Month ?? r.Ay ?? 0),
+      total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? r.tutar ?? r.Tutar ?? 0),
+      rows: Array.isArray(r.rows) ? r.rows : (Array.isArray(r.items) ? r.items : [])
     }))
-    .filter(r => r.month >= 1 && r.month <= 12)
+    .filter(r => r.year === curYear && r.month >= 1 && r.month <= 12)
     .sort((a,b)=> a.month - b.month);
 
-  // Unique months only
-  const seen = new Set();
-  const labels = [];
-  const data = [];
-  for (const r of cur){
-    if (seen.has(r.month)) continue;
-    seen.add(r.month);
-    labels.push(String(r.month).padStart(2,'0'));
-    data.push(Number(r.total || 0));
+  const labels = cur.map(r => `${r.year}-${String(r.month).padStart(2,'0')}`);
+  const data = cur.map(r => Number(r.total||0));
+
+  // Optional YoY series (previous year)
+  let yoyData = [];
+  try{
+    if (typeof expYoyEnabled === 'undefined' || expYoyEnabled){
+      const prev = rows
+        .map(r => ({
+          year: Number(r.year ?? r.Year ?? r.Yıl ?? 0),
+          month: Number(r.month ?? r.Month ?? r.Ay ?? 0),
+          total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? r.tutar ?? r.Tutar ?? 0)
+        }))
+        .filter(r => r.year === (curYear-1) && r.month >= 1 && r.month <= 12)
+        .sort((a,b)=> a.month - b.month);
+      yoyData = prev.map(r => Number(r.total||0));
+    }
+  }catch(_){ yoyData = []; }
+
+  // Destroy previous line chart instance
+  try{
+    if (window.expLineChart && typeof window.expLineChart.destroy === 'function') {
+      window.expLineChart.destroy();
+      window.expLineChart = null;
+    }
+  }catch(_){}
+
+  try{
+    const gradient = lctx.createLinearGradient(0,0,0,240);
+    gradient.addColorStop(0, 'rgba(99,102,241,0.45)');
+    gradient.addColorStop(1, 'rgba(99,102,241,0.05)');
+
+    const datasets = [{
+      label: `${curYear}`,
+      data,
+      tension: 0.25,
+      fill: true,
+      backgroundColor: gradient,
+      borderColor: '#6366f1',
+      borderWidth: 2,
+      pointRadius: 2
+    }];
+
+    if (yoyData && yoyData.length){
+      datasets.push({
+        label: `${curYear-1}`,
+        data: yoyData,
+        tension: 0.25,
+        fill: false,
+        borderColor: '#94a3b8',
+        borderWidth: 1.5,
+        pointRadius: 1.5,
+        borderDash: [4,4]
+      });
+    }
+
+    window.expLineChart = new Chart(lctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        resizeDelay: 200,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          datalabels: {
+            display: (ctx)=> {
+              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? (ctx.chart.data.labels||[]) : [];
+              return L.length <= 8;
+            },
+            align: 'top',
+            anchor: 'end',
+            formatter: v => numberTL(Number(v||0)),
+            color: '#64748b',
+            clip: true
+          }
+        },
+        scales: {
+          y: { ticks: { callback: (v)=> numberTL(Number(v||0)) } }
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('drawExpensesCharts line error', e);
+    try{ if (window.expLineChart) { window.expLineChart.destroy(); window.expLineChart = null; } }catch(_){}
   }
 
-  // Destroy then draw line
-  hardDestroy(lineCanvas, 'expLineChart');
-  if (!labels.length) return;
-
-  window.expLineChart = new Chart(lctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: `${curYear}`,
-        data,
-        tension: 0.25,
-        fill: true,
-        backgroundColor: 'rgba(99,102,241,0.12)',
-        borderColor: '#6366f1',
-        borderWidth: 2,
-        pointRadius: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      resizeDelay: 200,
-      animation: false,     // <- kritik: loop hissini keser
-      parsing: false,
-      plugins: {
-        legend: { position: 'bottom' },
-        datalabels: false
-      },
-      scales: {
-        y: { ticks: { callback: (v)=> numberTL(Number(v||0)) } }
-      }
-    }
-  });
-
-  // ---- PIE (YTD by main category) ----
-  if (!pieCanvas || typeof pieCanvas.getContext !== 'function'){
+  // === PIE: Category share (YTD) ===
+  const pieCanvas = document.getElementById('pieExpenses');
+  if (!pieCanvas || typeof pieCanvas.getContext !== 'function') {
+    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
     return;
   }
   const pctx = pieCanvas.getContext('2d');
-  if (!pctx){
-    hardDestroy(pieCanvas, 'expPieChart');
+  if (!pctx) {
+    console.warn('drawExpensesCharts: pieExpenses ctx unavailable');
+    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
     return;
   }
 
   const catSum = {};
-  for (const m of cur){
-    const bm = (m && m.byMain && typeof m.byMain === 'object') ? m.byMain : null;
-    if (bm){
-      for (const k of Object.keys(bm)){
-        const v = Number(bm[k] || 0);
-        if (v > 0) catSum[k] = (catSum[k] || 0) + v;
-      }
-      continue;
-    }
-    const rs = Array.isArray(m.rows) ? m.rows : [];
-    for (const r of rs){
-      const main = String(r.main || r.Category || r.Kategori || r.cat || 'Diğer').trim() || 'Diğer';
+  (cur || []).forEach(m=>{
+    const rr = Array.isArray(m.rows) ? m.rows : [];
+    rr.forEach(r=>{
+      const main = String(r.main || r.Category || r.Kategori || r.cat || r.sub || 'Diğer').trim() || 'Diğer';
       const amt = Number(r.amountTRY || r.amount || r.total || r.value || r.Amount || 0);
-      if (amt > 0) catSum[main] = (catSum[main] || 0) + amt;
-    }
-  }
+      if (!(amt > 0)) return;
+      catSum[main] = (catSum[main]||0) + amt;
+    });
+  });
 
   const entries = Object.entries(catSum).sort((a,b)=> b[1]-a[1]);
-  hardDestroy(pieCanvas, 'expPieChart');
-  if (!entries.length) return;
+  const pieCanvasEl = document.getElementById('pieExpenses');
+  if (!entries.length || !pieCanvasEl) {
+    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
+    return;
+  }
 
   const TOP = 10;
   const top = entries.slice(0, TOP);
@@ -5227,30 +5264,52 @@ function drawExpensesCharts(expMonthly){
   const pieLabels = top.map(([k])=>k);
   const pieData   = top.map(([,v])=>Number(v||0));
 
-  window.expPieChart = new Chart(pctx, {
-    type: 'pie',
-    data: { labels: pieLabels, datasets: [{ data: pieData }] },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      resizeDelay: 200,
-      animation: false,
-      plugins: {
-        legend: { position: 'bottom' },
-        datalabels: false,
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const v = Number(ctx.raw || 0);
-              const total = pieData.reduce((a,b)=>a+(b||0),0) || 1;
-              const pct = (v / total) * 100;
-              return `${ctx.label}: ${numberTL(v)} (${pct.toFixed(1)}%)`;
+  try{
+    if (window.expPieChart && typeof window.expPieChart.destroy === 'function') {
+      window.expPieChart.destroy();
+      window.expPieChart = null;
+    }
+  }catch(_){}
+
+  try{
+    window.expPieChart = new Chart(pctx, {
+      type: 'pie',
+      data: { labels: pieLabels, datasets: [{ data: pieData }] },
+      options: {
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.raw || 0);
+                const total = pieData.reduce((a,b)=>a+(b||0),0) || 1;
+                const pct = (v / total) * 100;
+                return `${ctx.label}: ${numberTL(v)} (${pct.toFixed(1)}%)`;
+              }
             }
+          },
+          datalabels: {
+            display: (c)=> (c && c.chart && c.chart.data && (c.chart.data.labels||[]).length)
+              ? ((c.chart.data.labels||[]).length <= 8)
+              : false,
+            formatter: (v, ctx)=> {
+              const total = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.datasets && ctx.chart.data.datasets[0])
+                ? (ctx.chart.data.datasets[0].data||[]).reduce((a,b)=>a+(b||0),0)
+                : 0;
+              const pct = total ? (Number(v||0)/total*100) : 0;
+              return pct >= 6 ? `${pct.toFixed(0)}%` : '';
+            },
+            color: '#ffffff',
+            font: { weight: '600', size: 10 },
+            clamp: true
           }
         }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.warn('drawExpensesCharts pie error', e);
+    try{ if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; } }catch(_){}
+  }
 }
 
 /* ================== Expenses: Load & Refresh ================== */
