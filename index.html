@@ -4339,10 +4339,14 @@ function drawCharts(monthly){
           legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
           tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
           datalabels: {
-            display: (ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
-              return L.length <= 6;
-            },
+            display: (ctx) => {
+  try {
+    const labels = ctx?.chart?.data?.labels;
+    return Array.isArray(labels) && labels.length > 0 && labels.length <= 8;
+  } catch (_) {
+    return false;
+  }
+},
             anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
             color: '#fff', font: { weight: '600', size: 10 }, clamp: true
           }
@@ -5091,6 +5095,17 @@ function renderMainExpenseTable(){
 }
 let expLineChart;
 function drawExpensesCharts(expMonthly){
+    // 🔥 HARD RESET (canvas reuse fix)
+  try {
+    if (window.expLineChart) {
+      window.expLineChart.destroy();
+      window.expLineChart = null;
+    }
+    if (window.expPieChart) {
+      window.expPieChart.destroy();
+      window.expPieChart = null;
+    }
+  } catch (_) {}
   // Guard: Chart.js or canvases not ready
   if (!window.Chart) return;
 
@@ -5201,10 +5216,14 @@ function drawExpensesCharts(expMonthly){
         plugins: {
           legend: { position: 'bottom' },
           datalabels: {
-            display: (ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? (ctx.chart.data.labels||[]) : [];
-              return L.length <= 8;
-            },
+            display: (ctx) => {
+  try {
+    const labels = ctx?.chart?.data?.labels;
+    return Array.isArray(labels) && labels.length > 0 && labels.length <= 8;
+  } catch (_) {
+    return false;
+  }
+},
             align: 'top',
             anchor: 'end',
             formatter: v => numberTL(Number(v||0)),
@@ -5292,13 +5311,18 @@ function drawExpensesCharts(expMonthly){
             display: (c)=> (c && c.chart && c.chart.data && (c.chart.data.labels||[]).length)
               ? ((c.chart.data.labels||[]).length <= 8)
               : false,
-            formatter: (v, ctx)=> {
-              const total = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.datasets && ctx.chart.data.datasets[0])
-                ? (ctx.chart.data.datasets[0].data||[]).reduce((a,b)=>a+(b||0),0)
-                : 0;
-              const pct = total ? (Number(v||0)/total*100) : 0;
-              return pct >= 6 ? `${pct.toFixed(0)}%` : '';
-            },
+            formatter: (v, ctx) => {
+  try {
+    const data = ctx?.chart?.data?.datasets?.[0]?.data;
+    if (!Array.isArray(data)) return '';
+    const total = data.reduce((a,b)=>a+(Number(b)||0),0);
+    if (!total) return '';
+    const pct = (Number(v||0) / total) * 100;
+    return pct >= 6 ? `${pct.toFixed(0)}%` : '';
+  } catch (_) {
+    return '';
+  }
+},
             color: '#ffffff',
             font: { weight: '600', size: 10 },
             clamp: true
