@@ -5165,33 +5165,99 @@ function drawExpensesCharts(expMonthly){
     }
   });
 
-   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
+  // YTD category pie (main categories) — robust aggregation from source rows
   try {
-    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
-    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
-    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
+    // Pick the best available source rows
+    const baseRows = (Array.isArray(expensesRowsAdjustedCache) && expensesRowsAdjustedCache.length)
+      ? expensesRowsAdjustedCache
+      : (Array.isArray(expensesRowsCache) ? expensesRowsCache : []);
+
+    // Filter to selected expense year
+    const rowsY = baseRows.filter(r => {
+      const iso = getExpenseISODate(r);
+      if (!iso) return false;
+      const y = Number(String(iso).slice(0, 4));
+      return y === expYear;
+    });
+
+    // Aggregate by MAIN category (uses existing mainCategoryForRow + readExpenseAmountTRY)
     const catSum = {};
-arr.forEach(m=>{
-  (m.rows || []).forEach(r=>{
-    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
-                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-                r.MainCategory ||
-                r.Category || 'Diğer';
-    const a = +r.Amount || 0;
-    catSum[key] = (catSum[key]||0) + a;
-  });
-});
+    rowsY.forEach(r => {
+      const key = mainCategoryForRow(r, true) || 'Diğer';
+      const a = Math.abs(readExpenseAmountTRY(r)) || 0;
+      if (!a) return;
+      catSum[key] = (catSum[key] || 0) + a;
+    });
 
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
+    // If no data, just destroy existing pie and exit
+    const entries = Object.entries(catSum);
+    const pieCanvas = document.getElementById('pieExpenses');
+    if (!entries.length || !pieCanvas || !window.Chart) {
+      try{
+        if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; }
+      }catch(_){ }
+      return;
+    }
 
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
+    // Sort by value, keep top 12 + group rest as "Diğer"
+    entries.sort((a,b) => b[1] - a[1]);
+    const top = entries.slice(0, 12);
+    const rest = entries.slice(12);
+    const restSum = rest.reduce((acc, [,v]) => acc + (v||0), 0);
+    if (restSum > 0) top.push(['Diğer', restSum]);
 
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
+    const pieLabels = top.map(([k]) => k);
+    const pieData   = top.map(([,v]) => v);
 
+    // Destroy any existing chart bound to this canvas
+    try{
+      const existingPie = (typeof Chart.getChart === 'function') ? Chart.getChart(pieCanvas) : null;
+      if (existingPie) existingPie.destroy();
+    }catch(_){ }
+
+    // Also destroy the last instance we tracked
+    try{
+      if (window.expPieChart) { window.expPieChart.destroy(); window.expPieChart = null; }
+    }catch(_){ }
+
+    const pctx = pieCanvas.getContext('2d');
+
+    // Create pie chart
+    window.expPieChart = new Chart(pctx, {
+      type: 'pie',
+      data: {
+        labels: pieLabels,
+        datasets: [{ data: pieData }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.raw || 0);
+                const total = pieData.reduce((a,b)=>a+(b||0),0) || 1;
+                const pct = (v / total) * 100;
+                return `${ctx.label}: ${numberTL(v)} (${pct.toFixed(1)}%)`;
+              }
+            }
+          },
+          datalabels: {
+            display: (c)=> (c && c.chart && c.chart.data && (c.chart.data.labels||[]).length) ? ((c.chart.data.labels||[]).length <= 8) : false,
+            formatter: (v, ctx)=> {
+              const total = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.datasets && ctx.chart.data.datasets[0])
+                ? (ctx.chart.data.datasets[0].data||[]).reduce((a,b)=>a+(b||0),0)
+                : 0;
+              const pct = total ? (Number(v||0)/total*100) : 0;
+              return pct >= 6 ? `${pct.toFixed(0)}%` : '';
+            },
+            color: '#ffffff',
+            font: { weight: '600', size: 10 },
+            clamp: true
+          }
+        }
+      }
+    });
   } catch (e) {
     console.warn('drawExpensesCharts pie error', e);
   }
