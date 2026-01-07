@@ -80,8 +80,6 @@
   })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     .badge-paid{
@@ -156,54 +154,6 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
-/* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
-#lineTotal,
-#barStack,
-#pieShare{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  box-sizing: border-box;
-  padding: 0 !important;
-  /* FIX: avoid responsive resize feedback loops on iPad Safari */
-  contain: layout size;
-  display: block;
-  width: 100% !important;
-}
-
-
-
-/* Keep table wrappers aligned below the canvases */
-#lineTotalTblWrap,
-#barStackTblWrap{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  padding: 8px;
-  margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
-  max-height: 260px;
-  overflow: auto;
-}
-@media (min-width: 1024px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 320px; }
-}
-@media (min-width: 1536px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 360px; }
-}
-
-
-/* === Unified chart sizing for consistency (mobile-first) === */
-.chart-can{
-  width: 100%;
-  display: block;
-  height: 420px !important;
-}
 
 
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
@@ -603,8 +553,9 @@ th, td { white-space: nowrap; }
         <div class="glass card-3d rounded-2xl p-4">
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
+            <span class="hint text-xs">Grafik kaldırıldı — tablo/özet aşağıda</span>
           </div>
-          <canvas id="lineExpenses" height="160"></canvas>
+          <div id="expensesMonthlyTblWrap"></div>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -970,43 +921,6 @@ th, td { white-space: nowrap; }
   </div>
 
 <script>
-/* === Chart.js global safe defaults (iPad/Safari) === */
-(function(){
-  if (!window.Chart) return;
-  // Prevent aspect-ratio oscillations; size is driven by CSS height
-  Chart.defaults.responsive = true;
-  Chart.defaults.maintainAspectRatio = false;
-  // Debounce layout-driven resizes
-  Chart.defaults.resizeDelay = 180;
-  // Tame DPR thrash on Safari zoom/orientation changes
-  try {
-    Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
-  } catch(_) {}
-
-  // Global typography & axis defaults (safe, non-scriptable)
-  Chart.defaults.font = Chart.defaults.font || {};
-  Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  Chart.defaults.font.size = 14;
-
-  // Use a light but readable default text color for axes/labels
-  Chart.defaults.color = '#e5e7eb';
-
-  // Add some padding around charts so labels are not visually "squeezed"
-  Chart.defaults.layout = Chart.defaults.layout || {};
-  Chart.defaults.layout.padding = { top: 20, right: 16, bottom: 24, left: 28 };
-
-  // Global scale tick styling (X/Y axis labels)
-  Chart.defaults.scale = Chart.defaults.scale || {};
-  const baseTicks = Chart.defaults.scale.ticks || {};
-  Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
-    maxRotation: 0,
-    minRotation: 0,
-    autoSkip: true,
-    font: Object.assign({}, baseTicks.font || {}, { size: 14 })
-  });
-})();
-
-
 
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
@@ -1314,7 +1228,274 @@ async function setupWebAppCompat(infoEl){
 const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
 const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
 const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+
 const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+
+/* ================== TABLE RENDERERS (NO CHARTS) ================== */
+
+function safeText(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function loadCsv(url){
+  return new Promise((resolve, reject)=>{
+    if (!window.Papa){ reject(new Error('PAPA_MISSING')); return; }
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (res)=> resolve(res.data || []),
+      error: (err)=> reject(err)
+    });
+  });
+}
+
+function monthKeyFromDateStr(ds){
+  try{
+    const d = new Date(String(ds||'').slice(0,10));
+    if (isNaN(+d)) return '';
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }catch(_){ return ''; }
+}
+
+function fmtPct(n){
+  if (!isFinite(n)) return '–';
+  const s = (n>0?'+':'') + n.toFixed(1) + '%';
+  return s;
+}
+
+async function renderRevenueTables(){
+  const wrapTotal = document.getElementById('lineTotalTblWrap');
+  const wrapCh    = document.getElementById('barStackTblWrap');
+  if (!wrapTotal && !wrapCh) return;
+
+  // Default placeholder
+  if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
+  if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Yükleniyor…</div>';
+
+  let rows = [];
+  try{
+    rows = await loadCsv(DEFAULT_SHEET_CSV);
+  }catch(e){
+    if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro tablosu yüklenemedi.</div>';
+    if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal tablosu yüklenemedi.</div>';
+    console.warn('renderRevenueTables load error', e);
+    return;
+  }
+
+  // Column mapping (case-insensitive)
+  const getDate = (r)=> getFieldCI(r, ['Date','Tarih','date','TARİH']);
+  const getTotal = (r)=> parseTL(getFieldCI(r, ['Total','Toplam','TOTAL','Sum'])) || 0;
+
+  const CHANNELS = [
+    { key:'toptan', label:'Toptan', cols:['Toptan','Wholesale','Pop Dog Toptan'] },
+    { key:'online', label:'Online', cols:['Online','Pop Dog Online','E-Commerce','Ecom'] },
+    { key:'ckm', label:'CKM', cols:['CKM','Caddebostan','Mağaza','Store'] },
+    { key:'trendyol', label:'Trendyol', cols:['Trendyol'] },
+    { key:'hepsiburada', label:'Hepsiburada', cols:['Hepsiburada','HB'] },
+  ];
+
+  // Aggregate by month
+  const byMonth = new Map(); // m -> { total, channels: {k:sum} }
+  for (const r of (rows||[])){
+    const mk = monthKeyFromDateStr(getDate(r));
+    if (!mk) continue;
+    if (!byMonth.has(mk)){
+      const ch = {};
+      CHANNELS.forEach(c=> ch[c.key]=0);
+      byMonth.set(mk, { total:0, channels: ch });
+    }
+    const o = byMonth.get(mk);
+    const t = getTotal(r);
+    o.total += t;
+    CHANNELS.forEach(c=>{
+      const v = parseTL(getFieldCI(r, c.cols)) || 0;
+      o.channels[c.key] += v;
+    });
+  }
+
+  const months = Array.from(byMonth.keys()).sort();
+  if (!months.length){
+    if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro verisi bulunamadı.</div>';
+    if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal verisi bulunamadı.</div>';
+    return;
+  }
+
+  // === Monthly total table ===
+  if (wrapTotal){
+    let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+      + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+      + '<th class="text-left py-2 pr-4">Ay</th>'
+      + '<th class="text-right py-2 pr-4">Toplam Ciro</th>'
+      + '<th class="text-right py-2 pr-0">MoM</th>'
+      + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+    let prev = 0;
+    months.forEach(mk=>{
+      const tot = byMonth.get(mk).total || 0;
+      let mom = '–';
+      let cls = '';
+      if (prev > 0){
+        const pct = ((tot - prev) / prev) * 100;
+        mom = fmtPct(pct);
+        cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+      } else if (tot > 0 && prev === 0){
+        mom = '–';
+      }
+      html += `<tr>`
+        + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+        + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
+        + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+        + `</tr>`;
+      prev = tot;
+    });
+
+    const grand = months.reduce((a,m)=> a + (byMonth.get(m).total||0), 0);
+    html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+      + `<td class="py-2 pr-4 font-medium">Toplam</td>`
+      + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(grand)}</td>`
+      + `<td class="py-2 pr-0"></td>`
+      + `</tr>`;
+
+    html += '</tbody></table></div>';
+    wrapTotal.innerHTML = html;
+  }
+
+  // === Channel-by-month table ===
+  if (wrapCh){
+    let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+      + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+      + '<th class="text-left py-2 pr-4">Ay</th>';
+    CHANNELS.forEach(c=>{ html += `<th class="text-right py-2 pr-4">${safeText(c.label)}</th>`; });
+    html += '<th class="text-right py-2 pr-0">Toplam</th>';
+    html += '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+    const colTotals = {}; CHANNELS.forEach(c=> colTotals[c.key]=0);
+    let grand = 0;
+
+    months.forEach(mk=>{
+      const o = byMonth.get(mk);
+      html += `<tr><td class="py-1 pr-4">${safeText(mk)}</td>`;
+      let rowSum = 0;
+      CHANNELS.forEach(c=>{
+        const v = Number(o.channels[c.key]||0);
+        rowSum += v;
+        colTotals[c.key] += v;
+        html += `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`;
+      });
+      // Prefer sheet total if provided; otherwise sum channels
+      const tot = Number(o.total||0) || rowSum;
+      grand += tot;
+      html += `<td class="py-1 pr-0 text-right font-medium">${numberTL(tot)}</td></tr>`;
+    });
+
+    html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`;
+    html += `<td class="py-2 pr-4 font-medium">Toplam</td>`;
+    CHANNELS.forEach(c=>{ html += `<td class="py-2 pr-4 text-right font-semibold">${numberTL(colTotals[c.key])}</td>`; });
+    html += `<td class="py-2 pr-0 text-right font-semibold">${numberTL(grand)}</td>`;
+    html += `</tr>`;
+
+    html += '</tbody></table></div>';
+    wrapCh.innerHTML = html;
+  }
+}
+
+async function renderExpensesMonthlyTable(){
+  const wrap = document.getElementById('expensesMonthlyTblWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
+
+  let rows = [];
+  try{
+    rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+  }catch(e){
+    wrap.innerHTML = '<div class="hint text-sm">Gider tablosu yüklenemedi.</div>';
+    console.warn('renderExpensesMonthlyTable load error', e);
+    return;
+  }
+
+  const byMonth = new Map();
+  for (const r of (rows||[])){
+    const mk = monthKeyFromDateStr(getFieldCI(r, ['Date','Tarih','date']));
+    if (!mk) continue;
+    const amt = readExpenseAmountTRY(r);
+    if (!(amt>0)) continue;
+    byMonth.set(mk, (byMonth.get(mk)||0) + amt);
+  }
+
+  const months = Array.from(byMonth.keys()).sort();
+  if (!months.length){
+    wrap.innerHTML = '<div class="hint text-sm">Gider verisi bulunamadı.</div>';
+    return;
+  }
+
+  let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+    + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+    + '<th class="text-left py-2 pr-4">Ay</th>'
+    + '<th class="text-right py-2 pr-4">Toplam Gider</th>'
+    + '<th class="text-right py-2 pr-0">MoM</th>'
+    + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+  let prev = 0;
+  months.forEach(mk=>{
+    const tot = byMonth.get(mk)||0;
+    let mom = '–';
+    let cls = '';
+    if (prev > 0){
+      const pct = ((tot - prev)/prev)*100;
+      mom = fmtPct(pct);
+      cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+    }
+    html += `<tr>`
+      + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+      + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
+      + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+      + `</tr>`;
+    prev = tot;
+  });
+
+  const grand = months.reduce((a,m)=> a + (byMonth.get(m)||0), 0);
+  html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+    + `<td class="py-2 pr-4 font-medium">Toplam</td>`
+    + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(grand)}</td>`
+    + `<td class="py-2 pr-0"></td>`
+    + `</tr>`;
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function hookNoChartRenderers(){
+  // Run on load
+  window.addEventListener('load', ()=>{
+    try{ renderRevenueTables(); }catch(_){ }
+    try{ renderExpensesMonthlyTable(); }catch(_){ }
+  });
+
+  // If refreshAll exists, chain it
+  const tryHook = (name)=>{
+    const fn = window[name];
+    if (typeof fn !== 'function' || fn.__noChartHooked) return;
+    const wrapped = async function(){
+      const r = fn.apply(this, arguments);
+      try{ await Promise.resolve(r); }catch(_){ }
+      try{ renderRevenueTables(); }catch(_){ }
+      try{ renderExpensesMonthlyTable(); }catch(_){ }
+      return r;
+    };
+    wrapped.__noChartHooked = true;
+    window[name] = wrapped;
+  };
+  ['refreshAll','refreshAllData','loadAll','loadAllData'].forEach(tryHook);
+}
+hookNoChartRenderers();
+
+/* ================== /TABLE RENDERERS (NO CHARTS) ================== */
 
 /* ================== THEME ================== */
 const root = document.documentElement;
