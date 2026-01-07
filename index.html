@@ -614,6 +614,15 @@ th, td { white-space: nowrap; }
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
           <canvas id="lineExpenses" height="160"></canvas>
+          <div class="glass card-3d rounded-2xl p-4 mt-4">
+  <div class="flex items-center justify-between mb-2">
+    <div class="text-slate-700 dark:text-slate-200">Gider Dağılımı (YTD)</div>
+    <div class="hint text-[11px]">Ana kategori</div>
+  </div>
+  <div style="height:260px">
+    <canvas id="pieExpenses"></canvas>
+  </div>
+</div>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
