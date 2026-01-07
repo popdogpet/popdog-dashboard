@@ -322,12 +322,13 @@ th, td { white-space: nowrap; }
         <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
       </div>
       <div class="flex items-center gap-3">
-        <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
-        <input id="fileInput" type="file" accept=".csv" class="hidden">
-        <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
-        <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
-        <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
-      </div>
+  <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
+  <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl">Yenile</button>
+  <input id="fileInput" type="file" accept=".csv" class="hidden">
+  <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
+  <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
+  <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+</div>
     </header>
 
 
@@ -547,25 +548,24 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid grid-cols-1 gap-6" data-page="revenue">
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
-          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
-            <span class="label">YoY</span>
-            <span id="yoyState" class="val">Açık</span>
-          </button>
-        </div>
-        <canvas id="lineTotal" class="chart-can"></canvas>
-        <div id="lineTotalTblWrap"></div>
-      </div>
-
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-        <canvas id="barStack" class="chart-can"></canvas>
-        <div id="barStackTblWrap"></div>
-      </div>
+ <!-- Ciro (Grafiksiz) -->
+<div class="grid grid-cols-1 gap-6" data-page="revenue">
+  <div class="glass card-3d rounded-3xl p-5">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+      <span class="hint text-xs">Grafik kaldırıldı — tablo/özet aşağıda</span>
     </div>
+    <div id="lineTotalTblWrap"></div>
+  </div>
+
+  <div class="glass card-3d rounded-3xl p-5">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-slate-700 dark:text-slate-200">Kanal Bazlı Aylık Ciro</div>
+      <span class="hint text-xs">Grafik kaldırıldı — tablo/özet aşağıda</span>
+    </div>
+    <div id="barStackTblWrap"></div>
+  </div>
+</div>
 
     <!-- === Expenses (CFO) === -->
     <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
@@ -1330,6 +1330,21 @@ document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.conta
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
+})();
+
+// Yenile: varsa veri yenileme fonksiyonunu çağır, yoksa sayfayı tazele
+(function(){
+  const rb = document.getElementById('refreshBtn');
+  if (!rb) return;
+  rb.onclick = () => {
+    try{
+      if (typeof refreshAll === 'function') return refreshAll();
+      if (typeof refreshAllData === 'function') return refreshAllData();
+      if (typeof loadAll === 'function') return loadAll();
+      if (typeof loadAllData === 'function') return loadAllData();
+    }catch(_){ }
+    location.reload();
+  };
 })();
 
 /* ================== HELPERS ================== */
