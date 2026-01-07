@@ -4224,6 +4224,7 @@ function drawCharts(monthly){
     return;
   }
   const lctx = lctxEl.getContext('2d');
+  if (!lctx) return;
   const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
 
   const datasets = [{
@@ -4286,6 +4287,7 @@ function drawCharts(monthly){
     return;
   }
   const bctx = bctxEl.getContext('2d');
+  if (!bctx) return;
   const barColors = [
     'rgba(165,180,252,0.70)',
     'rgba(52,211,153,0.70)',
@@ -5115,6 +5117,7 @@ function drawExpensesCharts(expMonthly){
   }
 
   const lctx = canvasEl.getContext('2d');
+  if (!lctx) return;
   const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
   const ds = [
     {
@@ -5221,6 +5224,7 @@ function drawExpensesCharts(expMonthly){
     }catch(_){ }
 
     const pctx = pieCanvas.getContext('2d');
+    if (!pctx) return;
 
     // Create pie chart
     window.expPieChart = new Chart(pctx, {
