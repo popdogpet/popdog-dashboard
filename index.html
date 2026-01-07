@@ -1300,33 +1300,45 @@ async function renderRevenueTables(){
     { key:'hepsiburada', label:'Hepsiburada', cols:['Hepsiburada','HB'] },
   ];
 
-  // Aggregate by month
-  const byMonth = new Map(); // m -> { total, channels: {k:sum} }
-  for (const r of (rows||[])){
-    const mk = monthKeyFromDateStr(getDate(r));
-    if (!mk) continue;
-    if (!byMonth.has(mk)){
+  // Aggregate by YEAR -> MONTH
+  const byYear = new Map(); // y -> Map(monthKey -> { total, channels })
+
+  function ensureYearMonth(y, mk){
+    if (!byYear.has(y)) byYear.set(y, new Map());
+    const mMap = byYear.get(y);
+    if (!mMap.has(mk)){
       const ch = {};
       CHANNELS.forEach(c=> ch[c.key]=0);
-      byMonth.set(mk, { total:0, channels: ch });
+      mMap.set(mk, { total:0, channels: ch });
     }
-    const o = byMonth.get(mk);
+    return mMap.get(mk);
+  }
+
+  for (const r of (rows||[])){
+    const ds = getDate(r);
+    const mk = monthKeyFromDateStr(ds);
+    if (!mk) continue;
+    const y = Number(String(mk).slice(0,4)) || 0;
+    if (!y) continue;
+    const o = ensureYearMonth(y, mk);
+
     const t = getTotal(r);
     o.total += t;
+
     CHANNELS.forEach(c=>{
       const v = parseTL(getFieldCI(r, c.cols)) || 0;
       o.channels[c.key] += v;
     });
   }
 
-  const months = Array.from(byMonth.keys()).sort();
-  if (!months.length){
+  const years = Array.from(byYear.keys()).sort((a,b)=> a-b);
+  if (!years.length){
     if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro verisi bulunamadı.</div>';
     if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal verisi bulunamadı.</div>';
     return;
   }
 
-  // === Monthly total table ===
+  // === Monthly total table (grouped by year) ===
   if (wrapTotal){
     let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
       + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
@@ -1335,38 +1347,51 @@ async function renderRevenueTables(){
       + '<th class="text-right py-2 pr-0">MoM</th>'
       + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
-    let prev = 0;
-    months.forEach(mk=>{
-      const tot = byMonth.get(mk).total || 0;
-      let mom = '–';
-      let cls = '';
-      if (prev > 0){
-        const pct = ((tot - prev) / prev) * 100;
-        mom = fmtPct(pct);
-        cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
-      } else if (tot > 0 && prev === 0){
-        mom = '–';
-      }
-      html += `<tr>`
-        + `<td class="py-1 pr-4">${safeText(mk)}</td>`
-        + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
-        + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
-        + `</tr>`;
-      prev = tot;
-    });
+    years.forEach((y, yi)=>{
+      const mMap = byYear.get(y);
+      const months = Array.from(mMap.keys()).sort();
 
-    const grand = months.reduce((a,m)=> a + (byMonth.get(m).total||0), 0);
-    html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
-      + `<td class="py-2 pr-4 font-medium">Toplam</td>`
-      + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(grand)}</td>`
-      + `<td class="py-2 pr-0"></td>`
-      + `</tr>`;
+      // Year separator row
+      html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-semibold" colspan="3">${safeText(String(y))}</td>`
+        + `</tr>`;
+
+      let prev = 0;
+      let yearSum = 0;
+
+      months.forEach(mk=>{
+        const tot = Number(mMap.get(mk).total||0);
+        yearSum += tot;
+
+        let mom = '–';
+        let cls = '';
+        if (prev > 0){
+          const pct = ((tot - prev) / prev) * 100;
+          mom = fmtPct(pct);
+          cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+        }
+
+        html += `<tr>`
+          + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+          + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
+          + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+          + `</tr>`;
+        prev = tot;
+      });
+
+      // Year total row
+      html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Toplam</td>`
+        + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(yearSum)}</td>`
+        + `<td class="py-2 pr-0"></td>`
+        + `</tr>`;
+    });
 
     html += '</tbody></table></div>';
     wrapTotal.innerHTML = html;
   }
 
-  // === Channel-by-month table ===
+  // === Channel-by-month table (grouped by year, with yearly totals) ===
   if (wrapCh){
     let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
       + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
@@ -1375,30 +1400,41 @@ async function renderRevenueTables(){
     html += '<th class="text-right py-2 pr-0">Toplam</th>';
     html += '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
-    const colTotals = {}; CHANNELS.forEach(c=> colTotals[c.key]=0);
-    let grand = 0;
+    years.forEach(y=>{
+      const mMap = byYear.get(y);
+      const months = Array.from(mMap.keys()).sort();
 
-    months.forEach(mk=>{
-      const o = byMonth.get(mk);
-      html += `<tr><td class="py-1 pr-4">${safeText(mk)}</td>`;
-      let rowSum = 0;
-      CHANNELS.forEach(c=>{
-        const v = Number(o.channels[c.key]||0);
-        rowSum += v;
-        colTotals[c.key] += v;
-        html += `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`;
+      // Year separator row
+      html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-semibold" colspan="${CHANNELS.length + 2}">${safeText(String(y))}</td>`
+        + `</tr>`;
+
+      const colTotals = {}; CHANNELS.forEach(c=> colTotals[c.key]=0);
+      let yearGrand = 0;
+
+      months.forEach(mk=>{
+        const o = mMap.get(mk);
+        html += `<tr><td class="py-1 pr-4">${safeText(mk)}</td>`;
+        let rowSum = 0;
+        CHANNELS.forEach(c=>{
+          const v = Number((o.channels && o.channels[c.key]) || 0);
+          rowSum += v;
+          colTotals[c.key] += v;
+          html += `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`;
+        });
+        // Prefer sheet total if provided; otherwise sum channels
+        const tot = Number(o.total||0) || rowSum;
+        yearGrand += tot;
+        html += `<td class="py-1 pr-0 text-right font-medium">${numberTL(tot)}</td></tr>`;
       });
-      // Prefer sheet total if provided; otherwise sum channels
-      const tot = Number(o.total||0) || rowSum;
-      grand += tot;
-      html += `<td class="py-1 pr-0 text-right font-medium">${numberTL(tot)}</td></tr>`;
-    });
 
-    html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`;
-    html += `<td class="py-2 pr-4 font-medium">Toplam</td>`;
-    CHANNELS.forEach(c=>{ html += `<td class="py-2 pr-4 text-right font-semibold">${numberTL(colTotals[c.key])}</td>`; });
-    html += `<td class="py-2 pr-0 text-right font-semibold">${numberTL(grand)}</td>`;
-    html += `</tr>`;
+      // Year totals row
+      html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`;
+      html += `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Toplam</td>`;
+      CHANNELS.forEach(c=>{ html += `<td class="py-2 pr-4 text-right font-semibold">${numberTL(colTotals[c.key])}</td>`; });
+      html += `<td class="py-2 pr-0 text-right font-semibold">${numberTL(yearGrand)}</td>`;
+      html += `</tr>`;
+    });
 
     html += '</tbody></table></div>';
     wrapCh.innerHTML = html;
