@@ -159,7 +159,9 @@ th, td { white-space: nowrap; }
 /* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
 #lineTotal,
 #barStack,
-#pieShare{
+#pieShare,
+#lineExpenses,
+#pieExpenses{
   background: rgba(255,255,255,0.25);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -5094,41 +5096,62 @@ function drawExpensesCharts(expMonthly){
   const lineCanvas = document.getElementById('lineExpenses');
   const pieCanvas  = document.getElementById('pieExpenses');
 
-  const destroyChart = (ref, canvas)=>{
+  // Hard-destroy any chart bound to these canvases (prevents infinite re-init / resize loops)
+  function hardDestroy(canvas, refName){
     try{
-      if (window[ref]) { window[ref].destroy(); window[ref] = null; }
       if (canvas && Chart.getChart) {
-        const c = Chart.getChart(canvas);
-        if (c) c.destroy();
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
       }
     }catch(_){}
-  };
-
-  // ---------- LINE ----------
-  if (!lineCanvas || !lineCanvas.getContext) {
-    destroyChart('expLineChart', lineCanvas);
-    return;
+    try{
+      if (refName && window[refName] && typeof window[refName].destroy === 'function'){
+        window[refName].destroy();
+        window[refName] = null;
+      }
+    }catch(_){}
   }
 
+  if (!lineCanvas || typeof lineCanvas.getContext !== 'function'){
+    hardDestroy(lineCanvas, 'expLineChart');
+    return;
+  }
   const lctx = lineCanvas.getContext('2d');
-  if (!lctx) return;
+  if (!lctx){
+    hardDestroy(lineCanvas, 'expLineChart');
+    return;
+  }
 
   const rows = Array.isArray(expMonthly) ? expMonthly : [];
-  if (!rows.length) {
-    destroyChart('expLineChart', lineCanvas);
-    return;
-  }
-
   const now = new Date();
   const curYear = now.getFullYear();
 
-  const cur = rows.filter(r => Number(r.year) === curYear)
-                  .sort((a,b)=> String(a.month).localeCompare(String(b.month)));
+  // Current year monthly totals (cap to 12 months, sorted)
+  const cur = rows
+    .filter(r => Number(r.year) === curYear)
+    .map(r => ({
+      month: Number(r.month || r.Month || 0),
+      total: Number(r.total ?? r.Total ?? r.amount ?? r.Amount ?? 0),
+      byMain: r.byMain,
+      rows: r.rows
+    }))
+    .filter(r => r.month >= 1 && r.month <= 12)
+    .sort((a,b)=> a.month - b.month);
 
-  const labels = cur.map(r => r.month);
-  const data   = cur.map(r => Number(r.Total || r.total || 0));
+  // Unique months only
+  const seen = new Set();
+  const labels = [];
+  const data = [];
+  for (const r of cur){
+    if (seen.has(r.month)) continue;
+    seen.add(r.month);
+    labels.push(String(r.month).padStart(2,'0'));
+    data.push(Number(r.total || 0));
+  }
 
-  destroyChart('expLineChart', lineCanvas);
+  // Destroy then draw line
+  hardDestroy(lineCanvas, 'expLineChart');
+  if (!labels.length) return;
 
   window.expLineChart = new Chart(lctx, {
     type: 'line',
@@ -5137,61 +5160,94 @@ function drawExpensesCharts(expMonthly){
       datasets: [{
         label: `${curYear}`,
         data,
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99,102,241,.15)',
-        tension: .3,
+        tension: 0.25,
         fill: true,
+        backgroundColor: 'rgba(99,102,241,0.12)',
+        borderColor: '#6366f1',
+        borderWidth: 2,
         pointRadius: 2
       }]
     },
     options: {
+      responsive: true,
       maintainAspectRatio: false,
+      resizeDelay: 200,
+      animation: false,     // <- kritik: loop hissini keser
+      parsing: false,
       plugins: {
         legend: { position: 'bottom' },
-        datalabels: false   // ⛔ giderlerde kapalı
+        datalabels: false
       },
       scales: {
-        y: { ticks: { callback: v => numberTL(Number(v||0)) } }
+        y: { ticks: { callback: (v)=> numberTL(Number(v||0)) } }
       }
     }
   });
 
-  // ---------- PIE ----------
-  if (!pieCanvas || !pieCanvas.getContext) {
-    destroyChart('expPieChart', pieCanvas);
+  // ---- PIE (YTD by main category) ----
+  if (!pieCanvas || typeof pieCanvas.getContext !== 'function'){
     return;
   }
-
   const pctx = pieCanvas.getContext('2d');
-  if (!pctx) return;
+  if (!pctx){
+    hardDestroy(pieCanvas, 'expPieChart');
+    return;
+  }
 
   const catSum = {};
-  cur.forEach(m=>{
-    const byMain = m.byMain || {};
-    Object.entries(byMain).forEach(([k,v])=>{
-      const val = Number(v||0);
-      if (val > 0) catSum[k] = (catSum[k]||0) + val;
-    });
-  });
-
-  const entries = Object.entries(catSum);
-  if (!entries.length) {
-    destroyChart('expPieChart', pieCanvas);
-    return;
+  for (const m of cur){
+    const bm = (m && m.byMain && typeof m.byMain === 'object') ? m.byMain : null;
+    if (bm){
+      for (const k of Object.keys(bm)){
+        const v = Number(bm[k] || 0);
+        if (v > 0) catSum[k] = (catSum[k] || 0) + v;
+      }
+      continue;
+    }
+    const rs = Array.isArray(m.rows) ? m.rows : [];
+    for (const r of rs){
+      const main = String(r.main || r.Category || r.Kategori || r.cat || 'Diğer').trim() || 'Diğer';
+      const amt = Number(r.amountTRY || r.amount || r.total || r.value || r.Amount || 0);
+      if (amt > 0) catSum[main] = (catSum[main] || 0) + amt;
+    }
   }
 
-  destroyChart('expPieChart', pieCanvas);
+  const entries = Object.entries(catSum).sort((a,b)=> b[1]-a[1]);
+  hardDestroy(pieCanvas, 'expPieChart');
+  if (!entries.length) return;
+
+  const TOP = 10;
+  const top = entries.slice(0, TOP);
+  const rest = entries.slice(TOP);
+  if (rest.length){
+    const restSum = rest.reduce((a, [,v])=> a + (Number(v)||0), 0);
+    if (restSum > 0) top.push(['Diğer', restSum]);
+  }
+
+  const pieLabels = top.map(([k])=>k);
+  const pieData   = top.map(([,v])=>Number(v||0));
 
   window.expPieChart = new Chart(pctx, {
     type: 'pie',
-    data: {
-      labels: entries.map(e=>e[0]),
-      datasets: [{ data: entries.map(e=>e[1]) }]
-    },
+    data: { labels: pieLabels, datasets: [{ data: pieData }] },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 200,
+      animation: false,
       plugins: {
         legend: { position: 'bottom' },
-        datalabels: false   // ⛔ burada da kapalı
+        datalabels: false,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = Number(ctx.raw || 0);
+              const total = pieData.reduce((a,b)=>a+(b||0),0) || 1;
+              const pct = (v / total) * 100;
+              return `${ctx.label}: ${numberTL(v)} (${pct.toFixed(1)}%)`;
+            }
+          }
+        }
       }
     }
   });
