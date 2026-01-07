@@ -4823,12 +4823,12 @@ function expenseCats(r){
     r && r.Kategori
   ].filter(Boolean).map(s => String(s).trim()).filter(s => s.length > 0);
 
-  let main = '';
+let main = '';
   if (zeeAny) {
     main = 'Zee.Dog';
-  } else if (explicitMainCandidates.length) {
+  } else if ((explicitMainCandidates || []).length) {
     // Use the first explicit main-like field
-    main = explicitMainCandidates[0];
+    main = (explicitMainCandidates || [])[0];
     // If it is literally "Diğer" but we have a better sub, promote sub to main
     if (/^diğer$/i.test(main) && sub0 && !/^diğer$/i.test(sub0)) {
       main = sub0;
