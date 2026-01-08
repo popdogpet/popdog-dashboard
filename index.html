@@ -501,9 +501,15 @@ th, td { white-space: nowrap; }
  <!-- Ciro (Grafiksiz) -->
 <div class="grid grid-cols-1 gap-6" data-page="revenue">
   <div class="glass card-3d rounded-3xl p-5">
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
       <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
-      <span class="hint text-xs">Grafik kaldırıldı — tablo/özet aşağıda</span>
+      <div class="flex items-center gap-2">
+        <span class="hint text-xs">Yıl:</span>
+        <select id="revYearSel" class="glass rounded-xl px-2 py-1 text-sm">
+          <option value="all">Tümü</option>
+        </select>
+        <span class="hint text-xs">Grafik kaldırıldı — tablo/özet aşağıda</span>
+      </div>
     </div>
     <div id="lineTotalTblWrap"></div>
   </div>
@@ -1272,6 +1278,17 @@ function fmtPct(n){
 async function renderRevenueTables(){
   const wrapTotal = document.getElementById('lineTotalTblWrap');
   const wrapCh    = document.getElementById('barStackTblWrap');
+  const yearSel   = document.getElementById('revYearSel');
+  const YEAR_KEY  = 'popdog_revenue_year';
+  const selectedYear = (()=>{
+    try{
+      const v = yearSel ? String(yearSel.value || '') : '';
+      if (v) return v;
+      return String(localStorage.getItem(YEAR_KEY) || 'all');
+    }catch(_){
+      return 'all';
+    }
+  })();
   if (!wrapTotal && !wrapCh) return;
 
   // Default placeholder
@@ -1338,6 +1355,41 @@ async function renderRevenueTables(){
     return;
   }
 
+  // Populate year selector (once) + persist selection
+  if (yearSel){
+    const curVal = String(localStorage.getItem(YEAR_KEY) || 'all');
+    // Build options
+    const opts = ['all', ...years.map(y=>String(y))];
+    // If options differ, rebuild
+    const existing = Array.from(yearSel.options).map(o=>o.value);
+    const same = existing.length === opts.length && existing.every((v,i)=>v===opts[i]);
+    if (!same){
+      yearSel.innerHTML = opts.map(v=>{
+        const lbl = (v==='all') ? 'Tümü' : v;
+        return `<option value="${v}">${lbl}</option>`;
+      }).join('');
+    }
+    // Set selected
+    yearSel.value = (opts.includes(curVal) ? curVal : 'all');
+    // Bind change (only once)
+    if (!yearSel.__bound){
+      yearSel.__bound = true;
+      yearSel.addEventListener('change', ()=>{
+        try{ localStorage.setItem(YEAR_KEY, String(yearSel.value||'all')); }catch(_){ }
+        // Re-render tables
+        renderRevenueTables();
+      });
+    }
+  }
+
+  // Apply year filter
+  const yearsToRender = (()=>{
+    const v = (yearSel ? String(yearSel.value||'') : selectedYear) || 'all';
+    if (v === 'all') return years;
+    const yNum = Number(v);
+    return (years.includes(yNum)) ? [yNum] : years;
+  })();
+
   // === Monthly total table (grouped by year) ===
   if (wrapTotal){
     let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
@@ -1347,7 +1399,7 @@ async function renderRevenueTables(){
       + '<th class="text-right py-2 pr-0">MoM</th>'
       + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
-    years.forEach((y, yi)=>{
+    yearsToRender.forEach((y, yi)=>{
       const mMap = byYear.get(y);
       const months = Array.from(mMap.keys()).sort();
 
@@ -1400,7 +1452,7 @@ async function renderRevenueTables(){
     html += '<th class="text-right py-2 pr-0">Toplam</th>';
     html += '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
-    years.forEach(y=>{
+    yearsToRender.forEach(y=>{
       const mMap = byYear.get(y);
       const months = Array.from(mMap.keys()).sort();
 
@@ -1553,14 +1605,21 @@ document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.conta
 (function(){
   const rb = document.getElementById('refreshBtn');
   if (!rb) return;
-  rb.onclick = () => {
+  rb.onclick = async () => {
     try{
-      if (typeof refreshAll === 'function') return refreshAll();
-      if (typeof refreshAllData === 'function') return refreshAllData();
-      if (typeof loadAll === 'function') return loadAll();
-      if (typeof loadAllData === 'function') return loadAllData();
-    }catch(_){ }
-    location.reload();
+      if (typeof refreshAll === 'function') await refreshAll();
+      else if (typeof refreshAllData === 'function') await refreshAllData();
+      else if (typeof loadAll === 'function') await loadAll();
+      else if (typeof loadAllData === 'function') await loadAllData();
+      else {
+        location.reload();
+        return;
+      }
+    }catch(_){
+      location.reload();
+      return;
+    }
+    try{ await renderRevenueTables(); }catch(_){ }
   };
 })();
 
