@@ -3972,8 +3972,10 @@ function setKPIs(monthly){
 
 const elYTD_USD = document.getElementById('kpiYTD_USD');
 if (elYTD_USD) {
-  const usd = tryToUSD(ytdTotal); // TL -> USD (TL / (TRY per USD))
-  elYTD_USD.textContent = (usd > 0) ? `≈ ${numberUSD(usd)} USD` : '≈ – USD';
+  const usdYtd = tryToUSD(ytdTotal); // 1 USD = X TRY
+  elYTD_USD.textContent = (usdYtd > 0)
+    ? `≈ ${numberUSD(usdYtd)} USD`
+    : '≈ – USD';
 }
 
   // === YTD YoY: geçen yılın aynı ay sayısı ile hizalanmış toplam ===
