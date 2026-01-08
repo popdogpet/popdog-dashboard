@@ -864,134 +864,8 @@ th, td { white-space: nowrap; }
               <th class="text-right py-2 pr-4">Trendyol</th>
               <th class="text-right py-2 pr-4">Hepsiburada</th>
               <th class="text-right py-2 pr-4">Total</th>
-// ==== Günlük Rapor Satır Ekle: Parse WhatsApp/daily report text, extract Kuaför (Grooming) ====
-// Used by parseAddBtn click handler
-// This parser logic is adapted to extract Kuaför and avoid double-counting in CKM
-function parseDailyReportText(text) {
-  // Normalize line endings, strip extra whitespace
-  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-  // Extract date (first line or any line with a date)
-  let date = '';
-  const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
-  if (dateMatch) date = parseTRDateString(dateMatch[1]);
-  // Extract Kuaför (Grooming) amount
-  const mGroom = text.match(/\bKuaf[oö]r\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
-  // Extract Toptan, Online, CKM, CKM Nakit, Kasa Nakit, Trendyol, Hepsiburada
-  // Use similar regex as existing logic, fallback to 0
-  const mToptan = text.match(/\bToptan\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mOnline = text.match(/\bOnline\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mCKMNakit = text.match(/\bCKM Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mKasaNakit = text.match(/\bKasa Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mTrendyol = text.match(/\bTrendyol\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mHB = text.match(/\bHepsiburada\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  // Online: also allow Pop Dog Online
-  const mOnlineAlt = text.match(/\bPop Dog Online\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  // Toptan: also allow Pop Dog Toptan
-  const mToptanAlt = text.match(/\bPop Dog Toptan\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  // CKM: "Toplam ciro" or "Kredi Kartı + Nakit"
-  let storeTotalTRY = 0;
-  // Try Toplam ciro
-  const mStoreTotal = text.match(/\bToplam ciro\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  if (mStoreTotal) {
-    storeTotalTRY = parseTL(mStoreTotal[1]);
-  } else {
-    // Try Kredi Kartı + Nakit
-    const mKK = text.match(/\bKredi Kart[ıi]\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-    const mNakit = text.match(/\bNakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-    const kk = mKK ? parseTL(mKK[1]) : 0;
-    const nakit = mNakit ? parseTL(mNakit[1]) : 0;
-    storeTotalTRY = kk + nakit;
-  }
-  // CKM (retail) = storeTotalTRY - groomingTRY, never <0
-  const ckmRetailTRY = Math.max(0, (storeTotalTRY || 0) - (groomingTRY || 0));
-  // CKM Nakit
-  const ckmNakitTRY = mCKMNakit ? parseTL(mCKMNakit[1]) : 0;
-  // Kasa Nakit
-  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
-  // Trendyol
-  const trendyolTRY = mTrendyol ? parseTL(mTrendyol[1]) : 0;
-  // Hepsiburada
-  const hbTRY = mHB ? parseTL(mHB[1]) : 0;
-  // Online
-  let onlineTRY = 0;
-  if (mOnlineAlt) onlineTRY = parseTL(mOnlineAlt[1]);
-  else if (mOnline) onlineTRY = parseTL(mOnline[1]);
-  // Toptan
-  let toptanTRY = 0;
-  if (mToptanAlt) toptanTRY = parseTL(mToptanAlt[1]);
-  else if (mToptan) toptanTRY = parseTL(mToptan[1]);
-  // Compute Total: sum of all channels (toptan, online, ckmRetail, grooming, trendyol, hb)
-  const totalTRY = (toptanTRY || 0) + (onlineTRY || 0) + (ckmRetailTRY || 0) + (groomingTRY || 0) + (trendyolTRY || 0) + (hbTRY || 0);
-  // Build row object (order: Date, Toptan, Online, CKM, Kuaför, CKM Nakit, Kasa Nakit, Trendyol, Hepsiburada, Total)
-  return {
-    'Date': date,
-    'Toptan': toptanTRY,
-    'Online': onlineTRY,
-    'CKM': ckmRetailTRY,
-    'Kuaför': groomingTRY,
-    'CKM Nakit': ckmNakitTRY,
-    'Kasa Nakit (EoD)': kasaNakitTRY,
-    'Trendyol': trendyolTRY,
-    'Hepsiburada': hbTRY,
-    'Total': totalTRY
-  };
-}
-// === Günlük Rapor Yapıştır → Satır Ekle: staged rows rendering with Kuaför ===
-function renderStagedRows(stagedRows) {
-  // stagedRows: array of row objects
-  const tbody = document.getElementById('stagedTbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  for (const row of stagedRows) {
-    // Render: Date, Toptan, Online, CKM, Kuaför, CKM Nakit, Kasa Nakit (EoD), Trendyol, Hepsiburada, Total
-    const html =
-      `<tr>
-        <td class="py-2 pr-4">${safeText(row.Date || '')}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Toptan || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Online || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.CKM || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Kuaför || row.Kuafor || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row['CKM Nakit'] || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row['Kasa Nakit (EoD)'] || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Trendyol || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Hepsiburada || 0)}</td>
-        <td class="text-right py-2 pr-4">${numberTL(row.Total || 0)}</td>
-      </tr>`;
-    tbody.insertAdjacentHTML('beforeend', html);
-  }
-}
-// === Günlük Rapor Yapıştır → Satır Ekle: parseAddBtn handler with Kuaför support ===
-(function(){
-  const btn = document.getElementById('parseAddBtn');
-  if (!btn) return;
-  // Keep staged rows in memory (not persisted)
-  let stagedRows = [];
-  btn.onclick = function() {
-    const ta = document.getElementById('dailyText');
-    const info = document.getElementById('parseInfo');
-    if (!ta) return;
-    const text = ta.value || '';
-    let row;
-    try {
-      row = parseDailyReportText(text);
-    } catch (e) {
-      if (info) info.textContent = 'Satır ayrıştırılamadı: ' + (e && e.message ? e.message : e);
-      return;
-    }
-    // If row is empty or date missing, warn
-    if (!row || !row.Date) {
-      if (info) info.textContent = 'Tarih bulunamadı veya format hatalı.';
-      return;
-    }
-    stagedRows.push(row);
-    renderStagedRows(stagedRows);
-    if (info) info.textContent = 'Satır eklendi.';
-    ta.value = '';
-  };
-  // Expose stagedRows for pushing to sheet if needed
-  window.getStagedDailyRows = () => stagedRows.slice();
-})();
+            </tr>
+          </thead>
             </tr>
           </thead>
           <tbody id="stagedTbody" class="text-slate-800 dark:text-slate-100"></tbody>
@@ -1758,6 +1632,205 @@ const nfTL  = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY
 const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
+
+
+/* ================== DAILY REPORT PARSER (CKM + Kuaför split) ================== */
+// Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
+function parseDailyReportText(text) {
+  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+  // Extract date
+  let date = '';
+  const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
+  if (dateMatch) date = parseTRDateString(dateMatch[1]);
+
+  // Kuaför (Grooming)
+  const mGroom = text.match(/\bKuaf[oö]r\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
+
+  // Toptan / Online (allow “Pop Dog ...” variants)
+  const mToptan = text.match(/\bToptan\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mOnline = text.match(/\bOnline\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mOnlineAlt = text.match(/\bPop\s*Dog\s*Online\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mToptanAlt = text.match(/\bPop\s*Dog\s*Toptan\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+
+  let onlineTRY = 0;
+  if (mOnlineAlt) onlineTRY = parseTL(mOnlineAlt[1]);
+  else if (mOnline) onlineTRY = parseTL(mOnline[1]);
+
+  let toptanTRY = 0;
+  if (mToptanAlt) toptanTRY = parseTL(mToptanAlt[1]);
+  else if (mToptan) toptanTRY = parseTL(mToptan[1]);
+
+  // CKM Nakit / Kasa Nakit / Trendyol / Hepsiburada
+  const mCKMNakit = text.match(/\bCKM\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mKasaNakit = text.match(/\bKasa\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mTrendyol = text.match(/\bTrendyol\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mHB = text.match(/\bHepsiburada\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+
+  const ckmNakitTRY = mCKMNakit ? parseTL(mCKMNakit[1]) : 0;
+  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
+  const trendyolTRY = mTrendyol ? parseTL(mTrendyol[1]) : 0;
+  const hbTRY = mHB ? parseTL(mHB[1]) : 0;
+
+  // Store total = "Toplam ciro" OR (Kredi Kartı + Nakit)
+  let storeTotalTRY = 0;
+  const mStoreTotal = text.match(/\bToplam\s*ciro\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  if (mStoreTotal) {
+    storeTotalTRY = parseTL(mStoreTotal[1]);
+  } else {
+    const mKK = text.match(/\bKredi\s*Kart[ıi]\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+    const mNakit = text.match(/\bNakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+    const kk = mKK ? parseTL(mKK[1]) : 0;
+    const nakit = mNakit ? parseTL(mNakit[1]) : 0;
+    storeTotalTRY = kk + nakit;
+  }
+
+  // CKM (retail) = storeTotal - grooming (avoid double count)
+  const ckmRetailTRY = Math.max(0, (storeTotalTRY || 0) - (groomingTRY || 0));
+
+  // Total (channels sum) — CKM retail + Kuaför counted once
+  const totalTRY = (toptanTRY || 0) + (onlineTRY || 0) + (ckmRetailTRY || 0) + (groomingTRY || 0) + (trendyolTRY || 0) + (hbTRY || 0);
+
+  return {
+    'Date': date,
+    'Toptan': toptanTRY,
+    'Online': onlineTRY,
+    'CKM': ckmRetailTRY,
+    'Kuaför': groomingTRY,
+    'CKM Nakit': ckmNakitTRY,
+    'Kasa Nakit (EoD)': kasaNakitTRY,
+    'Trendyol': trendyolTRY,
+    'Hepsiburada': hbTRY,
+    'Total': totalTRY
+  };
+}
+
+function renderStagedRows(stagedRows) {
+  const tbody = document.getElementById('stagedTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  for (const row of stagedRows) {
+    const html =
+      `<tr>
+        <td class="py-2 pr-4">${safeText(row.Date || '')}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Toptan || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Online || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.CKM || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['Kuaför'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['CKM Nakit'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['Kasa Nakit (EoD)'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Trendyol || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Hepsiburada || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Total || 0)}</td>
+      </tr>`;
+    tbody.insertAdjacentHTML('beforeend', html);
+  }
+}
+
+(function(){
+  const btn = document.getElementById('parseAddBtn');
+  if (!btn) return;
+  let stagedRows = [];
+
+  btn.onclick = function() {
+    const ta = document.getElementById('dailyText');
+    const info = document.getElementById('parseInfo');
+    if (!ta) return;
+
+    const text = ta.value || '';
+    let row;
+    try {
+      row = parseDailyReportText(text);
+    } catch (e) {
+      if (info) info.textContent = 'Satır ayrıştırılamadı: ' + (e && e.message ? e.message : e);
+      return;
+    }
+
+    if (!row || !row.Date) {
+      if (info) info.textContent = 'Tarih bulunamadı veya format hatalı.';
+      return;
+    }
+
+    stagedRows.push(row);
+    renderStagedRows(stagedRows);
+    if (info) info.textContent = `Satır eklendi. (${stagedRows.length})`;
+    ta.value = '';
+  };
+
+  window.getStagedDailyRows = () => stagedRows.slice();
+})();
+/* ================== /DAILY REPORT PARSER ================== */
+
+
+// Sheet’e Yaz (pushRowsBtn) — Kuaför desteğiyle
+(function(){
+  const btn = document.getElementById('pushRowsBtn');
+  if (!btn) return;
+
+  btn.onclick = async function(){
+    const info = document.getElementById('parseInfo');
+    const rows = (typeof window.getStagedDailyRows === 'function') ? window.getStagedDailyRows() : [];
+    if (!rows || !rows.length){
+      if (info) info.textContent = 'Önce satır ekleyin (Satıra çevir ve ekle).';
+      return;
+    }
+
+    // Ensure Kuaför key exists on every row (Apps Script will map columns by header)
+    const payloadRows = rows.map(r => {
+      const out = Object.assign({}, r);
+      if (typeof out['Kuaför'] === 'undefined') out['Kuaför'] = 0;
+      return out;
+    });
+
+    // WebApp compat
+    const compat = (typeof getWebAppCompat === 'function') ? getWebAppCompat() : {};
+    const actionKey = (compat && compat.actionKey) ? compat.actionKey : 'action';
+    const rowsKey   = (compat && compat.rowsKey)   ? compat.rowsKey   : 'rows';
+    const dailyAction = (compat && compat.dailyAction) ? compat.dailyAction : 'appendDaily';
+
+    const base = getSheetWebAppURL();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
+      if (info) info.textContent = '⚠️ Web App URL geçersiz. Ayarlardan düzeltin.';
+      return;
+    }
+
+    btn.disabled = true;
+    if (info) info.textContent = 'Sheet’e yazılıyor…';
+
+    try{
+      const body = {};
+      body[actionKey] = dailyAction;
+      body[rowsKey] = payloadRows;
+
+      const res = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json;charset=utf-8' },
+        body: JSON.stringify(body)
+      });
+
+      const txt = await res.text().catch(()=> '');
+      let j = null;
+      try{ j = JSON.parse(txt); }catch(_){ j = null; }
+
+      if (!res.ok){
+        throw new Error('HTTP_' + res.status);
+      }
+      if (j && j.ok){
+        if (info) info.textContent = `✓ Yazıldı (${payloadRows.length})`;
+      } else {
+        // Show server response for debugging
+        if (info) info.textContent = '⚠️ Yazılamadı (yanıt beklenmedik).';
+        console.warn('pushRows response', txt);
+      }
+    }catch(e){
+      if (info) info.textContent = '⚠️ Yazma hatası: ' + (e && e.message ? e.message : e);
+      console.warn('pushRows error', e);
+    }finally{
+      btn.disabled = false;
+    }
+  };
+})();
 
 
 
