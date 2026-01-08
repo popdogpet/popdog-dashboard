@@ -1570,13 +1570,7 @@ const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
 
-// TRY -> USD : fxTryPerUsd = "1 USD kaç TRY" (örn 43.05)
-function tryToUSD(tryAmount){
-  const n = Number(tryAmount || 0);
-  const fxTryPerUsd = getTryPerUsd();
-  if (!(fxTryPerUsd > 0)) return 0;
-  return n / fxTryPerUsd;
-}
+
 
 /* ================== LOANS STATE HELPERS ================== */
 // Zee.Dog varsayılan bekleyen ödemeler (USD)
@@ -3970,13 +3964,11 @@ function setKPIs(monthly){
   const elYTD = document.getElementById('kpiYTD');
   if (elYTD) elYTD.textContent = numberTL(ytdTotal);
 
-const elYTD_USD = document.getElementById('kpiYTD_USD');
-if (elYTD_USD) {
-  const usdYtd = tryToUSD(ytdTotal); // 1 USD = X TRY
-  elYTD_USD.textContent = (usdYtd > 0)
-    ? `≈ ${numberUSD(usdYtd)} USD`
-    : '≈ – USD';
-}
+  const elYTD_USD = document.getElementById('kpiYTD_USD');
+  if (elYTD_USD) {
+    if (fxRateUSDPerTRY) elYTD_USD.textContent = `≈ ${numberUSD(ytdTotal * fxRateUSDPerTRY)} USD`;
+    else elYTD_USD.textContent = '≈ – USD';
+  }
 
   // === YTD YoY: geçen yılın aynı ay sayısı ile hizalanmış toplam ===
   try {
