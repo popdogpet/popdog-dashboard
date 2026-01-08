@@ -864,7 +864,6 @@ th, td { white-space: nowrap; }
               <th class="text-right py-2 pr-4">Trendyol</th>
               <th class="text-right py-2 pr-4">Hepsiburada</th>
               <th class="text-right py-2 pr-4">Total</th>
-          </thead>
             </tr>
           </thead>
           <tbody id="stagedTbody" class="text-slate-800 dark:text-slate-100"></tbody>
@@ -1661,14 +1660,22 @@ function parseDailyReportText(text) {
   if (mToptanAlt) toptanTRY = parseTL(mToptanAlt[1]);
   else if (mToptan) toptanTRY = parseTL(mToptan[1]);
 
-  // CKM Nakit / Kasa Nakit / Trendyol / Hepsiburada
-  const mCKMNakit = text.match(/\bCKM\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  // Cash sales (Nakit) vs cash-in-drawer end of day (Kasa Nakit)
+  // Nakit = store cash sales amount (used as "CKM Nakit" column)
+  const mCashSales = text.match(/(?:^|\n)\s*Nakit\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const cashSalesTRY = mCashSales ? parseTL(mCashSales[1]) : 0;
+
+  // Kasa Nakit = end-of-day cash in register (EoD)
   const mKasaNakit = text.match(/\bKasa\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
+
+  // Optional explicit CKM Nakit line (if you ever send it) — otherwise use cashSalesTRY
+  const mCKMNakit = text.match(/\bCKM\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const ckmNakitTRY = mCKMNakit ? parseTL(mCKMNakit[1]) : cashSalesTRY;
+
   const mTrendyol = text.match(/\bTrendyol\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
   const mHB = text.match(/\bHepsiburada\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
 
-  const ckmNakitTRY = mCKMNakit ? parseTL(mCKMNakit[1]) : 0;
-  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
   const trendyolTRY = mTrendyol ? parseTL(mTrendyol[1]) : 0;
   const hbTRY = mHB ? parseTL(mHB[1]) : 0;
 
@@ -1678,10 +1685,9 @@ function parseDailyReportText(text) {
   if (mStoreTotal) {
     storeTotalTRY = parseTL(mStoreTotal[1]);
   } else {
-    const mKK = text.match(/\bKredi\s*Kart[ıi]\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-    const mNakit = text.match(/\bNakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+    const mKK = text.match(/(?:^|\n)\s*Kredi\s*Kart[ıi]\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
     const kk = mKK ? parseTL(mKK[1]) : 0;
-    const nakit = mNakit ? parseTL(mNakit[1]) : 0;
+    const nakit = cashSalesTRY;
     storeTotalTRY = kk + nakit;
   }
 
