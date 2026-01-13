@@ -1790,6 +1790,8 @@ function renderStagedRows(stagedRows) {
   const btn = document.getElementById('parseAddBtn');
   if (!btn) return;
   let stagedRows = [];
+  try{ window.stagedRows = stagedRows; }catch(_){}
+
 
   btn.onclick = function() {
     const ta = document.getElementById('dailyText');
@@ -1815,6 +1817,7 @@ function renderStagedRows(stagedRows) {
     }
 
     stagedRows.push(row);
+    try{ window.stagedRows = stagedRows; }catch(_){}
     renderStagedRows(stagedRows);
     if (info) {
       info.textContent = `Satır eklendi. (${stagedRows.length}) • Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
@@ -2554,8 +2557,7 @@ function isCleanOnLoad(){
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
 let loadedRows = [];     // revenue rows (sheet csv)
-let stagedRows = null;   // (legacy) DO NOT USE — daily paste uses window.getStagedDailyRows()
-let fxRateUSDPerTRY = null;
+let stagedRows = []; // legacy compat: null olmasın, bazı eski yerler hâlâ bunu okuyorlet fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
 
