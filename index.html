@@ -1643,7 +1643,8 @@ function parseDailyReportText(text) {
   if (dateMatch) date = parseTRDateString(dateMatch[1]);
 
   // Kuaför (Grooming)
-const mGroom = text.match(/(?:^|\n)\s*Kuaf[oö]r\s*[:=]\s*([0-9][0-9\.\,\s]*)\s*(?:TL|₺)?/i);
+// Kuaför (Grooming) — robust: allow dots/spaces, require line-start or newline
+const mGroom = text.match(/(?:^|\n)\s*Kuaf[oö]r\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
 const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
 
   // Toptan / Online (allow “Pop Dog ...” variants)
