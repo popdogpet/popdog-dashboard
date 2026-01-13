@@ -1635,11 +1635,15 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
 /* ================== DAILY REPORT PARSER (CKM + Kuaför split) ================== */
 // Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
 function parseDailyReportText(text) {
-  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-  // Normalize diacritics for robust label matching (Kuaför/Kuafor etc.)
-  const textNoDia = text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g,'');
+  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+text = text
+  .replace(/\u00A0/g,' ')                 // NBSP
+  .replace(/[\u200B-\u200D\uFEFF]/g,'')   // zero width
+  .trim();
+
+const textNoDia = text
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'');        // diacritics off
 
   // Extract date
   let date = '';
@@ -1647,7 +1651,7 @@ function parseDailyReportText(text) {
   if (dateMatch) date = parseTRDateString(dateMatch[1]);
 
   // Kuaför (Grooming) — match on diacritics-stripped text
-  const mGroom = textNoDia.match(/(?:^|\n)\s*Kuafor\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
+const mGroom = textNoDia.match(/(?:^|\n)\s*Kuafor\b[^\n]{0,20}?[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
   const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
 
   // Toptan / Online (allow “Pop Dog ...” variants)
@@ -1665,12 +1669,11 @@ function parseDailyReportText(text) {
   else if (mToptan) toptanTRY = parseTL(mToptan[1]);
 
   // Cash sales: line "Nakit : 2125₺" (may be empty like "Nakit : ₺")
-  const mCashSales = textNoDia.match(/(?:^|\n)\s*Nakit\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
-  const cashSalesTRY = mCashSales ? parseTL(mCashSales[1]) : 0;
+const mCashSales = textNoDia.match(/(?:^|\n)\s*Nakit\b\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*(?=\n|$)/i);
+const cashSalesTRY = (mCashSales && mCashSales[1]) ? parseTL(mCashSales[1]) : 0;
 
   // Kasa Nakit = end-of-day cash in register (EoD)
-  const mKasaNakit = textNoDia.match(/\bKasa\s*Nakit\b\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
-  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
+const mKasaNakit = textNoDia.match(/\bKasa\s*Nakit\b\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);  const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
 
   // Optional explicit CKM Nakit line (if you ever send it) — otherwise use cashSalesTRY
   const mCKMNakit = text.match(/\bCKM\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
@@ -1750,6 +1753,7 @@ function renderStagedRows(stagedRows) {
     let row;
     try {
       row = parseDailyReportText(text);
+      console.log('dailyRowParsed', row);
     } catch (e) {
       if (info) info.textContent = 'Satır ayrıştırılamadı: ' + (e && e.message ? e.message : e);
       return;
