@@ -1783,10 +1783,17 @@ function renderStagedRows(stagedRows) {
 
     // Ensure Kuaför key exists on every row (Apps Script will map columns by header)
     const payloadRows = rows.map(r => {
-      const out = Object.assign({}, r);
-      if (typeof out['Kuaför'] === 'undefined') out['Kuaför'] = 0;
-      return out;
-    });
+  const out = Object.assign({}, r);
+  const g = (out['Kuaför'] != null) ? out['Kuaför']
+          : (out['Kuafor'] != null) ? out['Kuafor']
+          : (out['Grooming'] != null) ? out['Grooming']
+          : 0;
+
+  out['Kuaför'] = Number(g) || 0;
+  out['Kuafor'] = Number(g) || 0;
+  out['Grooming'] = Number(g) || 0;
+  return out;
+});
 
     // WebApp compat
     const compat = (typeof getWebAppCompat === 'function') ? getWebAppCompat() : {};
