@@ -1641,9 +1641,9 @@ function parseDailyReportText(text) {
   // Diacritics-stripped text for stable matching (Kuaför/Kuafor)
   const textNoDia = text.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
-  // Helper: parse "Label: 1.234,5 TL" from a single line (already diacritics-stripped)
-  function parseLineAmount_(line, label){
-    const re = new RegExp('^' + label + '\\b\\s*[:：=]\\s*([0-9][0-9\\.,\\s]*)?\\s*(?:TL|₺)?\\s*$', 'i');
+  // Helper: extract amount from a line using a regex with one capture group for the number.
+  // Returns null if no match, 0 if the label exists but number is empty.
+  function extractAmount_(line, re){
     const m = String(line||'').trim().match(re);
     if (!m) return null;
     if (!m[1]) return 0;
@@ -1673,44 +1673,63 @@ function parseDailyReportText(text) {
   for (let i=0; i<lines.length; i++){
     const L = lines[i];
 
-    // Kuaför
-    const g = parseLineAmount_(L, 'Kuafor');
-    if (g != null) groomingTRY = g;
+    // Kuaför (allow extra words)
+    {
+      const v = extractAmount_(L, /^\s*Kuafor\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) groomingTRY = v;
+    }
 
-    // Nakit (cash sales) — MUST start with Nakit
-    const n = parseLineAmount_(L, 'Nakit');
-    if (n != null) cashSalesTRY = n;
+    // Nakit (cash sales) — DO NOT match "Kasa Nakit"
+    {
+      const v = extractAmount_(L, /^\s*(?!Kasa\s+Nakit\b)Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) cashSalesTRY = v;
+    }
 
     // Kasa Nakit (EoD)
-    const kn = parseLineAmount_(L, 'Kasa\\s+Nakit');
-    if (kn != null) kasaNakitTRY = kn;
+    {
+      const v = extractAmount_(L, /^\s*Kasa\s+Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) kasaNakitTRY = v;
+    }
 
-    // Trendyol / Hepsiburada
-    const tr = parseLineAmount_(L, 'Trendyol');
-    if (tr != null) trendyolTRY = tr;
+    // Trendyol
+    {
+      const v = extractAmount_(L, /^\s*Trendyol\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) trendyolTRY = v;
+    }
 
-    const hb = parseLineAmount_(L, 'Hepsiburada');
-    if (hb != null) hbTRY = hb;
+    // Hepsiburada
+    {
+      const v = extractAmount_(L, /^\s*Hepsiburada\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) hbTRY = v;
+    }
 
     // Pop Dog Online / Online
-    const on1 = parseLineAmount_(L, 'Pop\\s*Dog\\s*Online');
-    if (on1 != null) onlineTRY = on1;
-    const on2 = parseLineAmount_(L, 'Online');
-    if (on2 != null) onlineTRY = on2;
+    {
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Online\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v1 != null) onlineTRY = v1;
+      const v2 = extractAmount_(L, /^\s*Online\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v2 != null) onlineTRY = v2;
+    }
 
     // Pop Dog Toptan / Toptan
-    const tp1 = parseLineAmount_(L, 'Pop\\s*Dog\\s*Toptan');
-    if (tp1 != null) toptanTRY = tp1;
-    const tp2 = parseLineAmount_(L, 'Toptan');
-    if (tp2 != null) toptanTRY = tp2;
+    {
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Toptan\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v1 != null) toptanTRY = v1;
+      const v2 = extractAmount_(L, /^\s*Toptan\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v2 != null) toptanTRY = v2;
+    }
 
     // Toplam ciro
-    const tot = parseLineAmount_(L, 'Toplam\\s*ciro');
-    if (tot != null) storeTotalTRY = tot;
+    {
+      const v = extractAmount_(L, /^\s*Toplam\s*ciro\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) storeTotalTRY = v;
+    }
 
     // Kredi Kartı
-    const kk = parseLineAmount_(L, 'Kredi\\s*Kart[ıi]');
-    if (kk != null) kkTRY = kk;
+    {
+      const v = extractAmount_(L, /^\s*Kredi\s*Kart[ıi]\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) kkTRY = v;
+    }
   }
 
   // If total not provided, compute from credit card + cash sales
@@ -1724,7 +1743,7 @@ function parseDailyReportText(text) {
   // CKM Nakit: prefer explicit "CKM Nakit" if present; otherwise use cashSales
   let ckmNakitTRY = cashSalesTRY;
   for (let i=0; i<lines.length; i++){
-    const cn = parseLineAmount_(lines[i], 'CKM\\s+Nakit');
+    const cn = extractAmount_(lines[i], /^\s*CKM\s+Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
     if (cn != null){ ckmNakitTRY = cn; break; }
   }
 
@@ -1797,7 +1816,9 @@ function renderStagedRows(stagedRows) {
 
     stagedRows.push(row);
     renderStagedRows(stagedRows);
-    if (info) info.textContent = `Satır eklendi. (${stagedRows.length})`;
+    if (info) {
+      info.textContent = `Satır eklendi. (${stagedRows.length}) • Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
+    }
     ta.value = '';
   };
 
