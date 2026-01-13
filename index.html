@@ -1636,16 +1636,19 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
 // Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
 function parseDailyReportText(text) {
   text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  // Normalize diacritics for robust label matching (Kuaför/Kuafor etc.)
+  const textNoDia = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'');
 
   // Extract date
   let date = '';
   const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
   if (dateMatch) date = parseTRDateString(dateMatch[1]);
 
-  // Kuaför (Grooming)
-// Kuaför (Grooming) — robust: allow dots/spaces, require line-start or newline
-const mGroom = text.match(/(?:^|\n)\s*Kuaf[oö]r\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
-const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
+  // Kuaför (Grooming) — match on diacritics-stripped text
+  const mGroom = textNoDia.match(/(?:^|\n)\s*Kuafor\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
+  const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
 
   // Toptan / Online (allow “Pop Dog ...” variants)
   const mToptan = text.match(/\bToptan\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
@@ -1661,28 +1664,27 @@ const groomingTRY = mGroom ? parseTL(mGroom[1]) : 0;
   if (mToptanAlt) toptanTRY = parseTL(mToptanAlt[1]);
   else if (mToptan) toptanTRY = parseTL(mToptan[1]);
 
-  // Cash sales (Nakit) vs cash-in-drawer end of day (Kasa Nakit)
-  // Nakit = store cash sales amount (used as "CKM Nakit" column)
-  const mCashSales = text.match(/(?:^|\n)\s*Nakit\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  // Cash sales: line "Nakit : 2125₺" (may be empty like "Nakit : ₺")
+  const mCashSales = textNoDia.match(/(?:^|\n)\s*Nakit\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
   const cashSalesTRY = mCashSales ? parseTL(mCashSales[1]) : 0;
 
   // Kasa Nakit = end-of-day cash in register (EoD)
-  const mKasaNakit = text.match(/\bKasa\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mKasaNakit = textNoDia.match(/\bKasa\s*Nakit\b\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
   const kasaNakitTRY = mKasaNakit ? parseTL(mKasaNakit[1]) : 0;
 
   // Optional explicit CKM Nakit line (if you ever send it) — otherwise use cashSalesTRY
   const mCKMNakit = text.match(/\bCKM\s*Nakit\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
   const ckmNakitTRY = mCKMNakit ? parseTL(mCKMNakit[1]) : cashSalesTRY;
 
-  const mTrendyol = text.match(/\bTrendyol\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
-  const mHB = text.match(/\bHepsiburada\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mTrendyol = textNoDia.match(/\bTrendyol\b\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
+  const mHB = textNoDia.match(/\bHepsiburada\b\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
 
   const trendyolTRY = mTrendyol ? parseTL(mTrendyol[1]) : 0;
   const hbTRY = mHB ? parseTL(mHB[1]) : 0;
 
   // Store total = "Toplam ciro" OR (Kredi Kartı + Nakit)
   let storeTotalTRY = 0;
-  const mStoreTotal = text.match(/\bToplam\s*ciro\b\s*[:=]\s*([0-9\.,]+)\s*(?:TL|₺)?/i);
+  const mStoreTotal = textNoDia.match(/\bToplam\s*ciro\b\s*[:=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
   if (mStoreTotal) {
     storeTotalTRY = parseTL(mStoreTotal[1]);
   } else {
