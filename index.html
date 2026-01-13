@@ -1631,7 +1631,7 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
 
 /* ================== DAILY REPORT PARSER (CKM + Kuaför split) ================== */
 // Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
-function parseDailyReportText(text) {
+function parseDailyReportText_v2(text) {
   // Normalize newlines and remove invisible chars (WhatsApp copy/paste)
   text = String(text || '')
     .replace(/\r\n/g, '\n')
@@ -1764,7 +1764,7 @@ function parseDailyReportText(text) {
     'Toptan': toptanTRY,
     'Online': onlineTRY,
     'CKM': ckmRetailTRY,
-    'Kuaför': groomingTRY,
+    'Kuaför': (groomingTRY || 0),
     'CKM Nakit': ckmNakitTRY,
     'Kasa Nakit (EoD)': kasaNakitTRY,
     'Trendyol': trendyolTRY,
@@ -1772,6 +1772,9 @@ function parseDailyReportText(text) {
     'Total': totalTRY
   };
 }
+
+// Force global reference to the new parser (prevents legacy overrides)
+try{ window.parseDailyReportText = parseDailyReportText_v2; }catch(_){ }
 
 function renderStagedRows(stagedRows) {
   const tbody = document.getElementById('stagedTbody');
@@ -1810,7 +1813,9 @@ function renderStagedRows(stagedRows) {
     const text = ta.value || '';
     let row;
     try {
-      row = parseDailyReportText(text);
+      row = parseDailyReportText_v2(text);
+      // Guarantee Kuaför key exists
+      if (row && typeof row['Kuaför'] === 'undefined') row['Kuaför'] = 0;
       console.log('dailyRowParsed', row);
       if (info && row) {
         info.textContent = `Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
