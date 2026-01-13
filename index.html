@@ -1633,7 +1633,10 @@ const numberUSD = n => nfUSD.format(Math.round(n||0));
 // Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
 function parseDailyReportText(text) {
   // Normalize newlines and remove invisible chars (WhatsApp copy/paste)
-  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  text = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[\u2028\u2029]/g, '\n')
     .replace(/\u00A0/g,' ')                 // NBSP
     .replace(/[\u200B-\u200D\uFEFF]/g,'') // zero-width
     .trim();
@@ -1673,63 +1676,69 @@ function parseDailyReportText(text) {
   for (let i=0; i<lines.length; i++){
     const L = lines[i];
 
-    // Kuaför (allow extra words)
+    // Kuaför (strict label+colon)
     {
-      const v = extractAmount_(L, /^\s*Kuafor\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Kuafor\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
       if (v != null) groomingTRY = v;
     }
 
-    // Nakit (cash sales) — DO NOT match "Kasa Nakit"
+    // Nakit (cash sales) — DO NOT match "Kasa Nakit", strict label+colon, number optional
     {
-      const v = extractAmount_(L, /^\s*(?!Kasa\s+Nakit\b)Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*(?!Kasa\s+Nakit\b)Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v != null) cashSalesTRY = v;
     }
 
-    // Kasa Nakit (EoD)
+    // Kasa Nakit (EoD), strict label+colon
     {
-      const v = extractAmount_(L, /^\s*Kasa\s+Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Kasa\s+Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
       if (v != null) kasaNakitTRY = v;
     }
 
-    // Trendyol
+    // Trendyol, strict label+colon
     {
-      const v = extractAmount_(L, /^\s*Trendyol\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Trendyol\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
       if (v != null) trendyolTRY = v;
     }
 
-    // Hepsiburada
+    // Hepsiburada, strict label+colon, number optional
     {
-      const v = extractAmount_(L, /^\s*Hepsiburada\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Hepsiburada\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v != null) hbTRY = v;
     }
 
-    // Pop Dog Online / Online
+    // Pop Dog Online / Online, strict label+colon, number optional
     {
-      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Online\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Online\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v1 != null) onlineTRY = v1;
-      const v2 = extractAmount_(L, /^\s*Online\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v2 = extractAmount_(L, /^\s*Online\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v2 != null) onlineTRY = v2;
     }
 
-    // Pop Dog Toptan / Toptan
+    // Pop Dog Toptan / Toptan, strict label+colon, number optional
     {
-      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Toptan\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Toptan\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v1 != null) toptanTRY = v1;
-      const v2 = extractAmount_(L, /^\s*Toptan\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v2 = extractAmount_(L, /^\s*Toptan\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v2 != null) toptanTRY = v2;
     }
 
-    // Toplam ciro
+    // Toplam ciro, strict label+colon, number optional
     {
-      const v = extractAmount_(L, /^\s*Toplam\s*ciro\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Toplam\s*ciro\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v != null) storeTotalTRY = v;
     }
 
-    // Kredi Kartı
+    // Kredi Kartı, strict label+colon, number optional
     {
-      const v = extractAmount_(L, /^\s*Kredi\s*Kart[ıi]\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      const v = extractAmount_(L, /^\s*Kredi\s*Kart[ıi]\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
       if (v != null) kkTRY = v;
     }
+  }
+
+  // Fallback: if Kuaför wasn't found line-by-line, try a global match (handles rare formatting)
+  if (!(groomingTRY > 0)){
+    const mg = textNoDia.match(/Kuafor\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+    if (mg && mg[1]) groomingTRY = parseTL(mg[1]) || 0;
   }
 
   // If total not provided, compute from credit card + cash sales
