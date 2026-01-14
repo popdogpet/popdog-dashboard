@@ -1872,85 +1872,80 @@ function renderStagedRows(stagedRows) {
 
   btn.onclick = async function(){
     const info = document.getElementById('parseInfo');
-    const rows = (typeof window.getStagedDailyRows === 'function') ? window.getStagedDailyRows() : [];
+    const rows = (typeof window.getStagedDailyRows === 'function') ? window.getStagedDailyRows() : (Array.isArray(window.stagedRows) ? window.stagedRows : []);
+    
     if (!rows || !rows.length){
       if (info) info.textContent = 'Önce satır ekleyin (Satıra çevir ve ekle).';
       return;
     }
 
-const payloadRows = rows.map(r => {
-  const kuafor =
-    Number(r?.['Kuaför'] ?? r?.['Kuafor'] ?? r?.['Grooming'] ?? r?.['grooming'] ?? 0) || 0;
+    // Build payload rows (always include Kuaför)
+    const payloadRows = rows.map(r => {
+      const kuafor = Number(
+        (r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0
+      ) || 0;
 
-  return {
-    Date: String(r?.Date || ''),
-    Toptan: Number(r?.Toptan || 0) || 0,
-    Online: Number(r?.Online || 0) || 0,
-    CKM: Number(r?.CKM || 0) || 0,
+      return {
+        Date: String((r && r.Date) || ''),
+        Toptan: Number((r && r.Toptan) || 0) || 0,
+        Online: Number((r && r.Online) || 0) || 0,
+        CKM: Number((r && r.CKM) || 0) || 0,
 
-    // 🔴 Kuaför asla CKM Nakit’e gitmeyecek
-    'CKM Nakit': Number(r?.['CKM Nakit'] || 0) || 0,
+        // CKM Nakit is cash sales ONLY
+        'CKM Nakit': Number((r && (r['CKM Nakit'])) || 0) || 0,
 
-    // stagedRows bazen bu key ile geliyor; bazen KasaNakit diye geliyor
-    'Kasa Nakit (EoD)': Number(r?.['Kasa Nakit (EoD)'] ?? r?.KasaNakit ?? 0) || 0,
+        // Kasa Nakit (EoD)
+        'Kasa Nakit (EoD)': Number((r && (r['Kasa Nakit (EoD)'])) ?? (r && r.KasaNakit) ?? 0) || 0,
 
-    Trendyol: Number(r?.Trendyol || 0) || 0,
-    Hepsiburada: Number(r?.Hepsiburada || 0) || 0,
-    Total: Number(r?.Total || 0) || 0,
-    
-    // ✅ Kuaför değerini her ihtimale karşı 3 farklı key ile gönderiyoruz
-    // (Sheet başlığı Kuaför / Kuafor / Grooming olabilir; Apps Script normalize etse bile garantileyelim)
-    'Kuaför': kuafor,
-    'Kuafor': kuafor,
-    'Grooming': kuafor,
-  };
-});
+        Trendyol: Number((r && r.Trendyol) || 0) || 0,
+        Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
+        Total: Number((r && r.Total) || 0) || 0,
 
-    // WebApp compat
-    const compat = (typeof getWebAppCompat === 'function') ? getWebAppCompat() : {};
-    const actionKey = (compat && compat.actionKey) ? compat.actionKey : 'action';
-    const rowsKey   = (compat && compat.rowsKey)   ? compat.rowsKey   : 'rows';
-    const dailyAction = (compat && compat.dailyAction) ? compat.dailyAction : 'appendDaily';
+        // ✅ Send Kuaför in multiple keys for maximum compatibility
+        'Kuaför': kuafor,
+        'Kuafor': kuafor,
+        'Grooming': kuafor,
+      };
+    });
 
-    const base = getSheetWebAppURL();
-    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
-      if (info) info.textContent = '⚠️ Web App URL geçersiz. Ayarlardan düzeltin.';
+    const WEBAPP_URL = (typeof getSheetWebAppURL === 'function') ? getSheetWebAppURL() : '';
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(WEBAPP_URL)){
+      if (info) info.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
+      try{ await setupSheetWebAppURL(info); }catch(_){ }
       return;
     }
 
-    btn.disabled = true;
     if (info) info.textContent = 'Sheet’e yazılıyor…';
 
     try{
-      const body = {};
-      body[actionKey] = dailyAction;
-      body[rowsKey] = payloadRows;
-
-      const res = await fetch(base, {
+      const res = await fetch(WEBAPP_URL, {
         method: 'POST',
-        headers: { 'Content-Type':'application/json;charset=utf-8' },
-        body: JSON.stringify(body)
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        body: JSON.stringify({ action: 'appendDaily', rows: payloadRows })
       });
 
-      const txt = await res.text().catch(()=> '');
+      const raw = await res.text().catch(()=> '');
       let j = null;
-      try{ j = JSON.parse(txt); }catch(_){ j = null; }
+      try{ j = JSON.parse(raw); }catch(_){ j = null; }
 
-      if (!res.ok){
-        throw new Error('HTTP_' + res.status);
+      if (!res.ok || (j && j.ok === false)){
+        const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
+        throw new Error(msg || ('HTTP ' + res.status));
       }
-      if (j && j.ok){
-        if (info) info.textContent = `✓ Yazıldı (${payloadRows.length})`;
-      } else {
-        // Show server response for debugging
-        if (info) info.textContent = '⚠️ Yazılamadı (yanıt beklenmedik).';
-        console.warn('pushRows response', txt);
-      }
-    }catch(e){
-      if (info) info.textContent = '⚠️ Yazma hatası: ' + (e && e.message ? e.message : e);
-      console.warn('pushRows error', e);
-    }finally{
-      btn.disabled = false;
+
+      if (info) info.textContent = `✓ ${payloadRows.length} satır gönderildi.`;
+
+      // Clear staged rows and re-render
+      try{ window.stagedRows = []; }catch(_){ }
+      try{ if (typeof window.getStagedDailyRows === 'function') { /* leave getter as-is */ } }catch(_){ }
+      try{ renderStagedRows([]); }catch(_){ }
+
+      // Refresh KPIs if available
+      try{ if (typeof refreshAll === 'function') await refreshAll(); }catch(_){ }
+
+    }catch(err){
+      if (info) info.textContent = `⚠️ Sheet yazma hatası: ${err && err.message ? err.message : err}`;
+      console.error('pushRowsBtn write error:', err);
     }
   };
 })();
