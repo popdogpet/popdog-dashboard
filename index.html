@@ -1878,32 +1878,33 @@ function renderStagedRows(stagedRows) {
       return;
     }
 
-    // Build a clean payload with explicit keys so values cannot land in the wrong column.
-    const payloadRows = rows.map(r => {
-      const g = (r && r['Kuaför'] != null) ? r['Kuaför']
-              : (r && r['Kuafor'] != null) ? r['Kuafor']
-              : (r && r['Grooming'] != null) ? r['Grooming']
-              : 0;
+const payloadRows = rows.map(r => {
+  const kuafor =
+    Number(r?.['Kuaför'] ?? r?.['Kuafor'] ?? r?.['Grooming'] ?? r?.['grooming'] ?? 0) || 0;
 
-      // CKM Nakit must only come from the parser's CKM Nakit (cash sales), never from grooming.
-      const ckmNakit = Number((r && r['CKM Nakit']) || 0) || 0;
+  return {
+    Date: String(r?.Date || ''),
+    Toptan: Number(r?.Toptan || 0) || 0,
+    Online: Number(r?.Online || 0) || 0,
+    CKM: Number(r?.CKM || 0) || 0,
 
-      return {
-        'Date': (r && r.Date) ? String(r.Date) : '',
-        'Toptan': Number((r && r.Toptan) || 0) || 0,
-        'Online': Number((r && r.Online) || 0) || 0,
-        'CKM': Number((r && r.CKM) || 0) || 0,
-        'Kuaför': Number(g) || 0,
-        'CKM Nakit': ckmNakit,
-        'Kasa Nakit (EoD)': Number((r && r['Kasa Nakit (EoD)']) || 0) || 0,
-        'Trendyol': Number((r && r.Trendyol) || 0) || 0,
-        'Hepsiburada': Number((r && r.Hepsiburada) || 0) || 0,
-        'Total': Number((r && r.Total) || 0) || 0,
-        // extra variants for compatibility (won’t hurt header-mapped scripts)
-        'Kuafor': Number(g) || 0,
-        'Grooming': Number(g) || 0
-      };
-    });
+    // 🔴 Kuaför asla CKM Nakit’e gitmeyecek
+    'CKM Nakit': Number(r?.['CKM Nakit'] || 0) || 0,
+
+    // stagedRows bazen bu key ile geliyor; bazen KasaNakit diye geliyor
+    'Kasa Nakit (EoD)': Number(r?.['Kasa Nakit (EoD)'] ?? r?.KasaNakit ?? 0) || 0,
+
+    Trendyol: Number(r?.Trendyol || 0) || 0,
+    Hepsiburada: Number(r?.Hepsiburada || 0) || 0,
+    Total: Number(r?.Total || 0) || 0,
+
+    // ✅ Kuaför değerini her ihtimale karşı 3 farklı key ile gönderiyoruz
+    // (Sheet başlığı Kuaför / Kuafor / Grooming olabilir; Apps Script normalize etse bile garantileyelim)
+    'Kuaför': kuafor,
+    'Kuafor': kuafor,
+    'Grooming': kuafor,
+  };
+});
 
     // WebApp compat
     const compat = (typeof getWebAppCompat === 'function') ? getWebAppCompat() : {};
