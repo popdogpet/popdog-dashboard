@@ -5613,25 +5613,74 @@ try {
 
 /* ================== WRITE TO SHEET ================== */
 async function writeStagedToSheet(){
-  const rows = [...stagedRows];
-  if (!rows.length) { document.getElementById('parseInfo').textContent = 'Yazılacak satır yok.'; return; }
-  document.getElementById('parseInfo').textContent = 'Sheet’e yazılıyor...';
+  // Always read from the single staged source
+  const src = Array.isArray(stagedRows) ? stagedRows : [];
+  if (!src.length) {
+    const infoEl = document.getElementById('parseInfo');
+    if (infoEl) infoEl.textContent = 'Yazılacak satır yok.';
+    return;
+  }
+
+  // Build payload rows (always include Kuaför)
+  const payloadRows = src.map(r => {
+    const kuafor = Number(
+      (r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0
+    ) || 0;
+
+    return {
+      Date: String((r && r.Date) || ''),
+      Toptan: Number((r && r.Toptan) || 0) || 0,
+      Online: Number((r && r.Online) || 0) || 0,
+      CKM: Number((r && r.CKM) || 0) || 0,
+
+      // CKM Nakit = only cash sales
+      'CKM Nakit': Number((r && (r['CKM Nakit'])) || 0) || 0,
+
+      // Kasa Nakit (EoD)
+      'Kasa Nakit (EoD)': Number((r && (r['Kasa Nakit (EoD)'])) ?? (r && r.KasaNakit) ?? 0) || 0,
+
+      Trendyol: Number((r && r.Trendyol) || 0) || 0,
+      Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
+      Total: Number((r && r.Total) || 0) || 0,
+
+      // ✅ Kuaför column
+      'Kuaför': kuafor,
+      // send aliases for maximum compatibility
+      'Kuafor': kuafor,
+      'Grooming': kuafor,
+    };
+  });
+
+  const infoEl = document.getElementById('parseInfo');
+  if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+
+  // Prefer dynamic webapp URL if available
+  const url = (typeof getSheetWebAppURL === 'function') ? getSheetWebAppURL() : (typeof SHEET_WEBAPP_URL !== 'undefined' ? SHEET_WEBAPP_URL : '');
+
   try {
-    const r = await fetch(SHEET_WEBAPP_URL, {
+    const r = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ rows })
+      headers: { 'Content-Type':'application/json;charset=utf-8' },
+      body: JSON.stringify({ action: 'appendDaily', rows: payloadRows })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'WRITE_FAILED');
-    const added = (typeof j.added === 'number')
-      ? j.added
-      : (j.received && Array.isArray(j.received.rows) ? j.received.rows.length : 0);
-    document.getElementById('parseInfo').textContent = `Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`;
-    stagedRows = [];
-    renderStaged();
+
+    const raw = await r.text().catch(()=> '');
+    let j = null;
+    try { j = JSON.parse(raw); } catch(_){ /* ignore */ }
+
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!j || j.ok !== true) throw new Error((j && (j.error || j.message)) || 'WRITE_FAILED');
+
+    const added = (typeof j.added === 'number') ? j.added : payloadRows.length;
+    if (infoEl) infoEl.textContent = `Sheet’e yazıldı (${added} satır).`;
+
+    // Clear staged rows IN PLACE
+    stagedRows.length = 0;
+    try { renderStaged(); } catch (_) {}
+    try { refreshAll(); } catch (_) {}
+
   } catch (err) {
-    document.getElementById('parseInfo').textContent = `Hata: ${String(err)}`;
+    if (infoEl) infoEl.textContent = `Hata: ${String(err && err.message ? err.message : err)}`;
   }
 }
 
