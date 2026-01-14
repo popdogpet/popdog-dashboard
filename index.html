@@ -1897,8 +1897,7 @@ const payloadRows = rows.map(r => {
     Trendyol: Number(r?.Trendyol || 0) || 0,
     Hepsiburada: Number(r?.Hepsiburada || 0) || 0,
     Total: Number(r?.Total || 0) || 0,
-    Kuaför: Number(r?.Kuaför || 0) || 0,
-
+    
     // ✅ Kuaför değerini her ihtimale karşı 3 farklı key ile gönderiyoruz
     // (Sheet başlığı Kuaför / Kuafor / Grooming olabilir; Apps Script normalize etse bile garantileyelim)
     'Kuaför': kuafor,
