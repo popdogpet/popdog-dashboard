@@ -1872,36 +1872,31 @@ function renderStagedRows(stagedRows) {
 
   btn.onclick = async function(){
     const info = document.getElementById('parseInfo');
-    const rows = (typeof window.getStagedDailyRows === 'function') ? window.getStagedDailyRows() : (Array.isArray(window.stagedRows) ? window.stagedRows : []);
-    
-    if (!rows || !rows.length){
+
+    const rows = (typeof window.getStagedDailyRows === 'function')
+      ? window.getStagedDailyRows()
+      : (Array.isArray(window.stagedRows) ? window.stagedRows : []);
+
+    if (!rows.length){
       if (info) info.textContent = 'Önce satır ekleyin (Satıra çevir ve ekle).';
       return;
     }
 
-    // Build payload rows (always include Kuaför)
     const payloadRows = rows.map(r => {
-      const kuafor = Number(
-        (r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0
-      ) || 0;
+      const kuafor = Number(r?.['Kuaför'] ?? r?.['Kuafor'] ?? r?.['Grooming'] ?? r?.['grooming'] ?? 0) || 0;
 
       return {
-        Date: String((r && r.Date) || ''),
-        Toptan: Number((r && r.Toptan) || 0) || 0,
-        Online: Number((r && r.Online) || 0) || 0,
-        CKM: Number((r && r.CKM) || 0) || 0,
+        Date: String(r?.Date || ''),
+        Toptan: Number(r?.Toptan || 0) || 0,
+        Online: Number(r?.Online || 0) || 0,
+        CKM: Number(r?.CKM || 0) || 0,
+        'CKM Nakit': Number(r?.['CKM Nakit'] || 0) || 0,
+        'Kasa Nakit (EoD)': Number(r?.['Kasa Nakit (EoD)'] ?? r?.KasaNakit ?? 0) || 0,
+        Trendyol: Number(r?.Trendyol || 0) || 0,
+        Hepsiburada: Number(r?.Hepsiburada || 0) || 0,
+        Total: Number(r?.Total || 0) || 0,
 
-        // CKM Nakit is cash sales ONLY
-        'CKM Nakit': Number((r && (r['CKM Nakit'])) || 0) || 0,
-
-        // Kasa Nakit (EoD)
-        'Kasa Nakit (EoD)': Number((r && (r['Kasa Nakit (EoD)'])) ?? (r && r.KasaNakit) ?? 0) || 0,
-
-        Trendyol: Number((r && r.Trendyol) || 0) || 0,
-        Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
-        Total: Number((r && r.Total) || 0) || 0,
-
-        // ✅ Send Kuaför in multiple keys for maximum compatibility
+        // ✅ Kuaför’ü kesin gönder
         'Kuaför': kuafor,
         'Kuafor': kuafor,
         'Grooming': kuafor,
@@ -1910,8 +1905,7 @@ function renderStagedRows(stagedRows) {
 
     const WEBAPP_URL = (typeof getSheetWebAppURL === 'function') ? getSheetWebAppURL() : '';
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(WEBAPP_URL)){
-      if (info) info.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
-      try{ await setupSheetWebAppURL(info); }catch(_){ }
+      if (info) info.textContent = '⚠️ WebApp URL geçersiz. popdog_sheet_webapp_url kontrol edin.';
       return;
     }
 
@@ -1924,28 +1918,22 @@ function renderStagedRows(stagedRows) {
         body: JSON.stringify({ action: 'appendDaily', rows: payloadRows })
       });
 
-      const raw = await res.text().catch(()=> '');
-      let j = null;
-      try{ j = JSON.parse(raw); }catch(_){ j = null; }
+      const txt = await res.text().catch(()=> '');
+      let j=null; try{ j = JSON.parse(txt); }catch(_){}
+      console.log('appendDaily response:', { status: res.status, json: j, raw: txt });
 
-      if (!res.ok || (j && j.ok === false)){
-        const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
-        throw new Error(msg || ('HTTP ' + res.status));
+      if (!res.ok){
+        if (info) info.textContent = `⚠️ HTTP ${res.status}`;
+        return;
+      }
+      if (!j || j.ok !== true){
+        if (info) info.textContent = '⚠️ WebApp JSON beklenen formatta değil (console’a bak).';
+        return;
       }
 
-      if (info) info.textContent = `✓ ${payloadRows.length} satır gönderildi.`;
-
-      // Clear staged rows and re-render
-      try{ window.stagedRows = []; }catch(_){ }
-      try{ if (typeof window.getStagedDailyRows === 'function') { /* leave getter as-is */ } }catch(_){ }
-      try{ renderStagedRows([]); }catch(_){ }
-
-      // Refresh KPIs if available
-      try{ if (typeof refreshAll === 'function') await refreshAll(); }catch(_){ }
-
-    }catch(err){
-      if (info) info.textContent = `⚠️ Sheet yazma hatası: ${err && err.message ? err.message : err}`;
-      console.error('pushRowsBtn write error:', err);
+      if (info) info.textContent = `✓ Yazıldı (${j.added || payloadRows.length} satır).`;
+    }catch(e){
+      if (info) info.textContent = '⚠️ Yazma hatası: ' + (e?.message || e);
     }
   };
 })();
