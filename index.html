@@ -8,7 +8,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.01.13-03'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.01.13-04'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -1672,6 +1672,7 @@ function parseDailyReportText_v2(text) {
   let toptanTRY = 0;
   let storeTotalTRY = 0;
   let kkTRY = 0;
+  let cashSalesHasNumber = false; // true only if the Nakit line contains a number
 
   for (let i=0; i<lines.length; i++){
     const L = lines[i];
@@ -1682,10 +1683,14 @@ function parseDailyReportText_v2(text) {
       if (v != null) groomingTRY = v;
     }
 
-    // Nakit (cash sales) — DO NOT match "Kasa Nakit", strict label+colon, number optional
+    // Nakit (cash sales) — DO NOT match "Kasa Nakit".
+    // IMPORTANT: Only treat as cash sales if the Nakit line actually contains digits.
     {
-      const v = extractAmount_(L, /^\s*(?!Kasa\s+Nakit\b)Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
-      if (v != null) cashSalesTRY = v;
+      const m = String(L||'').trim().match(/^\s*(?!Kasa\s+Nakit\b)Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+      if (m && m[1]){
+        cashSalesTRY = parseTL(m[1]) || 0;
+        cashSalesHasNumber = true;
+      }
     }
 
     // Kasa Nakit (EoD), strict label+colon
@@ -1750,11 +1755,11 @@ function parseDailyReportText_v2(text) {
   // CKM (retail) = storeTotal - grooming (avoid double count)
   const ckmRetailTRY = Math.max(0, (storeTotalTRY || 0) - (groomingTRY || 0));
 
-  // CKM Nakit: prefer explicit "CKM Nakit" if present; otherwise use cashSales
-  let ckmNakitTRY = cashSalesTRY;
+  // CKM Nakit: prefer explicit "CKM Nakit" if present; otherwise use Nakit ONLY if it had a number.
+  let ckmNakitTRY = cashSalesHasNumber ? cashSalesTRY : 0;
   for (let i=0; i<lines.length; i++){
-    const cn = extractAmount_(lines[i], /^\s*CKM\s+Nakit\b[^\n]{0,40}?[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
-    if (cn != null){ ckmNakitTRY = cn; break; }
+    const m = String(lines[i]||'').trim().match(/^\s*CKM\s+Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+    if (m && m[1]){ ckmNakitTRY = parseTL(m[1]) || 0; break; }
   }
 
   // Total (channels sum) — CKM retail + Kuaför counted once
