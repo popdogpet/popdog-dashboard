@@ -1822,8 +1822,11 @@ function renderStagedRows(stagedRows) {
 (function(){
   const btn = document.getElementById('parseAddBtn');
   if (!btn) return;
-  let stagedRows = [];
-  try{ window.stagedRows = stagedRows; }catch(_){}
+
+  // ✅ TEK KAYNAK: staged daily rows burada tutulacak
+  const stagedRows = (window.__dailyStagedRows = Array.isArray(window.__dailyStagedRows) ? window.__dailyStagedRows : []);
+  // Backward-compat: bazı yerler window.stagedRows okuyor olabilir
+  window.stagedRows = stagedRows;
 
 
   btn.onclick = function() {
@@ -1852,7 +1855,6 @@ function renderStagedRows(stagedRows) {
     }
 
     stagedRows.push(row);
-    try{ window.stagedRows = stagedRows; }catch(_){}
     renderStagedRows(stagedRows);
     if (info) {
       info.textContent = `Satır eklendi. (${stagedRows.length}) • Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
@@ -1860,28 +1862,30 @@ function renderStagedRows(stagedRows) {
     ta.value = '';
   };
 
-  window.getStagedDailyRows = () => stagedRows.slice();
+window.getStagedDailyRows = () => (window.__dailyStagedRows || []).slice();
 })();
 /* ================== /DAILY REPORT PARSER ================== */
 
 
-// Sheet’e Yaz (pushRowsBtn) — Kuaför desteğiyle
+// Sheet’e Yaz (pushRowsBtn + writeSheetBtn) — Kuaför desteğiyle
 (function(){
-  const btn = document.getElementById('pushRowsBtn');
-  if (!btn) return;
+  const btnA = document.getElementById('pushRowsBtn');
+  const btnB = document.getElementById('writeSheetBtn');
+  if (!btnA && !btnB) return;
 
-  btn.onclick = async function(){
+  async function writeDailyRowsToSheet(){
     const info = document.getElementById('parseInfo');
 
     const rows = (typeof window.getStagedDailyRows === 'function')
       ? window.getStagedDailyRows()
-      : (Array.isArray(window.stagedRows) ? window.stagedRows : []);
+      : (Array.isArray(window.__dailyStagedRows) ? window.__dailyStagedRows : (Array.isArray(window.stagedRows) ? window.stagedRows : []));
 
-    if (!rows.length){
+    if (!rows || !rows.length){
       if (info) info.textContent = 'Önce satır ekleyin (Satıra çevir ve ekle).';
       return;
     }
 
+    // Build payload rows (always include Kuaför)
     const payloadRows = rows.map(r => {
       const kuafor = Number(r?.['Kuaför'] ?? r?.['Kuafor'] ?? r?.['Grooming'] ?? r?.['grooming'] ?? 0) || 0;
 
@@ -1890,13 +1894,16 @@ function renderStagedRows(stagedRows) {
         Toptan: Number(r?.Toptan || 0) || 0,
         Online: Number(r?.Online || 0) || 0,
         CKM: Number(r?.CKM || 0) || 0,
+
+        // ✅ CKM Nakit sadece “Nakit satış”
         'CKM Nakit': Number(r?.['CKM Nakit'] || 0) || 0,
+
         'Kasa Nakit (EoD)': Number(r?.['Kasa Nakit (EoD)'] ?? r?.KasaNakit ?? 0) || 0,
         Trendyol: Number(r?.Trendyol || 0) || 0,
         Hepsiburada: Number(r?.Hepsiburada || 0) || 0,
         Total: Number(r?.Total || 0) || 0,
 
-        // ✅ Kuaför’ü kesin gönder
+        // ✅ Kuaför’ü kesin gönder (çoklu key ile)
         'Kuaför': kuafor,
         'Kuafor': kuafor,
         'Grooming': kuafor,
@@ -1932,10 +1939,18 @@ function renderStagedRows(stagedRows) {
       }
 
       if (info) info.textContent = `✓ Yazıldı (${j.added || payloadRows.length} satır).`;
+
+      // ✅ başarıysa staged’i temizle
+      window.__dailyStagedRows = [];
+      window.stagedRows = window.__dailyStagedRows;
+      try{ renderStagedRows([]); }catch(_){}
     }catch(e){
       if (info) info.textContent = '⚠️ Yazma hatası: ' + (e?.message || e);
     }
-  };
+  }
+
+  if (btnA) btnA.onclick = writeDailyRowsToSheet;
+  if (btnB) btnB.onclick = writeDailyRowsToSheet;
 })();
 
 
@@ -2589,7 +2604,8 @@ function isCleanOnLoad(){
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
 let loadedRows = [];     // revenue rows (sheet csv)
-let stagedRows = []; // legacy compat: null olmasın, bazı eski yerler hâlâ bunu okuyorlet fxRateUSDPerTRY = null;
+let stagedRows = []; // legacy compat: some older parts still read this
+let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
 
