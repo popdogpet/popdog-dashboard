@@ -8,7 +8,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.01.13-04'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.01.13-05'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -1747,6 +1747,19 @@ function parseDailyReportText_v2(text) {
     if (mg && mg[1]) groomingTRY = parseTL(mg[1]) || 0;
   }
 
+  // Final guarantee: always try a strict "Kuaför/Kuafor: <number>" match on both original and no-diacritics text.
+  // This prevents rare cases where line splitting fails and grooming stays 0.
+  try{
+    if (!(groomingTRY > 0)){
+      const m1 = text.match(/\bKuaf[öo]r\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+      const m2 = textNoDia.match(/\bKuafor\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+      const v1 = (m1 && m1[1]) ? (parseTL(m1[1]) || 0) : 0;
+      const v2 = (m2 && m2[1]) ? (parseTL(m2[1]) || 0) : 0;
+      const v = Math.max(v1, v2);
+      if (v > 0) groomingTRY = v;
+    }
+  }catch(_){ }
+
   // If total not provided, compute from credit card + cash sales
   if (!(storeTotalTRY > 0)){
     storeTotalTRY = (kkTRY || 0) + (cashSalesTRY || 0);
@@ -1764,6 +1777,8 @@ function parseDailyReportText_v2(text) {
 
   // Total (channels sum) — CKM retail + Kuaför counted once
   const totalTRY = (toptanTRY || 0) + (onlineTRY || 0) + (ckmRetailTRY || 0) + (groomingTRY || 0) + (trendyolTRY || 0) + (hbTRY || 0);
+
+  try{ console.log('kuafor_debug', { groomingTRY, cashSalesTRY, storeTotalTRY, kkTRY, cashSalesHasNumber }); }catch(_){ }
 
   return {
     'Date': date,
