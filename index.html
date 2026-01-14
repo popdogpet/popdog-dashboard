@@ -1863,19 +1863,32 @@ function renderStagedRows(stagedRows) {
       return;
     }
 
-    // Ensure Kuaför key exists on every row (Apps Script will map columns by header)
+    // Build a clean payload with explicit keys so values cannot land in the wrong column.
     const payloadRows = rows.map(r => {
-  const out = Object.assign({}, r);
-  const g = (out['Kuaför'] != null) ? out['Kuaför']
-          : (out['Kuafor'] != null) ? out['Kuafor']
-          : (out['Grooming'] != null) ? out['Grooming']
-          : 0;
+      const g = (r && r['Kuaför'] != null) ? r['Kuaför']
+              : (r && r['Kuafor'] != null) ? r['Kuafor']
+              : (r && r['Grooming'] != null) ? r['Grooming']
+              : 0;
 
-  out['Kuaför'] = Number(g) || 0;
-  out['Kuafor'] = Number(g) || 0;
-  out['Grooming'] = Number(g) || 0;
-  return out;
-});
+      // CKM Nakit must only come from the parser's CKM Nakit (cash sales), never from grooming.
+      const ckmNakit = Number((r && r['CKM Nakit']) || 0) || 0;
+
+      return {
+        'Date': (r && r.Date) ? String(r.Date) : '',
+        'Toptan': Number((r && r.Toptan) || 0) || 0,
+        'Online': Number((r && r.Online) || 0) || 0,
+        'CKM': Number((r && r.CKM) || 0) || 0,
+        'Kuaför': Number(g) || 0,
+        'CKM Nakit': ckmNakit,
+        'Kasa Nakit (EoD)': Number((r && r['Kasa Nakit (EoD)']) || 0) || 0,
+        'Trendyol': Number((r && r.Trendyol) || 0) || 0,
+        'Hepsiburada': Number((r && r.Hepsiburada) || 0) || 0,
+        'Total': Number((r && r.Total) || 0) || 0,
+        // extra variants for compatibility (won’t hurt header-mapped scripts)
+        'Kuafor': Number(g) || 0,
+        'Grooming': Number(g) || 0
+      };
+    });
 
     // WebApp compat
     const compat = (typeof getWebAppCompat === 'function') ? getWebAppCompat() : {};
