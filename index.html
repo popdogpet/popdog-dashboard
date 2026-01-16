@@ -2514,7 +2514,8 @@ function isCleanOnLoad(){
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
 let loadedRows = [];     // revenue rows (sheet csv)
-let stagedRows = []; // legacy compat: some older parts still read this
+window.stagedRows = Array.isArray(window.stagedRows) ? window.stagedRows : [];
+let stagedRows = window.stagedRows; // legacy alias
 let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
@@ -5042,72 +5043,11 @@ document.getElementById('weekNext').onclick = ()=>{
   if(idx<weeklyAgg.length-1){ selectedMondayISO = weeklyAgg[idx+1].monday; renderWeek(); }
 };
 
-/* ================== WhatsApp Paste → stage table ================== */
-function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
-function extractValue(line){
-  const m=line.match(/-?\d[\d\s.,]*/);
-  if(!m) return 0;
-  return parseTL(m[0]);
-}
-function parseDailyText(txt){
-  const lines = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  let dateISO = '', kk=0, qnb=0, nakit=0, toplam=0, kasaNakit=0, online=0, toptan=0, trendyol=0, hb=0;
-  for(const line of lines){
-    const low=line.toLowerCase();
-    if(low.includes('tarih')){ dateISO = parseTRDateString(line); continue; }
-    if(grab(low,['kredi kartı','kredi karti'])){ kk=extractValue(line); continue; }
-    if(grab(low,['qnb','iş','is','garanti'])){ qnb=extractValue(line); continue; }
-    if((low.includes('nakit') && !low.includes('kasa'))){ nakit=extractValue(line); continue; }
-    if(low.includes('toplam ciro')){ toplam=extractValue(line); continue; }
-    if(low.includes('kasa nakit')){ kasaNakit=extractValue(line); continue; }
-    if(low.includes('pop dog online')){ online=extractValue(line); continue; }
-    if(low.includes('pop dog toptan')){ toptan=extractValue(line); continue; }
-    if(low.startsWith('trendyol')){ trendyol=extractValue(line); continue; }
-    if(low.startsWith('hepsiburada')){ hb=extractValue(line); continue; }
-  }
-  const ckm = toplam || (kk + qnb + nakit);
-  return {
-    Date: dateISO || '',
-    Toptan: toptan||0,
-    Online: online||0,
-    CKM: ckm||0,
-    "CKM Nakit": nakit||0,
-    "Kasa Nakit (EoD)": kasaNakit||0,
-    Trendyol: trendyol||0,
-    Hepsiburada: hb||0,
-    Total: (toptan + online + ckm + trendyol + hb)
-  };
-}
-document.getElementById('parseAddBtn').onclick = ()=>{
-  const txt=document.getElementById('dailyText').value;
-  if(!txt.trim()){ document.getElementById('parseInfo').textContent='Metin boş.'; return; }
-  const row=parseDailyText(txt);
-  if(!row.Date){ document.getElementById('parseInfo').textContent='Tarih bulunamadı. "Tarih 07/09/2025" gibi.'; return; }
-  stagedRows.push(row);
-  document.getElementById('parseInfo').textContent=`Eklendi: ${row.Date}`;
-  document.getElementById('dailyText').value='';
-  refreshAll();
-};
-function renderStaged(){
-  const tbody = document.getElementById('stagedTbody'); tbody.innerHTML='';
-  for(const r of stagedRows){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="py-2 pr-4">${r.Date}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Toptan)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Online)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.CKM)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["CKM Nakit"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["Kasa Nakit (EoD)"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Trendyol)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Hepsiburada)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Total)}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
 /* ================== CSV I/O (local import/export) ================== */
+
+// Ensure staged rows live globally
+if (!Array.isArray(window.stagedRows)) window.stagedRows = [];
+
 document.getElementById('uploadBtn').onclick = ()=> document.getElementById('fileInput').click();
 document.getElementById('fileInput').addEventListener('change', e=>{
   const file = e.target.files && e.target.files[0]; if(!file) return;
