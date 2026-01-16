@@ -2737,59 +2737,62 @@ function dateToISO(d){
     }
   };
   const WEBAPP_URL = getSheetWebAppURL();
-  async function postOnceFlexible(body){
-    const url = WEBAPP_URL;
+async function postOnceFlexible(body){
+  const url = WEBAPP_URL;
 
-    // Strategy A: JSON POST
-    try{
-      const r = await fetch(url, {
-        method: 'POST',
-headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-body: JSON.stringify(body)
-      });
-      if (r.ok){
-        const raw = await r.text().catch(()=> '');
-        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-        return { json, raw };
-      }
-      // If 400/unknown action text is present, bubble for fallback
+  // Strategy A: JSON POST (simple request => text/plain)
+  try{
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body),
+      redirect: 'follow'
+    });
+    if (r.ok){
       const raw = await r.text().catch(()=> '');
-      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-    }catch(e){ /* fall through to Strategy B */ }
+      let json = null; try{ json = JSON.parse(raw); }catch(_){}
+      return { json, raw };
+    }
+    const raw = await r.text().catch(()=> '');
+    throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+  }catch(e){ /* fall through */ }
 
-    // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
-    try{
-      const form = new URLSearchParams();
-      Object.keys(body||{}).forEach(k=>{
-        const v = body[k];
-        form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
-      });
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
-        body: form.toString()
-      });
-      if (r.ok){
-        const raw = await r.text().catch(()=> '');
-        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-        return { json, raw };
-      }
-      const raw = await r.text().catch(()=> '');
-      throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-    }catch(e){ /* fall through to Strategy C */ }
-
-    // Strategy C: GET with query params (very legacy handlers; beware URL length)
-    const params = new URLSearchParams();
+  // Strategy B: x-www-form-urlencoded (no charset!)
+  try{
+    const form = new URLSearchParams();
     Object.keys(body||{}).forEach(k=>{
       const v = body[k];
-      params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
+      form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
     });
-    const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
+
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      redirect: 'follow'
+    });
+    if (r.ok){
+      const raw = await r.text().catch(()=> '');
+      let json = null; try{ json = JSON.parse(raw); }catch(_){}
+      return { json, raw };
+    }
     const raw = await r.text().catch(()=> '');
-    let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-    if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-    return { json, raw };
-  }
+    throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+  }catch(e){ /* fall through */ }
+
+  // Strategy C: GET
+  const params = new URLSearchParams();
+  Object.keys(body||{}).forEach(k=>{
+    const v = body[k];
+    params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
+  });
+
+  const r = await fetch(`${url}?${params.toString()}`, { method: 'GET', redirect: 'follow' });
+  const raw = await r.text().catch(()=> '');
+  let json = null; try{ json = JSON.parse(raw); }catch(_){}
+  if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
+  return { json, raw };
+}
 
   const attempts = [];
   {
@@ -2853,17 +2856,17 @@ return 'Sheet güncellendi';
 // Web App bağlantı testi (opsiyonel)
 async function pingSheetWebApp(){
   try{
-    // Try POST __ping__ (preferred)
     const r = await fetch(getSheetWebAppURL(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: '__ping__' })
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: '__ping__' }),
+      redirect: 'follow'
     });
     if (r && r.ok) return true;
   }catch(_){}
+
   try{
-    // Fallback: simple GET
-    const g = await fetch(getSheetWebAppURL(), { method: 'GET' });
+    const g = await fetch(getSheetWebAppURL(), { method: 'GET', redirect: 'follow' });
     return !!(g && g.ok);
   }catch(_){
     return false;
