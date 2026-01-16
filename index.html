@@ -327,6 +327,7 @@ th, td { white-space: nowrap; }
         <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
         <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
         <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache + hesaplamaları tazeler">↻ Yenile</button>
       </div>
     </header>
 
@@ -1008,6 +1009,77 @@ th, td { white-space: nowrap; }
 
 
 
+/* ================== APP CONFIG (config.json) ================== */
+// Global namespace (keeps things organized without changing build/deploy)
+window.POPDOG = window.POPDOG || {
+  Config: {},
+  Cache: {},
+  CSV: {},
+  State: {},
+  UI: {},
+  Charts: {},
+  App: {}
+};
+// We prefer config.json (published with the site) to avoid drift between code and config.
+// Falls back to the existing hardcoded defaults if config.json is missing.
+window.POPDOG_CONFIG = window.POPDOG_CONFIG || null;
+
+async function loadAppConfig(){
+  try{
+    // Cache-bust to avoid stale CDN edge caches when you deploy
+    const res = await fetch('config.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('config.json not ok');
+    const j = await res.json();
+    if (!j || typeof j !== 'object') throw new Error('config.json invalid');
+    window.POPDOG_CONFIG = j;
+    return j;
+  }catch(_){
+    return null;
+  }
+}
+
+// Export (module-style)
+window.POPDOG.Config.loadAppConfig = loadAppConfig;
+
+function cfgGet(path, fallback){
+  try{
+    const o = window.POPDOG_CONFIG;
+    if (!o) return fallback;
+    const parts = String(path||'').split('.');
+    let cur = o;
+    for (const p of parts){
+      if (!cur || typeof cur !== 'object' || !(p in cur)) return fallback;
+      cur = cur[p];
+    }
+    return (cur == null) ? fallback : cur;
+  }catch(_){
+    return fallback;
+  }
+}
+
+window.POPDOG.Config.cfgGet = cfgGet;
+
+// CSV cache helpers (localStorage)
+const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
+window.POPDOG.Cache.CSV_CACHE_PREFIX = CSV_CACHE_PREFIX;
+function cacheKeyFor(url){
+  return CSV_CACHE_PREFIX + String(url||'');
+}
+
+window.POPDOG.Cache.cacheKeyFor = cacheKeyFor;
+function clearCsvCaches(){
+  try{
+    const keys = [];
+    for (let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+  }catch(_){ }
+}
+
+window.POPDOG.Cache.clearCsvCaches = clearCsvCaches;
+
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
 const SHEET_WEBAPP_URL = (()=>{
@@ -1086,7 +1158,7 @@ async function fetchFundQuote(code){
   {
     const r = await request(base, {
       method:'POST',
-      headers: { 'Content-Type':'application/json;charset=utf-8' },
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({ action:'fundQuote', code: upper })
     });
     const q = normalizeQuote(r.json);
@@ -1100,7 +1172,7 @@ async function fetchFundQuote(code){
     form.set('code', upper);
     const r = await request(base, {
       method:'POST',
-      headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
+      headers: { 'Content-Type':'application/x-www-form-urlencoded' },
       body: form.toString()
     });
     const q = normalizeQuote(r.json);
@@ -1310,11 +1382,24 @@ async function setupWebAppCompat(infoEl){
     return null;
   }
 }
-// === Hardcoded default CSV URLs (fallbacks if nothing set) ===
-const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
-const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
-const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
-const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+// === Default CSV URLs (fallbacks). These can be overridden by config.json at runtime. ===
+let DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+let DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+let DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+let DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+
+// Boot-time override from config.json (non-blocking; app will still work without it)
+(async function(){
+  const cfg = await loadAppConfig();
+  if (!cfg) return;
+  try{
+    // expected shape: { endpoints: { sheetCsv, invCsv, ordersCsv, expensesCsv } }
+    DEFAULT_SHEET_CSV   = String(cfgGet('endpoints.sheetCsv', DEFAULT_SHEET_CSV) || DEFAULT_SHEET_CSV);
+    DEFAULT_INV_CSV     = String(cfgGet('endpoints.invCsv', DEFAULT_INV_CSV) || DEFAULT_INV_CSV);
+    DEFAULT_ORDERS_CSV  = String(cfgGet('endpoints.ordersCsv', DEFAULT_ORDERS_CSV) || DEFAULT_ORDERS_CSV);
+    DEFAULT_EXPENSES_CSV= String(cfgGet('endpoints.expensesCsv', DEFAULT_EXPENSES_CSV) || DEFAULT_EXPENSES_CSV);
+  }catch(_){ }
+})();
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1326,7 +1411,19 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
+(document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+// Refresh: clear cached CSVs and reload
+(function(){
+  const b = document.getElementById('refreshBtn');
+  if (!b) return;
+  b.onclick = ()=>{
+    try{ clearCsvCaches(); }catch(_){ }
+    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
+    try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
+    try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
+    location.reload();
+  };
+})();
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
@@ -2047,178 +2144,97 @@ function renderStagedTable(){
 
 
 // Bind the writer to the button in the Daily Paste section
-(function(){
-  const btn = document.getElementById('pushRowsBtn');
-  if(btn) btn.onclick = writeStagedToSheet;
-})();
-
 // Bind the writer to the main Sheet’e Kaydet button (writeSheetBtn) using the JSON-based function
-(function(){
-  const b = document.getElementById('writeSheetBtn');
-  if (b) b.onclick = writeStagedToSheet;
-})();
-
 /* === Write staged rows to Google Sheet via Apps Script WebApp (idempotent) === */
 if (!window.writeStagedToSheet) {
-  window.writeStagedToSheet = async function writeStagedToSheet() {
-    try {
-      const infoEl = document.getElementById('parseInfo');
-      const rows = Array.isArray(window.stagedRows) ? window.stagedRows.slice() : [];
-      if (!rows.length) {
-        if (infoEl) infoEl.textContent = 'Gönderilecek satır yok.';
-        return;
-      }
+  window.writeStagedToSheet = async function writeDailyRowsToSheet(){
+  const infoEl = document.getElementById('parseInfo');
+  const rows = (typeof window.getStagedDailyRows === 'function')
+    ? window.getStagedDailyRows()
+    : (Array.isArray(window.stagedRows) ? window.stagedRows.slice() : []);
 
-      // Ensure payload fields are plain numbers / strings
-      const cleanRows = rows.map(r => ({
-        Date: r.Date || '',
-        Toptan: Number(r.Toptan || 0),
-        Online: Number(r.Online || 0),
-        CKM: Number(r.CKM || 0),
-        'CKM Nakit': Number(r['CKM Nakit'] || 0),
-        KasaNakit: Number(r.KasaNakit || 0),
-        Trendyol: Number(r.Trendyol || 0),
-        Hepsiburada: Number(r.Hepsiburada || 0),
-        Total: Number(r.Total || 0),
-      }));
+  if (!rows || !rows.length){
+    if (infoEl) infoEl.textContent = 'Gönderilecek satır yok. (Önce: Satıra çevir ve ekle)';
+    return;
+  }
 
-      // --- Ensure a valid Apps Script Web App URL exists; if not, prompt the user and bail out
-      const WEBAPP_URL = getSheetWebAppURL();
-      if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(WEBAPP_URL)){
-        if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
-        await setupSheetWebAppURL(infoEl);
-        return;
-      }
+  // Build payload rows (always include Kuaför)
+  const payloadRows = rows.map(r => {
+    const kuafor = Number((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
+    return {
+      Date: String((r && r.Date) || ''),
+      Toptan: Number((r && r.Toptan) || 0) || 0,
+      Online: Number((r && r.Online) || 0) || 0,
+      CKM: Number((r && r.CKM) || 0) || 0,
+      'Kuaför': kuafor,
+      'CKM Nakit': Number((r && r['CKM Nakit']) || 0) || 0,
+      'Kasa Nakit (EoD)': Number((r && (r['Kasa Nakit (EoD)'])) ?? (r && r.KasaNakit) ?? 0) || 0,
+      Trendyol: Number((r && r.Trendyol) || 0) || 0,
+      Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
+      Total: Number((r && r.Total) || 0) || 0,
+      // compatibility keys (harmless if server ignores)
+      'Kuafor': kuafor,
+      'Grooming': kuafor,
+    };
+  });
 
-      if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+  const url = getSheetWebAppURL();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)){
+    if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil veya hatalı.';
+    if (typeof setupSheetWebAppURL === 'function') await setupSheetWebAppURL(infoEl);
+    return;
+  }
 
-      async function postOnceFlexible(body){
-        const url = WEBAPP_URL;
-
-        // Strategy A: JSON POST
-        try{
-          const r = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json;charset=utf-8' },
-            body: JSON.stringify(body)
-          });
-          if (r.ok){
-            const raw = await r.text().catch(()=> '');
-            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-            return { json, raw };
-          }
-          // If 400/unknown action text is present, bubble for fallback
-          const raw = await r.text().catch(()=> '');
-          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-        }catch(e){ /* fall through to Strategy B */ }
-
-        // Strategy B: x-www-form-urlencoded POST (Apps Script classic doPost(e.parameter))
-        try{
-          const form = new URLSearchParams();
-          Object.keys(body||{}).forEach(k=>{
-            const v = body[k];
-            form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
-          });
-          const r = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
-            body: form.toString()
-          });
-          if (r.ok){
-            const raw = await r.text().catch(()=> '');
-            let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-            return { json, raw };
-          }
-          const raw = await r.text().catch(()=> '');
-          throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-        }catch(e){ /* fall through to Strategy C */ }
-
-        // Strategy C: GET with query params (very legacy handlers; beware URL length)
-        const params = new URLSearchParams();
-        Object.keys(body||{}).forEach(k=>{
-          const v = body[k];
-          params.append(k, typeof v === 'object' ? encodeURIComponent(JSON.stringify(v)) : String(v));
-        });
-        const r = await fetch(`${url}?${params.toString()}`, { method: 'GET' });
-        const raw = await r.text().catch(()=> '');
-        let json = null; try{ json = JSON.parse(raw); }catch(_){ /* ignore */ }
-        if (!r.ok) throw new Error(`HTTP ${r.status}${raw? ' • '+raw : ''}`);
-        return { json, raw };
-      }
-
-      // Try primary action first, then fall back to legacy names and parameter aliases
-      const attempts = [];
-      const compat = getWebAppCompat();
-      if (compat && (compat.rowsKey || compat.actionKey || compat.dailyAction)){
-        const rk = compat.rowsKey || 'rows';
-        const ak = compat.actionKey || 'action';
-        const av = compat.dailyAction || 'appendDaily';
-        const b1 = {}; b1[rk] = cleanRows; if (ak) b1[ak] = av; attempts.push(b1);
-        const b2 = {}; b2[rk] = JSON.stringify(cleanRows); if (ak) b2[ak] = av; attempts.push(b2);
-      }
-      attempts.push(
-        { action: 'appendDaily', rows: cleanRows },
-        { action: 'appendRows',  rows: cleanRows },
-        { action: 'append',      rows: cleanRows },
-        // common legacy keys
-        { action: 'appendDaily', data: cleanRows },
-        { action: 'appendRows',  data: cleanRows },
-        { mode:   'appendDaily', rows: cleanRows },
-        // other legacy shapes
-        { payload: JSON.stringify(cleanRows) },
-        { data: JSON.stringify(cleanRows) },
-        { rowsJson: JSON.stringify(cleanRows) },
-        // bare rows
-        { rows: cleanRows },
-      );
-
-      let finalMsg = '';
-      let sent = false;
-      for (const body of attempts){
-        try{
-          const { json, raw } = await postOnceFlexible(body);
-          if (json && json.ok === false && /UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(String(json.error||json.message||''))){
-            // try next attempt
-            continue;
-          }
-          // Success path (ok true or no explicit failure)
-          sent = true;
-          finalMsg = json && (json.message || json.msg) ? String(json.message || json.msg) : (raw ? String(raw).slice(0,120) : '');
-          if(!finalMsg) finalMsg = 'OK (legacy handler)';
-          break;
-        }catch(e){
-          // If server responded 4xx with UNKNOWN_ACTION text, keep trying
-          const s = String(e && e.message || '');
-          if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
-          // Otherwise rethrow
-          throw e;
-        }
-      }
-
-      if (!sent){
-        if (infoEl){
-          infoEl.innerHTML = '⚠️ Sunucu bu işlemi tanımıyor. <button id="compatBtn" class="glass card-3d px-2 py-1 rounded-xl text-xs">Uyumluluğu Ayarla</button>';
-          const b = document.getElementById('compatBtn');
-          if (b) b.onclick = ()=> setupWebAppCompat(infoEl);
-        }
-        return;
-      }
-      if (infoEl) infoEl.textContent = `✓ ${cleanRows.length} satır gönderildi${finalMsg ? ' • ' + finalMsg : ''}`;
-
-      // Clear staged rows and re-render the temp table
-      window.stagedRows = [];
-      try { renderStagedTable(); } catch (_) {}
-
-      // If the app has a refresh hook, call it to reload KPIs/charts
-      try { if (typeof refreshAll === 'function') refreshAll(); } catch (_) {}
-
-    } catch (err) {
-      const infoEl = document.getElementById('parseInfo');
-      if (infoEl) infoEl.textContent = `⚠️ Sheet yazma hatası: ${err.message || err}`;
-      console.error('writeStagedToSheet error:', err);
+  async function fetchWithTimeout(u, opts, ms){
+    const ctrl = new AbortController();
+    const t = setTimeout(()=> ctrl.abort(), ms || 15000);
+    try{
+      return await fetch(u, { redirect:'follow', cache:'no-store', ...opts, signal: ctrl.signal });
+    } finally {
+      clearTimeout(t);
     }
-  };
+  }
+
+  if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+
+  try{
+    // Safari/CORS: keep request “simple” (text/plain) to avoid preflight.
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'appendDaily', rows: payloadRows })
+    }, 20000);
+
+    const raw = await res.text().catch(()=> '');
+    let j = null;
+    try{ j = JSON.parse(raw); }catch(_){ j = null; }
+
+    if (!res.ok){
+      throw new Error(`HTTP ${res.status}${raw ? ' • ' + raw.slice(0,160) : ''}`);
+    }
+    if (j && j.ok === false){
+      throw new Error(String(j.error || j.message || 'WRITE_FAILED'));
+    }
+
+    const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
+    if (infoEl) infoEl.textContent = `✓ Sheet’e yazıldı (${added} satır).`;
+
+    try{ window.stagedRows = []; }catch(_){ }
+    try{ if (typeof renderStagedRows === 'function') renderStagedRows([]); }catch(_){ }
+    try{ if (typeof refreshAll === 'function') refreshAll(); }catch(_){ }
+
+  }catch(err){
+    const msg = (err && err.name === 'AbortError') ? 'TIMEOUT' : (err && err.message ? err.message : String(err));
+    if (infoEl) infoEl.textContent = `Hata: ${msg}`;
+    console.error('writeDailyRowsToSheet failed:', err);
+  }
 }
+
+// Back-compat: some older code may still call this
+async function writeStagedToSheet(){
+  return writeDailyRowsToSheet();
+}
+
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
@@ -2415,7 +2431,7 @@ function dateToISO(d){
     try{
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
       if (r.ok){
@@ -2437,7 +2453,7 @@ function dateToISO(d){
       });
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString()
       });
       if (r.ok){
@@ -2527,7 +2543,7 @@ async function pingSheetWebApp(){
     // Try POST __ping__ (preferred)
     const r = await fetch(getSheetWebAppURL(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: '__ping__' })
     });
     if (r && r.ok) return true;
@@ -5690,58 +5706,27 @@ try {
 
 /* ================== WRITE TO SHEET ================== */
 async function writeStagedToSheet(){
-  // Support both local stagedRows and global window.stagedRows
-  const baseRows = (Array.isArray(window.stagedRows) && window.stagedRows.length)
-    ? window.stagedRows
-    : (Array.isArray(stagedRows) ? stagedRows : []);
-
-  // Always send Kuaför (I column) and a stable payload
-  const rows = (baseRows || []).map(r => {
-    const kuafor = Number((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
-    return Object.assign({}, r, { 'Kuaför': kuafor, 'Kuafor': kuafor, 'Grooming': kuafor });
-  });
-
-  const infoEl = document.getElementById('parseInfo');
-  const setInfo = (t)=>{ try{ if(infoEl) infoEl.textContent = t; }catch(_){} };
-
-  if (!rows.length) { setInfo('Önce satır ekleyin (Satıra çevir ve ekle).'); return; }
-  setInfo('Sheet’e yazılıyor...');
-
+  const rows = [...stagedRows];
+  if (!rows.length) { document.getElementById('parseInfo').textContent = 'Yazılacak satır yok.'; return; }
+  document.getElementById('parseInfo').textContent = 'Sheet’e yazılıyor...';
   try {
     const r = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
-      headers: { 'Content-Type':'application/json;charset=utf-8' },
-      body: JSON.stringify({ action: 'appendDaily', rows })
+      headers: { 'Content-Type':'text/plain' },
+      body: JSON.stringify({ rows })
     });
-
-    const raw = await r.text().catch(()=> '');
-    let j = null;
-    try{ j = JSON.parse(raw); }catch(_){ j = { ok:false, error: raw || 'NON_JSON_RESPONSE' }; }
-
-    if (!r.ok) throw new Error(`HTTP ${r.status}${j && j.error ? ' • ' + j.error : ''}`);
+    const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'WRITE_FAILED');
-
-    const added = (typeof j.added === 'number') ? j.added : rows.length;
-    setInfo(`Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`);
-
-    // Clear staged rows
-    try{ stagedRows = []; }catch(_){ }
-    try{ window.stagedRows = []; }catch(_){ }
-    try{ renderStaged(); }catch(_){ }
-
+    const added = (typeof j.added === 'number')
+      ? j.added
+      : (j.received && Array.isArray(j.received.rows) ? j.received.rows.length : 0);
+    document.getElementById('parseInfo').textContent = `Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`;
+    stagedRows = [];
+    renderStaged();
   } catch (err) {
-    setInfo(`Hata: ${String(err && err.message ? err.message : err)}`);
+    document.getElementById('parseInfo').textContent = `Hata: ${String(err)}`;
   }
 }
-// Bind buttons (safe: after DOM is ready)
-document.addEventListener('DOMContentLoaded', ()=>{
-  const a = document.getElementById('pushRowsBtn');
-  const b = document.getElementById('writeSheetBtn');
-  if (a) a.onclick = writeStagedToSheet;
-  if (b) b.onclick = writeStagedToSheet;
-}, { once:true });
-
-
 /* ================== BOOT! ================== */
 boot();
 // === FUND AUTO QUOTES (FI5 / SAS / ISY) — frontend fetch to Apps Script ===
