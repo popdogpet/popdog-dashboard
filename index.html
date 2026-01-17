@@ -2698,15 +2698,15 @@ const defaultLoansState = {
     { id:'YK#035.2', usd: 26312.43, paid:false },
   ],
   demoBank: {
-  goldGram: 169,
-  gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek
-  fi5Units: 565,
-  fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0,  // kullanıcı girecek (birim fiyat)
-  sasUnits: 114236,
-  sasUnitTRY: Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0,
-  isyUnits: 2530000,
-  isyUnitTRY: Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0
-}
+    goldGram: 169,
+    gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0,
+    fi5Units: 565,
+    fi5UnitTRY: Number(localStorage.getItem('popdog_fi5_unit_try')||0) || 0,
+    sasUnits: 114236,
+    sasUnitTRY: Number(localStorage.getItem('popdog_sas_unit_try')||0) || 0,
+    isyUnits: 2530000,
+    isyUnitTRY: Number(localStorage.getItem('popdog_isy_unit_try')||0) || 0
+  }
 };
 
 function getLoansState(){
@@ -5103,22 +5103,22 @@ function drawExpensesCharts(expMonthly){
     }
   });
 
-   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
+  // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
   try {
     // arr: seçili yılın ay listesi (yukarıda hesaplandı)
     // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
     // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
     const catSum = {};
-arr.forEach(m=>{
-  (m.rows || []).forEach(r=>{
-    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
-                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-                r.MainCategory ||
-                r.Category || 'Diğer';
-    const a = +r.Amount || 0;
-    catSum[key] = (catSum[key]||0) + a;
-  });
-});
+    arr.forEach(m => {
+      (m.rows || []).forEach(r => {
+        const key = (r.FinalCategory && r.FinalCategory.trim()) ||
+                    (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
+                    r.MainCategory ||
+                    r.Category || 'Diğer';
+        const a = +r.Amount || 0;
+        catSum[key] = (catSum[key] || 0) + a;
+      });
+    });
 
     const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
 
@@ -5127,12 +5127,13 @@ arr.forEach(m=>{
       .map(([k, v]) => ({ k, v }))
       .sort((a, b) => b.v - a.v);
 
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
+    const labels_pie = sorted.map(x => x.k);
+    const data_pie   = sorted.map(x => x.v);
 
   } catch (e) {
     console.warn('drawExpensesCharts pie error', e);
   }
+}
 }
 
 /* ================== Expenses: Load & Refresh ================== */
