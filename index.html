@@ -1383,18 +1383,10 @@ async function setupWebAppCompat(infoEl){
   }
 }
 // === Default CSV URLs (fallbacks). These can be overridden by config.json at runtime. ===
-var DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
-var DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
-var DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
-var DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
-
-// Bridge: expose defaults early for older boot code paths
-try{
-  window.DEFAULT_SHEET_CSV = DEFAULT_SHEET_CSV;
-  window.DEFAULT_INV_CSV = DEFAULT_INV_CSV;
-  window.DEFAULT_ORDERS_CSV = DEFAULT_ORDERS_CSV;
-  window.DEFAULT_EXPENSES_CSV = DEFAULT_EXPENSES_CSV;
-}catch(_){ }
+let DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+let DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+let DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
+let DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
 
 // Boot-time override from config.json (non-blocking; app will still work without it)
 (async function(){
@@ -2128,26 +2120,7 @@ function dedupeDailyRows(rows){
 
 /* === Daily rows UI + write helpers === */
 function renderStagedTable(){
-  const tb = document.getElementById('stagedTbody');
-  if(!tb) return;
-  if(!Array.isArray(stagedRows) || stagedRows.length===0){
-    tb.innerHTML = '<tr><td class="hint py-2" colspan="9">Henüz satır yok.</td></tr>';
-    return;
-  }
-  const fmt = (n)=> nfTL.format(Math.round(n||0));
-  tb.innerHTML = stagedRows.map(r=>`
-    <tr>
-      <td class="py-2 pr-4">${r.Date||''}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Toptan||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Online||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.CKM||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r["CKM Nakit"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.KasaNakit||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Trendyol||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Hepsiburada||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Total||0)}</td>
-    </tr>
-  `).join('');
+  renderStagedRows(stagedRows);
 }
 
 
@@ -3681,16 +3654,40 @@ function deriveTryPerUsdFromKPI(){
     // "≈ $12,345 USD" benzeri metinden USD’yi çek
     const usdText = (usdEl.textContent || '').replace(/≈/g,'').replace(/about/i,'');
     const usd = parseUSD(usdText);
+function lastSaleDateForSKU(sku, ordersMap){
+  if(!sku || !Array.isArray(ordersMap)) return null;
+  let last = null;
+  for(const o of ordersMap){
+    if(o.sku!==sku || !o.date) continue;
+    if(!last || o.date>last) last = o.date;
+  }
+  return last;
+}
 
-    if(tl > 0 && usd > 0){
-      const usdPerTry = usd / tl;      // 1 TRY kaç USD
-      const tryPerUsd = 1 / usdPerTry; // 1 USD kaç TRY
-      // cache’le
-      try{
-        localStorage.setItem('popdog_fx_try_per_usd', String(tryPerUsd));
-        localStorage.setItem('popdog_fx_usd_per_try', String(usdPerTry));
-      }catch(e){}
-      return tryPerUsd;
+function renderStagedRows(rows){
+  const tbody = document.getElementById('stagedTbody');
+  if(!tbody) return;
+  if(!Array.isArray(rows) || rows.length===0){
+    tbody.innerHTML = '<tr><td class="hint py-2" colspan="9">Henüz satır yok.</td></tr>';
+    return;
+  }
+  const fmt = (n)=> nfTL.format(Math.round(n||0));
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td class="py-2 pr-4">${r.Date||''}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Toptan||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Online||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.CKM||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r["CKM Nakit"]||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.KasaNakit||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Trendyol||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Hepsiburada||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Total||0)}</td>
+    </tr>
+  `).join('');
+}
+
+function deriveTryPerUsdFromKPI(){
     }
     return 0;
   }catch(e){ return 0; }
@@ -3847,7 +3844,7 @@ function setKPIs(monthly){
 }
 
 /* ================== Alerts ================== */
-function buildAlerts(monthly){
+    if(mom < -0.15){ alerts.push({type:'warn', text:`MoM toplam ciro düşüşü ${ (mom*100).toFixed(1) }%`}); }
   const alerts = [];
   if(monthly.length>=2){
     const mLast = monthly.at(-1), mPrev = monthly.at(-2);
@@ -3956,11 +3953,10 @@ const glassBars = {
   },
   afterDatasetDraw(chart, args, pluginOptions) {
     if (chart.config.type !== 'bar') return;
-    const { ctx } = chart;
+    const { ctx, chartArea: ca } = chart;
     try {
-      const ca = chart.chartArea;
       // If chartArea is not ready (0 size / initial render), just restore once and exit.
-      if (!ca) {
+      if (!ca || ca.width === 0 || ca.height === 0) {
         try { ctx.restore(); } catch(e) {}
         return;
       }
@@ -4599,30 +4595,6 @@ function expenseCats(r){
 
 function readExpenseAmountTRY(r){
   try{
-    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
-    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
-    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
-    if (!amtNum) return 0;
-
-    if (cur === 'USD'){
-      let tryPerUsd = 0;
-      tryPerUsd = getTryPerUsd();
-      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
-        tryPerUsd = 1 / fxRateUSDPerTRY;
-      }
-      if (!tryPerUsd){
-        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
-      }
-      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
-      return amtNum * tryPerUsd;
-    }
-    return parseTL(amtNum);
-  }catch(e){
-    return 0;
-  }
-}
-function readExpenseAmountTRY(r){
-  try{
     if(!r) return 0;
 
     // 1) Currency hint from row (accept various header variants)
@@ -4734,6 +4706,8 @@ function refreshExpensesUI(){
 })();
 
 // === Helpers specific to Expenses (robust Zee.Dog handling) ===
+// expensesRowsCache, expensesMonthlyCache, expensesRowsAdjustedCache are already declared earlier in the script
+
 function isZeeExpense(r){
   const re = /(zee[\s\.-]*dog|zeedog)/i;
   const fields = [
@@ -4917,7 +4891,7 @@ function buildExpensesMonthly(rows){
 
     const key = monthKey(d);
 
-   const amount = readExpenseAmountTRY(r);
+    const amount = readExpenseAmountTRY(r);
 
     const cats = expenseCats(r);
     const subKey  = cats.sub || 'Diğer';
@@ -5004,7 +4978,7 @@ function renderMainExpenseTable(){
       total += (a || 0);
     }
 
-    const arr = Object.entries(sumByMain)
+        const arr = Object.entries(sumByMain)
       .map(([k,v]) => ({ k, v, p: total ? (v/total*100) : 0 }))
       .sort((a,b) => b.v - a.v);
 
@@ -5023,7 +4997,9 @@ function renderMainExpenseTable(){
     console.warn('renderMainExpenseTable error', e);
   }
 }
+
 let expLineChart;
+
 function drawExpensesCharts(expMonthly){
   const now = new Date();
   const curYear = now.getFullYear();
@@ -5079,6 +5055,7 @@ function drawExpensesCharts(expMonthly){
       fill: false
     });
   }
+
   expLineChart = new Chart(lctx, {
     type: 'line',
     data: {
@@ -5102,38 +5079,6 @@ function drawExpensesCharts(expMonthly){
       }
     }
   });
-
-  // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
-  try {
-    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
-    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
-    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
-    const catSum = {};
-    arr.forEach(m => {
-      (m.rows || []).forEach(r => {
-        const key = (r.FinalCategory && r.FinalCategory.trim()) ||
-                    (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-                    r.MainCategory ||
-                    r.Category || 'Diğer';
-        const a = +r.Amount || 0;
-        catSum[key] = (catSum[key] || 0) + a;
-      });
-    });
-
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
-
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
-
-    const labels_pie = sorted.map(x => x.k);
-    const data_pie   = sorted.map(x => x.v);
-
-  } catch (e) {
-    console.warn('drawExpensesCharts pie error', e);
-  }
-}
 }
 
 /* ================== Expenses: Load & Refresh ================== */
@@ -5280,23 +5225,27 @@ document.getElementById('parseAddBtn').onclick = ()=>{
   document.getElementById('dailyText').value='';
   refreshAll();
 };
-function renderStaged(){
-  const tbody = document.getElementById('stagedTbody'); tbody.innerHTML='';
-  for(const r of stagedRows){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="py-2 pr-4">${r.Date}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Toptan)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Online)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.CKM)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["CKM Nakit"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r["Kasa Nakit (EoD)"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Trendyol)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Hepsiburada)}</td>
-      <td class="py-2 pr-4 text-right">${numberTL(r.Total)}</td>
-    `;
-    tbody.appendChild(tr);
+function renderStagedRows(rows){
+  const tbody = document.getElementById('stagedTbody');
+  if(!tbody) return;
+  if(!Array.isArray(rows) || rows.length===0){
+    tbody.innerHTML = '<tr><td class="hint py-2" colspan="9">Henüz satır yok.</td></tr>';
+    return;
   }
+  const fmt = (n)=> nfTL.format(Math.round(n||0));
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td class="py-2 pr-4">${r.Date||''}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Toptan||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Online||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.CKM||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r["CKM Nakit"]||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.KasaNakit||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Trendyol||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Hepsiburada||0)}</td>
+      <td class="py-2 pr-4 text-right">${fmt(r.Total||0)}</td>
+    </tr>
+  `).join('');
 }
 
 /* ================== CSV I/O (local import/export) ================== */
@@ -5603,7 +5552,7 @@ function renderLast7(){
 /* ================== BOOT & SAVE ================== */
 // No longer binding Data Source DOM elements
 
-async function boot(){
+async function bootApp(){
   // 0) URL query param override (sheet, inv, orders) → directly persist
   const qpSheet  = getParam('sheet');
   const qpInv    = getParam('inv');
@@ -5737,7 +5686,11 @@ async function writeStagedToSheet(){
   }
 }
 /* ================== BOOT! ================== */
-boot();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootApp, { once: true });
+} else {
+  bootApp();
+}
 // === FUND AUTO QUOTES (FI5 / SAS / ISY) — frontend fetch to Apps Script ===
 (function(){
   const HOUR = 60*60*1000;
@@ -5938,6 +5891,14 @@ document.addEventListener('DOMContentLoaded', function(){
   try{ renderLoansBlock(); }catch(_){}
   // Yeni: expenses_master'tan dinamik sayım yap
   try{ refreshLoansFromExpenses(); }catch(_){}
+
+  // Initialize button handlers
+  (function(){
+    const a = document.getElementById('pushRowsBtn');
+    const b = document.getElementById('writeSheetBtn');
+    if (a) a.onclick = writeDailyRowsToSheet;
+    if (b) b.onclick = writeDailyRowsToSheet;
+  })();
 }, { once:true });
 </script>
 </body>
