@@ -1683,18 +1683,22 @@ function parseDailyReportText_v2(text) {
         const rawL = (rawLines && rawLines[i]) ? String(rawLines[i]) : '';
 
         // Try on raw line (keeps Turkish chars) then on diacritics-stripped line.
-        // Do NOT require end-of-line; WhatsApp often has trailing notes/hidden chars.
-        let v = extractAmount_(rawL, /\bKuaf[öo]r\b[^0-9]{0,60}[:：=]\s*([0-9][0-9\.,\s]*)/i);
+        // IMPORTANT: Avoid greedy `[^0-9]*` that can swallow ':' on some inputs.
+        // Accept:
+        //  - "Kuaför: 2550₺"
+        //  - "Kuaför 2550₺"
+        //  - "Kuaför=2550" / "Kuaför：2550"
+        let v = extractAmount_(rawL, /\bKuaf[öo]r\b(?:\s*[:：=]\s*|\s+)([0-9][0-9\.,\s]*)/i);
         if (v == null) {
-          v = extractAmount_(L, /\bKuafor\b[^0-9]{0,60}[:：=]\s*([0-9][0-9\.,\s]*)/i);
+          v = extractAmount_(L, /\bKuafor\b(?:\s*[:：=]\s*|\s+)([0-9][0-9\.,\s]*)/i);
         }
 
-        // Ultra-fallback for weird spacing: "Kuaför 2550" (no colon)
+        // Ultra-fallback: allow a small amount of non-digit noise between label and number
         if (v == null) {
-          v = extractAmount_(rawL, /\bKuaf[öo]r\b[^0-9]{0,60}([0-9][0-9\.,\s]*)/i);
+          v = extractAmount_(rawL, /\bKuaf[öo]r\b[^0-9]{0,40}([0-9][0-9\.,\s]*)/i);
         }
         if (v == null) {
-          v = extractAmount_(L, /\bKuafor\b[^0-9]{0,60}([0-9][0-9\.,\s]*)/i);
+          v = extractAmount_(L, /\bKuafor\b[^0-9]{0,40}([0-9][0-9\.,\s]*)/i);
         }
 
         if (v != null && v > 0) groomingTRY = v;
@@ -1761,11 +1765,11 @@ function parseDailyReportText_v2(text) {
   // Fallback: if Kuaför wasn't found line-by-line, do robust global scans.
   // Prefer explicit "Kuaför/Kuafor" label near a number; tolerate trailing text.
   if (!(groomingTRY > 0)){
-    let m = text.match(/\bKuaf[öo]r\b[^0-9]{0,80}[:：=]?\s*([0-9][0-9\.,\s]*)/i);
+    let m = text.match(/\bKuaf[öo]r\b(?:\s*[:：=]\s*|\s+)([0-9][0-9\.,\s]*)/i);
     if (m && m[1]) groomingTRY = parseTL(m[1]) || 0;
   }
   if (!(groomingTRY > 0)){
-    let m = textNoDia.match(/\bKuafor\b[^0-9]{0,80}[:：=]?\s*([0-9][0-9\.,\s]*)/i);
+    let m = textNoDia.match(/\bKuafor\b(?:\s*[:：=]\s*|\s+)([0-9][0-9\.,\s]*)/i);
     if (m && m[1]) groomingTRY = parseTL(m[1]) || 0;
   }
 
