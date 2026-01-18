@@ -8,7 +8,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2025.10.09-01'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.01.13-05'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -80,8 +80,6 @@
   })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     .badge-paid{
@@ -156,54 +154,6 @@
 .chip-ios .val{ font-weight:600; font-size:.75rem; color:#334155; }
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
-/* === Unified chart glass cards: Prevent iPad/Safari resize loops === */
-#lineTotal,
-#barStack,
-#pieShare{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  box-sizing: border-box;
-  padding: 0 !important;
-  /* FIX: avoid responsive resize feedback loops on iPad Safari */
-  contain: layout size;
-  display: block;
-  width: 100% !important;
-}
-
-
-
-/* Keep table wrappers aligned below the canvases */
-#lineTotalTblWrap,
-#barStackTblWrap{
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  padding: 8px;
-  margin: 8px 0 8px 0;   /* align with full-width canvas (margins moved off canvas) */
-  max-height: 260px;
-  overflow: auto;
-}
-@media (min-width: 1024px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 320px; }
-}
-@media (min-width: 1536px){
-  #lineTotalTblWrap,
-  #barStackTblWrap{ max-height: 360px; }
-}
-
-
-/* === Unified chart sizing for consistency (mobile-first) === */
-.chart-can{
-  width: 100%;
-  display: block;
-  height: 420px !important;
-}
 
 
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
@@ -322,13 +272,13 @@ th, td { white-space: nowrap; }
         <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
       </div>
       <div class="flex items-center gap-3">
-        <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
-        <input id="fileInput" type="file" accept=".csv" class="hidden">
-        <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
-        <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
-        <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
-        <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl" title="CSV cache + hesaplamaları tazeler">↻ Yenile</button>
-      </div>
+  <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
+  <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl">Yenile</button>
+  <input id="fileInput" type="file" accept=".csv" class="hidden">
+  <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
+  <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
+  <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+</div>
     </header>
 
 
@@ -548,25 +498,28 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
-    <div class="grid grid-cols-1 gap-6" data-page="revenue">
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
-          <button id="yoyToggle" class="chip-ios text-xs" title="Geçen yıl serisini aç/kapat">
-            <span class="label">YoY</span>
-            <span id="yoyState" class="val">Açık</span>
-          </button>
-        </div>
-        <canvas id="lineTotal" class="chart-can"></canvas>
-        <div id="lineTotalTblWrap"></div>
-      </div>
-
-      <div class="glass card-3d rounded-3xl p-5">
-        <div class="text-slate-700 dark:text-slate-200 mb-2">Kanal Bazlı Aylık Ciro</div>
-        <canvas id="barStack" class="chart-can"></canvas>
-        <div id="barStackTblWrap"></div>
+ <!-- Ciro (Grafiksiz) -->
+<div class="grid grid-cols-1 gap-6" data-page="revenue">
+  <div class="glass card-3d rounded-3xl p-5">
+    <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+      <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+      <div class="flex items-center gap-2">
+        <span class="hint text-xs">Yıl:</span>
+        <select id="revYearSel" class="glass rounded-xl px-2 py-1 text-sm">
+          <option value="all">Tümü</option>
+        </select>
       </div>
     </div>
+    <div id="lineTotalTblWrap"></div>
+  </div>
+
+  <div class="glass card-3d rounded-3xl p-5">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-slate-700 dark:text-slate-200">Kanal Bazlı Aylık Ciro</div>
+    </div>
+    <div id="barStackTblWrap"></div>
+  </div>
+</div>
 
     <!-- === Expenses (CFO) === -->
     <section class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
@@ -605,7 +558,7 @@ th, td { white-space: nowrap; }
           <div class="flex items-center justify-between mb-2">
             <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
           </div>
-          <canvas id="lineExpenses" height="160"></canvas>
+          <div id="expensesMonthlyTblWrap"></div>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -902,6 +855,7 @@ th, td { white-space: nowrap; }
               <th class="text-right py-2 pr-4">Toptan</th>
               <th class="text-right py-2 pr-4">Online</th>
               <th class="text-right py-2 pr-4">CKM</th>
+              <th class="text-right py-2 pr-4">Kuaför</th>
               <th class="text-right py-2 pr-4">CKM Nakit</th>
               <th class="text-right py-2 pr-4">Kasa Nakit (EoD)</th>
               <th class="text-right py-2 pr-4">Trendyol</th>
@@ -971,114 +925,6 @@ th, td { white-space: nowrap; }
   </div>
 
 <script>
-/* === Chart.js global safe defaults (iPad/Safari) === */
-(function(){
-  if (!window.Chart) return;
-  // Prevent aspect-ratio oscillations; size is driven by CSS height
-  Chart.defaults.responsive = true;
-  Chart.defaults.maintainAspectRatio = false;
-  // Debounce layout-driven resizes
-  Chart.defaults.resizeDelay = 180;
-  // Tame DPR thrash on Safari zoom/orientation changes
-  try {
-    Chart.defaults.devicePixelRatio = () => Math.min(2, window.devicePixelRatio || 1);
-  } catch(_) {}
-
-  // Global typography & axis defaults (safe, non-scriptable)
-  Chart.defaults.font = Chart.defaults.font || {};
-  Chart.defaults.font.family = "'Helvetica Neue', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  Chart.defaults.font.size = 14;
-
-  // Use a light but readable default text color for axes/labels
-  Chart.defaults.color = '#e5e7eb';
-
-  // Add some padding around charts so labels are not visually "squeezed"
-  Chart.defaults.layout = Chart.defaults.layout || {};
-  Chart.defaults.layout.padding = { top: 20, right: 16, bottom: 24, left: 28 };
-
-  // Global scale tick styling (X/Y axis labels)
-  Chart.defaults.scale = Chart.defaults.scale || {};
-  const baseTicks = Chart.defaults.scale.ticks || {};
-  Chart.defaults.scale.ticks = Object.assign({}, baseTicks, {
-    maxRotation: 0,
-    minRotation: 0,
-    autoSkip: true,
-    font: Object.assign({}, baseTicks.font || {}, { size: 14 })
-  });
-})();
-
-
-
-/* ================== APP CONFIG (config.json) ================== */
-// Global namespace (keeps things organized without changing build/deploy)
-window.POPDOG = window.POPDOG || {
-  Config: {},
-  Cache: {},
-  CSV: {},
-  State: {},
-  UI: {},
-  Charts: {},
-  App: {}
-};
-// We prefer config.json (published with the site) to avoid drift between code and config.
-// Falls back to the existing hardcoded defaults if config.json is missing.
-window.POPDOG_CONFIG = window.POPDOG_CONFIG || null;
-
-async function loadAppConfig(){
-  try{
-    // Cache-bust to avoid stale CDN edge caches when you deploy
-    const res = await fetch('config.json?_=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('config.json not ok');
-    const j = await res.json();
-    if (!j || typeof j !== 'object') throw new Error('config.json invalid');
-    window.POPDOG_CONFIG = j;
-    return j;
-  }catch(_){
-    return null;
-  }
-}
-
-// Export (module-style)
-window.POPDOG.Config.loadAppConfig = loadAppConfig;
-
-function cfgGet(path, fallback){
-  try{
-    const o = window.POPDOG_CONFIG;
-    if (!o) return fallback;
-    const parts = String(path||'').split('.');
-    let cur = o;
-    for (const p of parts){
-      if (!cur || typeof cur !== 'object' || !(p in cur)) return fallback;
-      cur = cur[p];
-    }
-    return (cur == null) ? fallback : cur;
-  }catch(_){
-    return fallback;
-  }
-}
-
-window.POPDOG.Config.cfgGet = cfgGet;
-
-// CSV cache helpers (localStorage)
-const CSV_CACHE_PREFIX = 'popdog_csv_cache:';
-window.POPDOG.Cache.CSV_CACHE_PREFIX = CSV_CACHE_PREFIX;
-function cacheKeyFor(url){
-  return CSV_CACHE_PREFIX + String(url||'');
-}
-
-window.POPDOG.Cache.cacheKeyFor = cacheKeyFor;
-function clearCsvCaches(){
-  try{
-    const keys = [];
-    for (let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if (k && k.indexOf(CSV_CACHE_PREFIX) === 0) keys.push(k);
-    }
-    keys.forEach(k => localStorage.removeItem(k));
-  }catch(_){ }
-}
-
-window.POPDOG.Cache.clearCsvCaches = clearCsvCaches;
 
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
@@ -1088,8 +934,8 @@ const SHEET_WEBAPP_URL = (()=>{
     if (u && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u)) return u;
   }catch(_){}
   // Safe fallback (no editor markup)
-  try { localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbxJKp_qC_tzFyiEGnfs9MEi2u2ovkC-QL_BgUUCgoA0oXCbEK6Fz9U1Ut1nkmzdesZ_/exec'); } catch(_){}
-  return 'https://script.google.com/macros/s/AKfycbxJKp_qC_tzFyiEGnfs9MEi2u2ovkC-QL_BgUUCgoA0oXCbEK6Fz9U1Ut1nkmzdesZ_/exec';
+  try { localStorage.setItem('popdog_sheet_webapp_url', 'https://script.google.com/macros/s/AKfycbwKG-skj0xjgZulw-FFv8J0MyeOxISAgVNWIvF8Cger0yG2_JOQpdoSRh6HuglNwFIe/exec'); } catch(_){}
+  return 'https://script.google.com/macros/s/AKfycbwKG-skj0xjgZulw-FFv8J0MyeOxISAgVNWIvF8Cger0yG2_JOQpdoSRh6HuglNwFIe/exec';
 })();
 
 // Always read the latest URL from localStorage at call time
@@ -1158,7 +1004,7 @@ async function fetchFundQuote(code){
   {
     const r = await request(base, {
       method:'POST',
-      headers: { 'Content-Type':'application/json' },
+      headers: { 'Content-Type':'application/json;charset=utf-8' },
       body: JSON.stringify({ action:'fundQuote', code: upper })
     });
     const q = normalizeQuote(r.json);
@@ -1172,7 +1018,7 @@ async function fetchFundQuote(code){
     form.set('code', upper);
     const r = await request(base, {
       method:'POST',
-      headers: { 'Content-Type':'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' },
       body: form.toString()
     });
     const q = normalizeQuote(r.json);
@@ -1382,32 +1228,361 @@ async function setupWebAppCompat(infoEl){
     return null;
   }
 }
-// === Default CSV URLs (fallbacks). These can be overridden by config.json at runtime. ===
-var DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
-var DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
-var DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
-var DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
+// === Hardcoded default CSV URLs (fallbacks if nothing set) ===
+const DEFAULT_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1778107676&single=true&output=csv';
+const DEFAULT_INV_CSV    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=1049936864&single=true&output=csv';
+const DEFAULT_ORDERS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=72488526&single=true&output=csv';
 
-// Bridge: expose defaults early for older boot code paths
-try{
-  window.DEFAULT_SHEET_CSV = DEFAULT_SHEET_CSV;
-  window.DEFAULT_INV_CSV = DEFAULT_INV_CSV;
-  window.DEFAULT_ORDERS_CSV = DEFAULT_ORDERS_CSV;
-  window.DEFAULT_EXPENSES_CSV = DEFAULT_EXPENSES_CSV;
-}catch(_){ }
+const DEFAULT_EXPENSES_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQGeA8uJtVjS__AI54-xcHmlteK-lazVNdkv5e20_zyDI3gZTiI2tN1jIEXIG41mZJuxq4YOBfuRN68/pub?gid=798821160&single=true&output=csv';
 
-// Boot-time override from config.json (non-blocking; app will still work without it)
-(async function(){
-  const cfg = await loadAppConfig();
-  if (!cfg) return;
+/* ================== TABLE RENDERERS (NO CHARTS) ================== */
+
+function safeText(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function loadCsv(url){
+  return new Promise((resolve, reject)=>{
+    if (!window.Papa){ reject(new Error('PAPA_MISSING')); return; }
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (res)=> resolve(res.data || []),
+      error: (err)=> reject(err)
+    });
+  });
+}
+
+function monthKeyFromDateStr(ds){
   try{
-    // expected shape: { endpoints: { sheetCsv, invCsv, ordersCsv, expensesCsv } }
-    DEFAULT_SHEET_CSV   = String(cfgGet('endpoints.sheetCsv', DEFAULT_SHEET_CSV) || DEFAULT_SHEET_CSV);
-    DEFAULT_INV_CSV     = String(cfgGet('endpoints.invCsv', DEFAULT_INV_CSV) || DEFAULT_INV_CSV);
-    DEFAULT_ORDERS_CSV  = String(cfgGet('endpoints.ordersCsv', DEFAULT_ORDERS_CSV) || DEFAULT_ORDERS_CSV);
-    DEFAULT_EXPENSES_CSV= String(cfgGet('endpoints.expensesCsv', DEFAULT_EXPENSES_CSV) || DEFAULT_EXPENSES_CSV);
-  }catch(_){ }
-})();
+    const d = new Date(String(ds||'').slice(0,10));
+    if (isNaN(+d)) return '';
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }catch(_){ return ''; }
+}
+
+function fmtPct(n){
+  if (!isFinite(n)) return '–';
+  const s = (n>0?'+':'') + n.toFixed(1) + '%';
+  return s;
+}
+
+async function renderRevenueTables(){
+  const wrapTotal = document.getElementById('lineTotalTblWrap');
+  const wrapCh    = document.getElementById('barStackTblWrap');
+  const yearSel   = document.getElementById('revYearSel');
+  const YEAR_KEY  = 'popdog_revenue_year';
+  const selectedYear = (()=>{
+    try{
+      const v = yearSel ? String(yearSel.value || '') : '';
+      if (v) return v;
+      return String(localStorage.getItem(YEAR_KEY) || 'all');
+    }catch(_){
+      return 'all';
+    }
+  })();
+  if (!wrapTotal && !wrapCh) return;
+
+  // Default placeholder
+  if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
+  if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Yükleniyor…</div>';
+
+  let rows = [];
+  try{
+    rows = await loadCsv(DEFAULT_SHEET_CSV);
+  }catch(e){
+    if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro tablosu yüklenemedi.</div>';
+    if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal tablosu yüklenemedi.</div>';
+    console.warn('renderRevenueTables load error', e);
+    return;
+  }
+
+  // Column mapping (case-insensitive)
+  const getDate = (r)=> getFieldCI(r, ['Date','Tarih','date','TARİH']);
+  const getTotal = (r)=> parseTL(getFieldCI(r, ['Total','Toplam','TOTAL','Sum'])) || 0;
+
+  const CHANNELS = [
+    { key:'toptan', label:'Toptan', cols:['Toptan','Wholesale','Pop Dog Toptan'] },
+    { key:'online', label:'Online', cols:['Online','Pop Dog Online','E-Commerce','Ecom'] },
+    { key:'ckm', label:'CKM', cols:['CKM','Caddebostan','Mağaza','Store'] },
+    { key:'kuafor', label:'Kuaför', cols:['Kuaför','Kuafor','Grooming'] },
+    { key:'trendyol', label:'Trendyol', cols:['Trendyol'] },
+    { key:'hepsiburada', label:'Hepsiburada', cols:['Hepsiburada','HB'] },
+  ];
+
+  // Aggregate by YEAR -> MONTH
+  const byYear = new Map(); // y -> Map(monthKey -> { total, channels })
+
+  function ensureYearMonth(y, mk){
+    if (!byYear.has(y)) byYear.set(y, new Map());
+    const mMap = byYear.get(y);
+    if (!mMap.has(mk)){
+      const ch = {};
+      CHANNELS.forEach(c=> ch[c.key]=0);
+      mMap.set(mk, { total:0, channels: ch });
+    }
+    return mMap.get(mk);
+  }
+
+  for (const r of (rows||[])){
+    const ds = getDate(r);
+    const mk = monthKeyFromDateStr(ds);
+    if (!mk) continue;
+    const y = Number(String(mk).slice(0,4)) || 0;
+    if (!y) continue;
+    const o = ensureYearMonth(y, mk);
+
+    const t = getTotal(r);
+    o.total += t;
+
+    CHANNELS.forEach(c=>{
+      const v = parseTL(getFieldCI(r, c.cols)) || 0;
+      o.channels[c.key] += v;
+    });
+  }
+
+  const years = Array.from(byYear.keys()).sort((a,b)=> a-b);
+  if (!years.length){
+    if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro verisi bulunamadı.</div>';
+    if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal verisi bulunamadı.</div>';
+    return;
+  }
+
+  // Populate year selector (once) + persist selection
+  if (yearSel){
+    const curVal = String(localStorage.getItem(YEAR_KEY) || 'all');
+    // Build options
+    const opts = ['all', ...years.map(y=>String(y))];
+    // If options differ, rebuild
+    const existing = Array.from(yearSel.options).map(o=>o.value);
+    const same = existing.length === opts.length && existing.every((v,i)=>v===opts[i]);
+    if (!same){
+      yearSel.innerHTML = opts.map(v=>{
+        const lbl = (v==='all') ? 'Tümü' : v;
+        return `<option value="${v}">${lbl}</option>`;
+      }).join('');
+    }
+    // Set selected
+    yearSel.value = (opts.includes(curVal) ? curVal : 'all');
+    // Bind change (only once)
+    if (!yearSel.__bound){
+      yearSel.__bound = true;
+      yearSel.addEventListener('change', ()=>{
+        try{ localStorage.setItem(YEAR_KEY, String(yearSel.value||'all')); }catch(_){ }
+        // Re-render tables
+        renderRevenueTables();
+      });
+    }
+  }
+
+  // Apply year filter
+  const yearsToRender = (()=>{
+    const v = (yearSel ? String(yearSel.value||'') : selectedYear) || 'all';
+    if (v === 'all') return years;
+    const yNum = Number(v);
+    return (years.includes(yNum)) ? [yNum] : years;
+  })();
+
+  // === Monthly total table (grouped by year) ===
+  if (wrapTotal){
+    let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+      + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+      + '<th class="text-left py-2 pr-4">Ay</th>'
+      + '<th class="text-right py-2 pr-4">Toplam Ciro</th>'
+      + '<th class="text-right py-2 pr-0">MoM</th>'
+      + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+    yearsToRender.forEach((y, yi)=>{
+      const mMap = byYear.get(y);
+      const months = Array.from(mMap.keys()).sort();
+
+      // Year separator row
+      html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-semibold" colspan="3">${safeText(String(y))}</td>`
+        + `</tr>`;
+
+      let prev = 0;
+      let yearSum = 0;
+
+      months.forEach(mk=>{
+        const tot = Number(mMap.get(mk).total||0);
+        yearSum += tot;
+
+        let mom = '–';
+        let cls = '';
+        if (prev > 0){
+          const pct = ((tot - prev) / prev) * 100;
+          mom = fmtPct(pct);
+          cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+        }
+
+        html += `<tr>`
+          + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+          + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
+          + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+          + `</tr>`;
+        prev = tot;
+      });
+
+      // Year total row
+      html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Toplam</td>`
+        + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(yearSum)}</td>`
+        + `<td class="py-2 pr-0"></td>`
+        + `</tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    wrapTotal.innerHTML = html;
+  }
+
+  // === Channel-by-month table (grouped by year, with yearly totals) ===
+  if (wrapCh){
+    let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+      + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+      + '<th class="text-left py-2 pr-4">Ay</th>';
+    CHANNELS.forEach(c=>{ html += `<th class="text-right py-2 pr-4">${safeText(c.label)}</th>`; });
+    html += '<th class="text-right py-2 pr-0">Toplam</th>';
+    html += '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+    yearsToRender.forEach(y=>{
+      const mMap = byYear.get(y);
+      const months = Array.from(mMap.keys()).sort();
+
+      // Year separator row
+      html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-semibold" colspan="${CHANNELS.length + 2}">${safeText(String(y))}</td>`
+        + `</tr>`;
+
+      const colTotals = {}; CHANNELS.forEach(c=> colTotals[c.key]=0);
+      let yearGrand = 0;
+
+      months.forEach(mk=>{
+        const o = mMap.get(mk);
+        html += `<tr><td class="py-1 pr-4">${safeText(mk)}</td>`;
+        let rowSum = 0;
+        CHANNELS.forEach(c=>{
+          const v = Number((o.channels && o.channels[c.key]) || 0);
+          rowSum += v;
+          colTotals[c.key] += v;
+          html += `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`;
+        });
+        // Prefer sheet total if provided; otherwise sum channels
+        const tot = Number(o.total||0) || rowSum;
+        yearGrand += tot;
+        html += `<td class="py-1 pr-0 text-right font-medium">${numberTL(tot)}</td></tr>`;
+      });
+
+      // Year totals row
+      html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`;
+      html += `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Toplam</td>`;
+      CHANNELS.forEach(c=>{ html += `<td class="py-2 pr-4 text-right font-semibold">${numberTL(colTotals[c.key])}</td>`; });
+      html += `<td class="py-2 pr-0 text-right font-semibold">${numberTL(yearGrand)}</td>`;
+      html += `</tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    wrapCh.innerHTML = html;
+  }
+}
+
+async function renderExpensesMonthlyTable(){
+  const wrap = document.getElementById('expensesMonthlyTblWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
+
+  let rows = [];
+  try{
+    rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+  }catch(e){
+    wrap.innerHTML = '<div class="hint text-sm">Gider tablosu yüklenemedi.</div>';
+    console.warn('renderExpensesMonthlyTable load error', e);
+    return;
+  }
+
+  const byMonth = new Map();
+  for (const r of (rows||[])){
+    const mk = monthKeyFromDateStr(getFieldCI(r, ['Date','Tarih','date']));
+    if (!mk) continue;
+    const amt = readExpenseAmountTRY(r);
+    if (!(amt>0)) continue;
+    byMonth.set(mk, (byMonth.get(mk)||0) + amt);
+  }
+
+  const months = Array.from(byMonth.keys()).sort();
+  if (!months.length){
+    wrap.innerHTML = '<div class="hint text-sm">Gider verisi bulunamadı.</div>';
+    return;
+  }
+
+  let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+    + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+    + '<th class="text-left py-2 pr-4">Ay</th>'
+    + '<th class="text-right py-2 pr-4">Toplam Gider</th>'
+    + '<th class="text-right py-2 pr-0">MoM</th>'
+    + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+  let prev = 0;
+  months.forEach(mk=>{
+    const tot = byMonth.get(mk)||0;
+    let mom = '–';
+    let cls = '';
+    if (prev > 0){
+      const pct = ((tot - prev)/prev)*100;
+      mom = fmtPct(pct);
+      cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+    }
+    html += `<tr>`
+      + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+      + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
+      + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+      + `</tr>`;
+    prev = tot;
+  });
+
+  const grand = months.reduce((a,m)=> a + (byMonth.get(m)||0), 0);
+  html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+    + `<td class="py-2 pr-4 font-medium">Toplam</td>`
+    + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(grand)}</td>`
+    + `<td class="py-2 pr-0"></td>`
+    + `</tr>`;
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function hookNoChartRenderers(){
+  // Run on load
+  window.addEventListener('load', ()=>{
+    try{ renderRevenueTables(); }catch(_){ }
+    try{ renderExpensesMonthlyTable(); }catch(_){ }
+  });
+
+  // If refreshAll exists, chain it
+  const tryHook = (name)=>{
+    const fn = window[name];
+    if (typeof fn !== 'function' || fn.__noChartHooked) return;
+    const wrapped = async function(){
+      const r = fn.apply(this, arguments);
+      try{ await Promise.resolve(r); }catch(_){ }
+      try{ renderRevenueTables(); }catch(_){ }
+      try{ renderExpensesMonthlyTable(); }catch(_){ }
+      return r;
+    };
+    wrapped.__noChartHooked = true;
+    window[name] = wrapped;
+  };
+  ['refreshAll','refreshAllData','loadAll','loadAllData'].forEach(tryHook);
+}
+hookNoChartRenderers();
+
+/* ================== /TABLE RENDERERS (NO CHARTS) ================== */
 
 /* ================== THEME ================== */
 const root = document.documentElement;
@@ -1419,22 +1594,32 @@ function setTheme(mode){
   }
   localStorage.setItem('popdog_theme', mode);
 }
-(document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
-// Refresh: clear cached CSVs and reload
-(function(){
-  const b = document.getElementById('refreshBtn');
-  if (!b) return;
-  b.onclick = ()=>{
-    try{ clearCsvCaches(); }catch(_){ }
-    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){ }
-    try{ localStorage.removeItem('popdog_inventory_cache'); }catch(_){ }
-    try{ localStorage.removeItem('popdog_orders_cache'); }catch(_){ }
-    location.reload();
-  };
-})();
+document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark');
 (function(){
   const initial = localStorage.getItem('popdog_theme') || 'light';
   setTheme(initial);
+})();
+
+// Yenile: varsa veri yenileme fonksiyonunu çağır, yoksa sayfayı tazele
+(function(){
+  const rb = document.getElementById('refreshBtn');
+  if (!rb) return;
+  rb.onclick = async () => {
+    try{
+      if (typeof refreshAll === 'function') await refreshAll();
+      else if (typeof refreshAllData === 'function') await refreshAllData();
+      else if (typeof loadAll === 'function') await loadAll();
+      else if (typeof loadAllData === 'function') await loadAllData();
+      else {
+        location.reload();
+        return;
+      }
+    }catch(_){
+      location.reload();
+      return;
+    }
+    try{ await renderRevenueTables(); }catch(_){ }
+  };
 })();
 
 /* ================== HELPERS ================== */
@@ -1442,6 +1627,243 @@ const nfTL  = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY
 const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
+
+
+/* ================== DAILY REPORT PARSER (CKM + Kuaför split) ================== */
+// Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
+function parseDailyReportText_v2(text) {
+  // Normalize newlines and remove invisible chars (WhatsApp copy/paste)
+  text = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[\u2028\u2029]/g, '\n')
+    .replace(/\u00A0/g,' ')                 // NBSP
+    .replace(/[\u200B-\u200D\uFEFF]/g,'') // zero-width
+    .trim();
+
+  // Diacritics-stripped text for stable matching (Kuaför/Kuafor)
+  const textNoDia = text.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  // Helper: extract amount from a line using a regex with one capture group for the number.
+  // Returns null if no match, 0 if the label exists but number is empty.
+  function extractAmount_(line, re){
+    const m = String(line||'').trim().match(re);
+    if (!m) return null;
+    if (!m[1]) return 0;
+    return parseTL(m[1]);
+  }
+
+  // Build normalized lines (both original + no-diacritics) keeping position
+  const rawLines = text.split('\n').map(s => String(s||'').trim()).filter(Boolean);
+  const lines    = textNoDia.split('\n').map(s => String(s||'').trim()).filter(Boolean);
+
+  // Date: use original text (to preserve separators)
+  let date = '';
+  const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
+  if (dateMatch) date = parseTRDateString(dateMatch[1]);
+
+  // Extract amounts line-by-line (no false matches like "Kasa Nakit" vs "Nakit")
+  let groomingTRY = 0;
+  let cashSalesTRY = 0;     // Nakit satış
+  let kasaNakitTRY = 0;     // EoD cash
+  let trendyolTRY = 0;
+  let hbTRY = 0;
+  let onlineTRY = 0;
+  let toptanTRY = 0;
+  let storeTotalTRY = 0;
+  let kkTRY = 0;
+  let cashSalesHasNumber = false; // true only if the Nakit line contains a number
+
+  for (let i=0; i<lines.length; i++){
+    const L = lines[i];
+
+    // Kuaför (relaxed: allow extra words between label and colon)
+    {
+      const v = extractAmount_(L, /^\s*Kuafor\b[^0-9]{0,20}[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+      if (v != null) groomingTRY = v;
+    }
+
+    // Nakit (cash sales) — DO NOT match "Kasa Nakit".
+    // IMPORTANT: Only treat as cash sales if the Nakit line actually contains digits.
+    {
+      const m = String(L||'').trim().match(/^\s*(?!Kasa\s+Nakit\b)Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+      if (m && m[1]){
+        cashSalesTRY = parseTL(m[1]) || 0;
+        cashSalesHasNumber = true;
+      }
+    }
+
+    // Kasa Nakit (EoD), strict label+colon
+    {
+      const v = extractAmount_(L, /^\s*Kasa\s+Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+      if (v != null) kasaNakitTRY = v;
+    }
+
+    // Trendyol, strict label+colon
+    {
+      const v = extractAmount_(L, /^\s*Trendyol\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+      if (v != null) trendyolTRY = v;
+    }
+
+    // Hepsiburada, strict label+colon, number optional
+    {
+      const v = extractAmount_(L, /^\s*Hepsiburada\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) hbTRY = v;
+    }
+
+    // Pop Dog Online / Online, strict label+colon, number optional
+    {
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Online\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v1 != null) onlineTRY = v1;
+      const v2 = extractAmount_(L, /^\s*Online\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v2 != null) onlineTRY = v2;
+    }
+
+    // Pop Dog Toptan / Toptan, strict label+colon, number optional
+    {
+      const v1 = extractAmount_(L, /^\s*Pop\s*Dog\s*Toptan\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v1 != null) toptanTRY = v1;
+      const v2 = extractAmount_(L, /^\s*Toptan\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v2 != null) toptanTRY = v2;
+    }
+
+    // Toplam ciro, strict label+colon, number optional
+    {
+      const v = extractAmount_(L, /^\s*Toplam\s*ciro\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) storeTotalTRY = v;
+    }
+
+    // Kredi Kartı, strict label+colon, number optional
+    {
+      const v = extractAmount_(L, /^\s*Kredi\s*Kart[ıi]\s*[:：=]\s*([0-9][0-9\.,\s]*)?\s*(?:TL|₺)?\s*$/i);
+      if (v != null) kkTRY = v;
+    }
+  }
+
+  // Fallback: if Kuaför wasn't found line-by-line, do a robust global scan.
+  // This handles WhatsApp quirks like missing newlines, extra words ("Kuaför satış"), or odd punctuation.
+  if (!(groomingTRY > 0)){
+    const mg = textNoDia.match(/\bKuafor\b[^0-9]{0,40}([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
+    if (mg && mg[1]) groomingTRY = parseTL(mg[1]) || 0;
+  }
+
+  // Final guarantee: always try a strict "Kuaför/Kuafor: <number>" match on both original and no-diacritics text.
+  // This prevents rare cases where line splitting fails and grooming stays 0.
+  try{
+    if (!(groomingTRY > 0)){
+      const m1 = text.match(/\bKuaf[öo]r\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+      const m2 = textNoDia.match(/\bKuafor\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+      const v1 = (m1 && m1[1]) ? (parseTL(m1[1]) || 0) : 0;
+      const v2 = (m2 && m2[1]) ? (parseTL(m2[1]) || 0) : 0;
+      const v = Math.max(v1, v2);
+      if (v > 0) groomingTRY = v;
+    }
+  }catch(_){ }
+
+  // If total not provided, compute from credit card + cash sales
+  if (!(storeTotalTRY > 0)){
+    storeTotalTRY = (kkTRY || 0) + (cashSalesTRY || 0);
+  }
+
+  // CKM (retail) = storeTotal - grooming (avoid double count)
+  const ckmRetailTRY = Math.max(0, (storeTotalTRY || 0) - (groomingTRY || 0));
+
+  // CKM Nakit: prefer explicit "CKM Nakit" if present; otherwise use Nakit ONLY if it had a number.
+  let ckmNakitTRY = cashSalesHasNumber ? cashSalesTRY : 0;
+  for (let i=0; i<lines.length; i++){
+    const m = String(lines[i]||'').trim().match(/^\s*CKM\s+Nakit\s*[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+    if (m && m[1]){ ckmNakitTRY = parseTL(m[1]) || 0; break; }
+  }
+
+  // Total (channels sum) — CKM retail + Kuaför counted once
+  const totalTRY = (toptanTRY || 0) + (onlineTRY || 0) + (ckmRetailTRY || 0) + (groomingTRY || 0) + (trendyolTRY || 0) + (hbTRY || 0);
+
+  try{ console.log('kuafor_debug', { groomingTRY, cashSalesTRY, storeTotalTRY, kkTRY, cashSalesHasNumber }); }catch(_){ }
+
+  return {
+    'Date': date,
+    'Toptan': toptanTRY,
+    'Online': onlineTRY,
+    'CKM': ckmRetailTRY,
+    'Kuaför': (groomingTRY || 0),
+    'CKM Nakit': ckmNakitTRY,
+    'Kasa Nakit (EoD)': kasaNakitTRY,
+    'Trendyol': trendyolTRY,
+    'Hepsiburada': hbTRY,
+    'Total': totalTRY
+  };
+}
+
+// Force global reference to the new parser (prevents legacy overrides)
+try{ window.parseDailyReportText = parseDailyReportText_v2; }catch(_){ }
+
+function renderStagedRows(stagedRows) {
+  const tbody = document.getElementById('stagedTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  for (const row of stagedRows) {
+    const html =
+      `<tr>
+        <td class="py-2 pr-4">${safeText(row.Date || '')}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Toptan || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Online || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.CKM || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['Kuaför'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['CKM Nakit'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row['Kasa Nakit (EoD)'] || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Trendyol || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Hepsiburada || 0)}</td>
+        <td class="text-right py-2 pr-4">${numberTL(row.Total || 0)}</td>
+      </tr>`;
+    tbody.insertAdjacentHTML('beforeend', html);
+  }
+}
+
+(function(){
+  const btn = document.getElementById('parseAddBtn');
+  if (!btn) return;
+
+  // ✅ TEK KAYNAK: günlük satırlar tek bir global array’de tutulur
+  if (!Array.isArray(window.stagedRows)) window.stagedRows = [];
+
+
+  btn.onclick = function() {
+    const ta = document.getElementById('dailyText');
+    const info = document.getElementById('parseInfo');
+    if (!ta) return;
+
+    const text = ta.value || '';
+    let row;
+    try {
+      row = parseDailyReportText_v2(text);
+      // Guarantee Kuaför key exists
+      if (row && typeof row['Kuaför'] === 'undefined') row['Kuaför'] = 0;
+      console.log('dailyRowParsed', row);
+      if (info && row) {
+        info.textContent = `Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
+      }
+    } catch (e) {
+      if (info) info.textContent = 'Satır ayrıştırılamadı: ' + (e && e.message ? e.message : e);
+      return;
+    }
+
+    if (!row || !row.Date) {
+      if (info) info.textContent = 'Tarih bulunamadı veya format hatalı.';
+      return;
+    }
+
+    window.stagedRows.push(row);
+    renderStagedRows(window.stagedRows);
+    if (info) {
+      info.textContent = `Satır eklendi. (${window.stagedRows.length}) • Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
+    }
+    ta.value = '';
+  };
+
+window.getStagedDailyRows = () => (Array.isArray(window.stagedRows) ? window.stagedRows.slice() : []);
+})();
+/* ================== /DAILY REPORT PARSER ================== */
+
 
 /* ================== LOANS STATE HELPERS ================== */
 // Zee.Dog varsayılan bekleyen ödemeler (USD)
@@ -2092,7 +2514,7 @@ function isCleanOnLoad(){
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
 let loadedRows = [];     // revenue rows (sheet csv)
-let stagedRows = [];     // whatsapp pasted rows
+let stagedRows = []; // legacy compat: some older parts still read this
 let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
@@ -2125,124 +2547,6 @@ function dedupeDailyRows(rows){
     return Array.isArray(rows) ? rows : [];
   }
 }
-
-/* === Daily rows UI + write helpers === */
-function renderStagedTable(){
-  const tb = document.getElementById('stagedTbody');
-  if(!tb) return;
-  if(!Array.isArray(stagedRows) || stagedRows.length===0){
-    tb.innerHTML = '<tr><td class="hint py-2" colspan="9">Henüz satır yok.</td></tr>';
-    return;
-  }
-  const fmt = (n)=> nfTL.format(Math.round(n||0));
-  tb.innerHTML = stagedRows.map(r=>`
-    <tr>
-      <td class="py-2 pr-4">${r.Date||''}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Toptan||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Online||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.CKM||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r["CKM Nakit"]||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.KasaNakit||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Trendyol||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Hepsiburada||0)}</td>
-      <td class="py-2 pr-4 text-right">${fmt(r.Total||0)}</td>
-    </tr>
-  `).join('');
-}
-
-
-// Bind the writer to the button in the Daily Paste section
-// Bind the writer to the main Sheet’e Kaydet button (writeSheetBtn) using the JSON-based function
-/* === Write staged rows to Google Sheet via Apps Script WebApp (idempotent) === */
-if (!window.writeStagedToSheet) {
-  window.writeStagedToSheet = async function writeDailyRowsToSheet(){
-  const infoEl = document.getElementById('parseInfo');
-  const rows = (typeof window.getStagedDailyRows === 'function')
-    ? window.getStagedDailyRows()
-    : (Array.isArray(window.stagedRows) ? window.stagedRows.slice() : []);
-
-  if (!rows || !rows.length){
-    if (infoEl) infoEl.textContent = 'Gönderilecek satır yok. (Önce: Satıra çevir ve ekle)';
-    return;
-  }
-
-  // Build payload rows (always include Kuaför)
-  const payloadRows = rows.map(r => {
-    const kuafor = Number((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
-    return {
-      Date: String((r && r.Date) || ''),
-      Toptan: Number((r && r.Toptan) || 0) || 0,
-      Online: Number((r && r.Online) || 0) || 0,
-      CKM: Number((r && r.CKM) || 0) || 0,
-      'Kuaför': kuafor,
-      'CKM Nakit': Number((r && r['CKM Nakit']) || 0) || 0,
-      'Kasa Nakit (EoD)': Number((r && (r['Kasa Nakit (EoD)'])) ?? (r && r.KasaNakit) ?? 0) || 0,
-      Trendyol: Number((r && r.Trendyol) || 0) || 0,
-      Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
-      Total: Number((r && r.Total) || 0) || 0,
-      // compatibility keys (harmless if server ignores)
-      'Kuafor': kuafor,
-      'Grooming': kuafor,
-    };
-  });
-
-  const url = getSheetWebAppURL();
-  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)){
-    if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil veya hatalı.';
-    if (typeof setupSheetWebAppURL === 'function') await setupSheetWebAppURL(infoEl);
-    return;
-  }
-
-  async function fetchWithTimeout(u, opts, ms){
-    const ctrl = new AbortController();
-    const t = setTimeout(()=> ctrl.abort(), ms || 15000);
-    try{
-      return await fetch(u, { redirect:'follow', cache:'no-store', ...opts, signal: ctrl.signal });
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
-
-  try{
-    // Safari/CORS: keep request “simple” (text/plain) to avoid preflight.
-    const res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'appendDaily', rows: payloadRows })
-    }, 20000);
-
-    const raw = await res.text().catch(()=> '');
-    let j = null;
-    try{ j = JSON.parse(raw); }catch(_){ j = null; }
-
-    if (!res.ok){
-      throw new Error(`HTTP ${res.status}${raw ? ' • ' + raw.slice(0,160) : ''}`);
-    }
-    if (j && j.ok === false){
-      throw new Error(String(j.error || j.message || 'WRITE_FAILED'));
-    }
-
-    const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
-    if (infoEl) infoEl.textContent = `✓ Sheet’e yazıldı (${added} satır).`;
-
-    try{ window.stagedRows = []; }catch(_){ }
-    try{ if (typeof renderStagedRows === 'function') renderStagedRows([]); }catch(_){ }
-    try{ if (typeof refreshAll === 'function') refreshAll(); }catch(_){ }
-
-  }catch(err){
-    const msg = (err && err.name === 'AbortError') ? 'TIMEOUT' : (err && err.message ? err.message : String(err));
-    if (infoEl) infoEl.textContent = `Hata: ${msg}`;
-    console.error('writeDailyRowsToSheet failed:', err);
-  }
-}
-
-// Back-compat: some older code may still call this
-async function writeStagedToSheet(){
-  return writeDailyRowsToSheet();
-}
-
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
@@ -2439,7 +2743,7 @@ function dateToISO(d){
     try{
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
         body: JSON.stringify(body)
       });
       if (r.ok){
@@ -2461,7 +2765,7 @@ function dateToISO(d){
       });
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
         body: form.toString()
       });
       if (r.ok){
@@ -2551,7 +2855,7 @@ async function pingSheetWebApp(){
     // Try POST __ping__ (preferred)
     const r = await fetch(getSheetWebAppURL(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: '__ping__' })
     });
     if (r && r.ok) return true;
@@ -3905,396 +4209,12 @@ function renderTargets(monthly){
 }
 
 /* ================== Charts ================== */
-// === iOS-like frosted glass effect for the pie chart ===
-const glassPie = {
-  id: 'glassPie',
-  beforeDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'pie') return;
-    const { ctx } = chart;
-    ctx.save();
-    // soft drop shadow for segments
-    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate-ish
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 6;
-    ctx.shadowOffsetX = 0;
-  },
-  afterDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'pie') return;
-    const { ctx, chartArea } = chart;
-    // subtle radial highlight over the chart for glass sheen
-    const {left, right, top, bottom} = chartArea;
-    const cx = (left + right) / 2;
-    const cy = (top + bottom) / 2;
-    const r = Math.min(right - left, bottom - top) / 2;
-    const grad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.6, r*0.05, cx, cy, r);
-    grad.addColorStop(0, 'rgba(255,255,255,0.22)');
-    grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
-    grad.addColorStop(1, 'rgba(255,255,255,0.00)');
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // restore to clear the shadow for other charts
-    ctx.restore();
-  }
-};
-// === iOS-like frosted glass effect for stacked bar chart ===
-const glassBars = {
-  id: 'glassBars',
-  beforeDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'bar') return;
-    const { ctx } = chart;
-    ctx.save();
-    ctx.shadowColor = 'rgba(15,23,42,0.25)'; // slate shadow
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 6;
-    ctx.shadowOffsetX = 0;
-  },
-  afterDatasetDraw(chart, args, pluginOptions) {
-    if (chart.config.type !== 'bar') return;
-    const { ctx } = chart;
-    try {
-      const ca = chart.chartArea;
-      // If chartArea is not ready (0 size / initial render), just restore once and exit.
-      if (!ca) {
-        try { ctx.restore(); } catch(e) {}
-        return;
-      }
-      const { left, top, right, bottom } = ca;
-
-      // Draw subtle diagonal sheen
-      ctx.save();
-      const grad = ctx.createLinearGradient(left, top, right, bottom);
-      grad.addColorStop(0.0, 'rgba(255,255,255,0.12)');
-      grad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
-      grad.addColorStop(1.0, 'rgba(255,255,255,0.00)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = grad;
-      ctx.fillRect(left, top, right - left, bottom - top);
-      ctx.restore();
-
-      // Restore the save from beforeDatasetDraw (clears shadows)
-      try { ctx.restore(); } catch(e) {}
-    } catch (e) {
-      // On any error, attempt to restore context balance and continue
-      try { ctx.restore(); } catch(_) {}
-    }
-  }
-};
-Chart.register(glassPie);
-Chart.register(glassBars);
-Chart.register(ChartDataLabels);
-let lineChart, pieChart, barChart;
+// Charts removed (stability + simpler maintenance)
+// Keep `monthlyCache` as the shared revenue monthly cache used by other blocks.
 let monthlyCache = [];
-let yoyEnabled = true;
-function drawCharts(monthly){
-  // ====== Safe helpers & state ======
-  const toNum = (v)=> Number.isFinite(v) ? v : (isNaN(+v) ? 0 : +v);
-
-  // Cache incoming monthly for later re-draws (toggle)
-  monthlyCache = Array.isArray(monthly) ? monthly : [];
-
-  // Eğer hiç veri yoksa: grafikleri güvenle temizle, tabloları "veri yok" göster
-  const safeDestroy = (cVarName) => {
-    try { if (window[cVarName]) { window[cVarName].destroy(); window[cVarName] = null; } } catch(e){}
-  };
-  if (!Array.isArray(monthlyCache) || monthlyCache.length === 0){
-    safeDestroy('lineChart');
-    safeDestroy('barChart');
-    const w1 = document.getElementById('lineTotalTblWrap');
-    const w2 = document.getElementById('barStackTblWrap');
-    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    return;
-  }
-
-  // ==== Build label set for the current year & an aligned prev-year series ====
-  const now = new Date();
-  const currentYear = monthlyCache.length ? monthlyCache[monthlyCache.length - 1].year : now.getFullYear();
-  const prevYear = currentYear - 1;
-
-  const curArr = monthlyCache.filter(r => r.year === currentYear);
-  const labels = Array.isArray(curArr) ? curArr.map(r => r.month) : [];
-
-  // Veri güvenlik kontrolü (label yoksa temizle ve çık)
-  if (!Array.isArray(labels) || labels.length === 0){
-    safeDestroy('lineChart');
-    safeDestroy('barChart');
-    const w1 = document.getElementById('lineTotalTblWrap');
-    const w2 = document.getElementById('barStackTblWrap');
-    if (w1) w1.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    if (w2) w2.innerHTML = '<div class="hint text-xs">Veri yok.</div>';
-    return;
-  }
-
-  // Map prev-year by MM for alignment to current labels
-  const prevMap = {};
-  monthlyCache.forEach(r => {
-    if (r.year === prevYear) {
-      const mm = (r.month || '').slice(5, 7);
-      prevMap[mm] = toNum(prevMap[mm] || 0) + toNum(r.Total || 0);
-    }
-  });
-  const dataCur  = curArr.map(r => toNum(r.Total || 0));
-  const dataPrev = labels.map(m => toNum(prevMap[(m||'').slice(5, 7)] || 0));
-
-  // === Table helpers (inline) ===
-  function renderMonthlyTotalsTable(wrapperId, labelsArr, totalsArr){
-    const wrap = document.getElementById(wrapperId);
-    if(!wrap) return;
-    try{
-      const rows = (labelsArr||[]).map((m,i)=>{
-        const total = toNum(totalsArr[i] || 0);
-        const prev  = i>0 ? toNum(totalsArr[i-1] || 0) : 0;
-        const mom   = prev ? ((total - prev) / prev) * 100 : 0;
-        const momStr = prev ? `${mom>=0?'+':''}${mom.toFixed(1)}%` : '—';
-        const momCls = prev ? (mom>=0 ? 'kpi-up' : 'kpi-down') : 'hint';
-        return `
-          <tr>
-            <td class="py-1 pr-3">${m}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(total)}</td>
-            <td class="py-1 text-right ${momCls}">${momStr}</td>
-          </tr>
-        `;
-      });
-      wrap.innerHTML = `
-        <div class="mt-1 overflow-auto">
-          <table class="min-w-full text-xs">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Ay</th>
-                <th class="text-right py-1 pr-3">Toplam</th>
-                <th class="text-right py-1 pr-0">MoM</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
-          </table>
-        </div>`;
-    }catch(e){ /* silent */ }
-  }
-
-  function renderChannelMonthlyTable(wrapperId, labelsArr, curMonthlyArr){
-    const wrap = document.getElementById(wrapperId);
-    if(!wrap) return;
-    try{
-      const rows = (labelsArr||[]).map((m,i)=>{
-        const r   = curMonthlyArr[i] || {};
-        const tpt = toNum(r.Toptan);
-        const onl = toNum(r.Online);
-        const ckm = toNum(r.CKM);
-        const trn = toNum(r.Trendyol);
-        const hb  = toNum(r.Hepsiburada);
-        const total = toNum(r.Total || (tpt + onl + ckm + trn + hb));
-
-        const prevR = i>0 ? (curMonthlyArr[i-1] || {}) : null;
-        const prevT = prevR ? toNum(prevR.Toptan)      : 0;
-        const prevO = prevR ? toNum(prevR.Online)      : 0;
-        const prevC = prevR ? toNum(prevR.CKM)         : 0;
-        const prevTr= prevR ? toNum(prevR.Trendyol)    : 0;
-        const prevH = prevR ? toNum(prevR.Hepsiburada) : 0;
-        const prevTotal = prevR ? toNum(prevR.Total || (toNum(prevR.Toptan)+toNum(prevR.Online)+toNum(prevR.CKM)+toNum(prevR.Trendyol)+toNum(prevR.Hepsiburada))) : 0;
-
-        const momPct = (cur, prev) => prev ? ((cur - prev) / prev) * 100 : null;
-        const fmtPct = (v) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(1)}%`;
-        const clsPct = (v) => v==null ? 'hint' : (v>=0 ? 'kpi-up' : 'kpi-down');
-
-        const mT = momPct(tpt, prevT);
-        const mO = momPct(onl, prevO);
-        const mC = momPct(ckm, prevC);
-        const mTr= momPct(trn, prevTr);
-        const mH = momPct(hb,  prevH);
-        const mTot = momPct(total, prevTotal);
-
-        return `
-          <tr>
-            <td class="py-1 pr-3">${m}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(tpt)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mT)}">${fmtPct(mT)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(onl)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mO)}">${fmtPct(mO)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(ckm)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mC)}">${fmtPct(mC)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(trn)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mTr)}">${fmtPct(mTr)}</td>
-
-            <td class="py-1 pr-2 text-right">${numberTL(hb)}</td>
-            <td class="py-1 pr-3 text-right ${clsPct(mH)}">${fmtPct(mH)}</td>
-
-            <td class="py-1 pr-2 text-right font-medium">${numberTL(total)}</td>
-            <td class="py-1 text-right ${clsPct(mTot)}">${fmtPct(mTot)}</td>
-          </tr>
-        `;
-      });
-
-      wrap.innerHTML = `
-        <div class="mt-1 overflow-auto">
-          <table class="min-w-full text-xs">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Ay</th>
-
-                <th class="text-right py-1 pr-2">Toptan</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Online</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">CKM</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Trendyol</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">HB</th>
-                <th class="text-right py-1 pr-3">MoM</th>
-
-                <th class="text-right py-1 pr-2">Toplam</th>
-                <th class="text-right py-1 pr-0">MoM</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-800 dark:text-slate-100">${rows.join('')}</tbody>
-          </table>
-        </div>`;
-    }catch(e){ /* silent */ }
-  }
-
-  // ========== Line: Aylık Toplam Ciro ==========
-  if (lineChart) { try{ lineChart.destroy(); }catch(e){} lineChart = null; }
-  const lctxEl = document.getElementById('lineTotal');
-  if (!lctxEl || !lctxEl.getContext){
-    // canvas bulunamazsa tabloları yine de bas
-    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-    return;
-  }
-  const lctx = lctxEl.getContext('2d');
-  const grad = (ctx, c1, c2)=>{ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; };
-
-  const datasets = [{
-    label:'Bu Yıl',
-    data: dataCur,
-    tension:0.35, borderWidth:3, borderColor:'#6366f1', fill:true,
-    backgroundColor: grad(lctx, 'rgba(99,102,241,0.25)','rgba(34,211,238,0.05)'),
-    pointRadius:3, pointHoverRadius:5
-  }];
-
-  // add prev year overlay if toggled on and we have any values
-  const hasPrevAny = (dataPrev||[]).some(v => toNum(v) > 0);
-  if (yoyEnabled && hasPrevAny) {
-    datasets.push({
-      label:'Geçen Yıl',
-      data: dataPrev,
-      tension:0.35,
-      borderWidth:2,
-      borderDash:[6,4],
-      borderColor:'#94a3b8',
-      pointRadius:0,
-      fill:false
-    });
-  }
-
-  try{
-    lineChart = new Chart(lctx, {
-      type:'line',
-      data:{ labels: labels.map(m => m), datasets },
-      options:{
-        resizeDelay: 200,
-        maintainAspectRatio: false,
-        plugins:{
-          legend:{display:true, position:'bottom'},
-          datalabels:{
-            display:(ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
-              return L.length <= 8;
-            },
-            align:'top', anchor:'end', formatter:(v)=> numberTL(toNum(v)), color:'#64748b', clip:true
-          }
-        },
-        scales:{
-          x:{ ticks:{ maxRotation:0 } },
-          y:{ ticks:{ callback:(v)=> numberTL(toNum(v)) } }
-        }
-      }
-    });
-  }catch(err){
-    console.warn('Line chart init error', err);
-    try{ if(lineChart){ lineChart.destroy(); lineChart=null; } }catch(e){}
-  }
-
-  // ========== Stacked Bar: Kanal Bazlı Aylık Ciro ==========
-  if (barChart) { try{ barChart.destroy(); }catch(e){} barChart = null; }
-  const bctxEl = document.getElementById('barStack');
-  if (!bctxEl || !bctxEl.getContext){
-    renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-    renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-    return;
-  }
-  const bctx = bctxEl.getContext('2d');
-  const barColors = [
-    'rgba(165,180,252,0.70)',
-    'rgba(52,211,153,0.70)',
-    'rgba(96,165,250,0.70)',
-    'rgba(251,191,36,0.70)',
-    'rgba(244,114,182,0.70)'
-  ];
-  const barBorder = 'rgba(255,255,255,0.55)';
-
-  try{
-    barChart = new Chart(bctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Toptan',      data: curArr.map(r=>toNum(r.Toptan)),      backgroundColor: barColors[0], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Online',      data: curArr.map(r=>toNum(r.Online)),      backgroundColor: barColors[1], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'CKM',         data: curArr.map(r=>toNum(r.CKM)),         backgroundColor: barColors[2], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Trendyol',    data: curArr.map(r=>toNum(r.Trendyol)),    backgroundColor: barColors[3], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-          { label: 'Hepsiburada', data: curArr.map(r=>toNum(r.Hepsiburada)), backgroundColor: barColors[4], borderColor: barBorder, borderWidth: 1, borderRadius: 6 },
-        ]
-      },
-      options: {
-        resizeDelay: 200,
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: 0 },
-        scales: {
-          x: { stacked:true, ticks:{ maxRotation:0 }, grid:{ display:false } },
-          y: { stacked:true, ticks:{ callback:(v)=> numberTL(toNum(v)) }, grid:{ color:'rgba(148,163,184,0.15)' } }
-        },
-        plugins: {
-          legend: { position:'bottom', labels: { boxWidth: 10, padding: 12 } },
-          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${numberTL(toNum(ctx.raw))}` } },
-          datalabels: {
-            display: (ctx)=> {
-              const L = (ctx && ctx.chart && ctx.chart.data && ctx.chart.data.labels) ? ctx.chart.data.labels : [];
-              return L.length <= 6;
-            },
-            anchor: 'center', align: 'center', formatter: v => numberTL(toNum(v)),
-            color: '#fff', font: { weight: '600', size: 10 }, clamp: true
-          }
-        },
-        categoryPercentage: 0.7,
-        barPercentage: 0.8
-      }
-    });
-  }catch(err){
-    console.warn('Bar chart init error', err);
-    try{ if(barChart){ barChart.destroy(); barChart=null; } }catch(e){}
-  }
-
-  // === Tablo özetleri (Ay + Toplam + MoM) — telefon görünümü için ===
-  renderMonthlyTotalsTable('lineTotalTblWrap', labels, dataCur);
-  renderChannelMonthlyTable('barStackTblWrap', labels, curArr);
-}
-
+function drawCharts(){
+  if (!window.Chart) { return; }
+ /* no-op */ }
 /* ================== Expenses (CFO) ================== */
 
 let expensesRowsCache = [];
@@ -5023,117 +4943,10 @@ function renderMainExpenseTable(){
     console.warn('renderMainExpenseTable error', e);
   }
 }
-let expLineChart;
-function drawExpensesCharts(expMonthly){
-  const now = new Date();
-  const curYear = now.getFullYear();
-  // Bu yıl veri yoksa, eldeki son yılı kullan
-  const yearsWithData = Array.from(new Set((expMonthly||[]).map(r=> r.year))).sort((a,b)=>a-b);
-  const expYear = yearsWithData.includes(curYear) ? curYear : (yearsWithData.length ? yearsWithData[yearsWithData.length-1] : curYear);
-  const arr = (expMonthly||[]).filter(r=> r.year===expYear);
-  const labels = arr.map(r=> r.month);
-  const dataCur = arr.map(r=> r.Total||0);
-
-  // yearsWithData yukarıda hesaplandı
-  let prevYear = expYear - 1;
-  if (!yearsWithData.includes(prevYear)){
-    for (let i = yearsWithData.length - 1; i >= 0; i--) {
-      if (yearsWithData[i] < expYear) { prevYear = yearsWithData[i]; break; }
-    }
-  }
-  // Build prev-year map aligned to current labels' months (MM)
-  const prevMap = {};
-  (expMonthly||[]).forEach(r=>{
-    if(r.year===prevYear){
-      const mm=r.month.slice(5,7);
-      prevMap[mm]=(prevMap[mm]||0)+(r.Total||0);
-    }
-  });
-  const dataPrev = labels.map(m=> prevMap[m.slice(5,7)] || 0);
-
-  if (expLineChart) expLineChart.destroy();
-  const lctx = document.getElementById('lineExpenses').getContext('2d');
-  const grad = (c1, c2) => { const g = lctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
-  const ds = [
-    {
-      label: 'Bu Yıl',
-      data: dataCur,
-      tension: 0.35,
-      borderWidth: 3,
-      borderColor: '#22d3ee',
-      fill: true,
-      backgroundColor: grad('rgba(34,211,238,0.25)', 'rgba(99,102,241,0.05)'),
-      pointRadius: 3,
-      pointHoverRadius: 5
-    }
-  ];
-  if (expYoyEnabled && dataPrev.some(v => v > 0)) {
-    ds.push({
-      label: `Geçen Yıl (${prevYear})`,
-      data: dataPrev,
-      tension: 0.35,
-      borderWidth: 2,
-      borderDash: [6, 4],
-      borderColor: '#94a3b8',
-      pointRadius: 0,
-      fill: false
-    });
-  }
-  expLineChart = new Chart(lctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: ds
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom' },
-        datalabels: {
-          align: 'top',
-          anchor: 'end',
-          formatter: v => numberTL(v),
-          color: '#64748b',
-          clip: true
-        }
-      },
-      scales: {
-        x: { ticks: { maxRotation: 0 } },
-        y: { ticks: { callback: v => numberTL(v) } }
-      }
-    }
-  });
-
-   // YTD category pie (FinalCategory/FinalSubcategory öncelikli)
-  try {
-    // arr: seçili yılın ay listesi (yukarıda hesaplandı)
-    // buildExpensesMonthly içinde byMain/byCat zaten Final* öncelikli.
-    // Burada YTD toplamı için önce byMain varsa onu, yoksa byCat'i toplayalım.
-    const catSum = {};
-arr.forEach(m=>{
-  (m.rows || []).forEach(r=>{
-    const key = (r.FinalCategory && r.FinalCategory.trim()) ||
-                (r.FinalSubcategory && r.FinalSubcategory.trim()) ||
-                r.MainCategory ||
-                r.Category || 'Diğer';
-    const a = +r.Amount || 0;
-    catSum[key] = (catSum[key]||0) + a;
-  });
-});
-
-    const totalYtd = Object.values(catSum).reduce((a, b) => a + b, 0) || 1;
-
-    // Etiketleri tutara göre sırala
-    const sorted = Object.entries(catSum)
-      .map(([k, v]) => ({ k, v }))
-      .sort((a, b) => b.v - a.v);
-
-    const labels = sorted.map(x => x.k);
-    const data   = sorted.map(x => x.v);
-
-  } catch (e) {
-    console.warn('drawExpensesCharts pie error', e);
-  }
-}
+// Expenses charts removed (stability + simpler maintenance)
+function drawExpensesCharts(){
+  if (!window.Chart) { return; }
+ return; }
 
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
@@ -5323,7 +5136,7 @@ document.getElementById('downloadBtn').onclick = ()=>{
   const mergedRaw = [...loadedRows, ...stagedRows];
   const merged = dedupeDailyRows(mergedRaw); // aynı güne ait en anlamlı satırı seçer
 
-  const headers = ["Date","Toptan","Online","CKM","CKM Nakit","Trendyol","Hepsiburada","Total"];
+  const headers = ['Date','Toptan','Online','CKM','Kuaför','CKM Nakit','Kasa Nakit (EoD)','Trendyol','Hepsiburada','Total'];
   const lines = [headers.join(",")].concat(merged.map(r=>[
     r.Date, r.Toptan, r.Online, r.CKM, r["CKM Nakit"]||0, r.Trendyol, r.Hepsiburada, r.Total
   ].join(",")));
@@ -5714,27 +5527,93 @@ try {
 
 /* ================== WRITE TO SHEET ================== */
 async function writeStagedToSheet(){
-  const rows = [...stagedRows];
-  if (!rows.length) { document.getElementById('parseInfo').textContent = 'Yazılacak satır yok.'; return; }
-  document.getElementById('parseInfo').textContent = 'Sheet’e yazılıyor...';
+  const infoEl = document.getElementById('parseInfo');
+  const rows = Array.isArray(window.stagedRows)
+    ? window.stagedRows.slice()
+    : (Array.isArray(stagedRows) ? stagedRows.slice() : []);
+
+  if (!rows.length) {
+    if (infoEl) infoEl.textContent = 'Önce satır ekleyin (Satıra çevir ve ekle).';
+    return;
+  }
+
+  if (infoEl) infoEl.textContent = 'Sheet’e yazılıyor...';
+
+  // Normalize payload to guarantee Kuaför is sent
+  const payloadRows = rows.map(r => {
+    const kuafor = Number((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
+    return {
+      Date: String((r && r.Date) || ''),
+      Toptan: Number((r && r.Toptan) || 0) || 0,
+      Online: Number((r && r.Online) || 0) || 0,
+      CKM: Number((r && r.CKM) || 0) || 0,
+      'Kuaför': kuafor,
+      'CKM Nakit': Number((r && r['CKM Nakit']) || 0) || 0,
+      'Kasa Nakit (EoD)': Number((r && r['Kasa Nakit (EoD)']) || 0) || 0,
+      Trendyol: Number((r && r.Trendyol) || 0) || 0,
+      Hepsiburada: Number((r && r.Hepsiburada) || 0) || 0,
+      Total: Number((r && r.Total) || 0) || 0,
+    };
+  });
+
+  const WEBAPP_URL = (typeof getSheetWebAppURL === 'function')
+    ? getSheetWebAppURL()
+    : (typeof SHEET_WEBAPP_URL !== 'undefined' ? SHEET_WEBAPP_URL : '');
+
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(String(WEBAPP_URL||''))) {
+    if (infoEl) infoEl.textContent = '⚠️ Apps Script Web App URL tanımlı değil.';
+    try{ await setupSheetWebAppURL(infoEl); }catch(_){ }
+    return;
+  }
+
   try {
-    const r = await fetch(SHEET_WEBAPP_URL, {
+    const res = await fetch(WEBAPP_URL, {
       method: 'POST',
-      headers: { 'Content-Type':'text/plain' },
-      body: JSON.stringify({ rows })
+      headers: { 'Content-Type': 'application/json;charset=utf-8' },
+      body: JSON.stringify({ action: 'appenddaily', rows: payloadRows })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'WRITE_FAILED');
-    const added = (typeof j.added === 'number')
-      ? j.added
-      : (j.received && Array.isArray(j.received.rows) ? j.received.rows.length : 0);
-    document.getElementById('parseInfo').textContent = `Sheet’e yazıldı (${added} satır).${j.v ? ' v:'+j.v : ''}`;
-    stagedRows = [];
-    renderStaged();
+
+    const raw = await res.text().catch(()=> '');
+    let j = null;
+    try{ j = JSON.parse(raw); }catch(_){ j = null; }
+
+    if (!res.ok || (j && j.ok === false)) {
+      const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
+      throw new Error(msg || ('HTTP ' + res.status));
+    }
+
+    const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
+    if (infoEl) infoEl.textContent = `Sheet’e yazıldı (${added} satır).`;
+
+    // Clear staged rows
+    if (Array.isArray(window.stagedRows)) window.stagedRows.length = 0;
+    try{ if (typeof renderStagedRows === 'function') renderStagedRows([]); }catch(_){ }
+    try{ if (typeof renderStaged === 'function') renderStaged(); }catch(_){ }
+
   } catch (err) {
-    document.getElementById('parseInfo').textContent = `Hata: ${String(err)}`;
+    if (infoEl) infoEl.textContent = `Hata: ${String(err && err.message ? err.message : err)}`;
   }
 }
+
+// Bind daily sheet write buttons (single writer)
+(function(){
+  const a = document.getElementById('pushRowsBtn');
+  const b = document.getElementById('writeSheetBtn');
+  if (a) a.onclick = writeStagedToSheet;
+  if (b) b.onclick = writeStagedToSheet;
+})();
+
+
+
+
+
+
+
+
+
+
+
+
 /* ================== BOOT! ================== */
 boot();
 // === FUND AUTO QUOTES (FI5 / SAS / ISY) — frontend fetch to Apps Script ===
