@@ -1682,10 +1682,19 @@ function parseDailyReportText_v2(text) {
       if (!(groomingTRY > 0)) {
         const rawL = (rawLines && rawLines[i]) ? String(rawLines[i]) : '';
 
-        // Try on raw line (keeps Turkish chars) then on diacritics-stripped line
-        let v = extractAmount_(rawL, /^\s*Kuaf[öo]r\b[^0-9]{0,40}[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+        // Try on raw line (keeps Turkish chars) then on diacritics-stripped line.
+        // Do NOT require end-of-line; WhatsApp often has trailing notes/hidden chars.
+        let v = extractAmount_(rawL, /\bKuaf[öo]r\b[^0-9]{0,60}[:：=]\s*([0-9][0-9\.,\s]*)/i);
         if (v == null) {
-          v = extractAmount_(L, /^\s*Kuafor\b[^0-9]{0,40}[:：=]\s*([0-9][0-9\.,\s]*)\s*(?:TL|₺)?\s*$/i);
+          v = extractAmount_(L, /\bKuafor\b[^0-9]{0,60}[:：=]\s*([0-9][0-9\.,\s]*)/i);
+        }
+
+        // Ultra-fallback for weird spacing: "Kuaför 2550" (no colon)
+        if (v == null) {
+          v = extractAmount_(rawL, /\bKuaf[öo]r\b[^0-9]{0,60}([0-9][0-9\.,\s]*)/i);
+        }
+        if (v == null) {
+          v = extractAmount_(L, /\bKuafor\b[^0-9]{0,60}([0-9][0-9\.,\s]*)/i);
         }
 
         if (v != null && v > 0) groomingTRY = v;
@@ -1750,21 +1759,14 @@ function parseDailyReportText_v2(text) {
   }
 
   // Fallback: if Kuaför wasn't found line-by-line, do robust global scans.
-  // Prefer explicit "Kuaför/Kuafor:" patterns; avoid accidentally picking up other numbers (e.g. Nakit).
+  // Prefer explicit "Kuaför/Kuafor" label near a number; tolerate trailing text.
   if (!(groomingTRY > 0)){
-    // 1) Strict "Kuaför: <num>" on original text
-    let m = text.match(/\bKuaf[öo]r\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+    let m = text.match(/\bKuaf[öo]r\b[^0-9]{0,80}[:：=]?\s*([0-9][0-9\.,\s]*)/i);
     if (m && m[1]) groomingTRY = parseTL(m[1]) || 0;
   }
   if (!(groomingTRY > 0)){
-    // 2) Strict on diacritics-stripped text
-    let m = textNoDia.match(/\bKuafor\s*[:：=]\s*([0-9][0-9\.,\s]*)/i);
+    let m = textNoDia.match(/\bKuafor\b[^0-9]{0,80}[:：=]?\s*([0-9][0-9\.,\s]*)/i);
     if (m && m[1]) groomingTRY = parseTL(m[1]) || 0;
-  }
-  if (!(groomingTRY > 0)){
-    // 3) Relaxed scan: "Kuafor ... <num>" but require the label and a separator-ish gap
-    const mg = textNoDia.match(/\bKuafor\b[^0-9]{0,60}([0-9][0-9\.,\s]*)\s*(?:TL|₺)?/i);
-    if (mg && mg[1]) groomingTRY = parseTL(mg[1]) || 0;
   }
 
   // Safety: if grooming accidentally equals cash sales and we did not see an explicit Kuaför label, force grooming=0.
