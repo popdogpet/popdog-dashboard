@@ -5571,15 +5571,47 @@ async function writeStagedToSheet(){
   }
 
   try {
-    const res = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json;charset=utf-8' },
-      body: JSON.stringify({ action: 'appenddaily', rows: payloadRows })
-    });
+    // IMPORTANT (Apps Script Web App + CORS):
+    // Use "simple" requests (text/plain or x-www-form-urlencoded) to avoid an OPTIONS preflight,
+    // which Apps Script Web Apps often reject (showing "Load failed" in Safari/Chrome).
+    async function postOnce(opts){
+      const res = await fetch(WEBAPP_URL, {
+        method: 'POST',
+        mode: 'cors',
+        redirect: 'follow',
+        cache: 'no-store',
+        ...opts
+      });
+      const raw = await res.text().catch(()=> '');
+      let json = null;
+      try{ json = JSON.parse(raw); }catch(_){ json = null; }
+      return { res, raw, json };
+    }
 
-    const raw = await res.text().catch(()=> '');
-    let j = null;
-    try{ j = JSON.parse(raw); }catch(_){ j = null; }
+    let out;
+    try{
+      out = await postOnce({
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'appenddaily', rows: payloadRows })
+      });
+    }catch(_e1){
+      out = null;
+    }
+
+    // Retry with classic form-urlencoded if the first attempt failed (network/preflight quirks)
+    if (!out || !out.res || !out.res.ok){
+      const form = new URLSearchParams();
+      form.set('action', 'appenddaily');
+      form.set('rows', JSON.stringify(payloadRows));
+      out = await postOnce({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: form.toString()
+      });
+    }
+
+    const res = out.res;
+    const raw = out.raw;
+    let j = out.json;
 
     if (!res.ok || (j && j.ok === false)) {
       const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
