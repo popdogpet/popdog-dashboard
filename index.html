@@ -2514,7 +2514,11 @@ function isCleanOnLoad(){
 /* ================== STATE ================== */
 /* === Ensure daily rows are deduped by Date (keep richer row) === */
 let loadedRows = [];     // revenue rows (sheet csv)
-let stagedRows = []; // legacy compat: some older parts still read this
+// IMPORTANT: use a single shared stagedRows array everywhere.
+// Some code paths used a local `stagedRows` while others used `window.stagedRows`.
+// If those diverge, the "Sheet’e Yaz" button thinks there are 0 rows.
+if (!Array.isArray(window.stagedRows)) window.stagedRows = [];
+let stagedRows = window.stagedRows; // legacy compat: keep name but point to the shared array
 let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
