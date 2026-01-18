@@ -5545,7 +5545,7 @@ async function writeStagedToSheet(){
 
   // Normalize payload to guarantee Kuaför is sent
   const payloadRows = rows.map(r => {
-    const kuafor = Number((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
+    const kuafor = parseTL((r && (r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? r['grooming'])) ?? 0) || 0;
     return {
       Date: String((r && r.Date) || ''),
       Toptan: Number((r && r.Toptan) || 0) || 0,
