@@ -299,34 +299,6 @@ th, td { white-space: nowrap; }
           <ul id="kpiOthers" class="text-sm hint mt-2 space-y-1"></ul>
           <table id="kpiShareTbl"></table>
         </div>
-        <div class="glass card-3d rounded-3xl p-5">
-          <div class="flex items-center justify-between">
-            <div class="hint text-sm">Kuaför (MTD)</div>
-            <span class="soft-badge">%65 net</span>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 mt-3">
-            <div class="glass rounded-2xl p-3">
-              <div class="hint text-xs">Kuaför Ciro</div>
-              <div id="kpiKuaforMTD" class="text-lg font-semibold text-slate-800 dark:text-slate-100">–</div>
-            </div>
-            <div class="glass rounded-2xl p-3">
-              <div class="hint text-xs">Kuaför Net</div>
-              <div id="kpiKuaforNetMTD" class="text-lg font-semibold text-slate-800 dark:text-slate-100">–</div>
-              <div class="hint text-[11px]">Ciro × 0.65</div>
-            </div>
-            <div class="glass rounded-2xl p-3">
-              <div class="hint text-xs">Kuaför MoM</div>
-              <div id="kpiKuaforMoM" class="text-lg font-semibold">–</div>
-              <div id="kpiKuaforMoMNote" class="hint text-[11px]"></div>
-            </div>
-            <div class="glass rounded-2xl p-3">
-              <div class="hint text-xs">Net Pay</div>
-              <div id="kpiKuaforNetShare" class="text-lg font-semibold text-slate-800 dark:text-slate-100">–</div>
-              <div class="hint text-[11px]">Kuaför net / Toplam net</div>
-            </div>
-          </div>
-        </div>
       </div>
       <div class="glass card-3d rounded-3xl p-5 space-y-4">
         <div class="grid sm:grid-cols-2 gap-4">
@@ -1656,162 +1628,6 @@ const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const numberTL  = n => nfTL.format(Math.round(n||0));
 const numberUSD = n => nfUSD.format(Math.round(n||0));
 
-/* ================== KUAFOR KPI (MTD) ================== */
-const KUAFOR_NET_SHARE = 0.65;
-
-function toMonthKey_(iso){
-  try{
-    const s = String(iso||'').slice(0,10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
-    return s.slice(0,7); // YYYY-MM
-  }catch(_){ return ''; }
-}
-
-function maxDateISO_(rows){
-  let best = '';
-  (rows||[]).forEach(r=>{
-    const d = String((r && (r.Date||r.date||'')) || '').slice(0,10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && d > best) best = d;
-  });
-  return best;
-}
-
-function prevMonthKey_(ym){
-  // ym: YYYY-MM
-  try{
-    const y = Number(String(ym).slice(0,4));
-    const m = Number(String(ym).slice(5,7));
-    if (!y || !m) return '';
-    const d = new Date(Date.UTC(y, m-1, 1));
-    d.setUTCMonth(d.getUTCMonth() - 1);
-    const yy = d.getUTCFullYear();
-    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
-    return `${yy}-${mm}`;
-  }catch(_){ return ''; }
-}
-
-function sumFieldForMonth_(rows, field, ym){
-  let sum = 0;
-  (rows||[]).forEach(r=>{
-    const iso = String((r && (r.Date||r.date||'')) || '').slice(0,10);
-    if (!iso || toMonthKey_(iso) !== ym) return;
-    // Use parseTL if available; fallback to Number
-    let v = 0;
-    try{
-      if (typeof parseTL === 'function') v = parseTL(r[field] ?? r[String(field)] ?? 0);
-      else v = Number(r[field] ?? 0) || 0;
-    }catch(_){ v = Number(r[field] ?? 0) || 0; }
-    sum += (Number(v) || 0);
-  });
-  return sum;
-}
-
-function renderKuaforKPIs(rows){
-  try{
-    const elCiro = document.getElementById('kpiKuaforMTD');
-    const elNet  = document.getElementById('kpiKuaforNetMTD');
-    const elMoM  = document.getElementById('kpiKuaforMoM');
-    const elMoMN = document.getElementById('kpiKuaforMoMNote');
-    const elShr  = document.getElementById('kpiKuaforNetShare');
-    if (!elCiro && !elNet && !elMoM && !elShr) return;
-
-    const maxIso = maxDateISO_(rows);
-    if (!maxIso){
-      if (elCiro) elCiro.textContent = '–';
-      if (elNet)  elNet.textContent  = '–';
-      if (elMoM)  elMoM.textContent  = '–';
-      if (elShr)  elShr.textContent  = '–';
-      if (elMoMN) elMoMN.textContent = '';
-      return;
-    }
-
-    const ym = toMonthKey_(maxIso);
-    const ymPrev = prevMonthKey_(ym);
-
-    const kuaforMTD = sumFieldForMonth_(rows, 'Kuaför', ym) + sumFieldForMonth_(rows, 'Kuafor', ym) + sumFieldForMonth_(rows, 'Grooming', ym);
-    const totalMTD  = sumFieldForMonth_(rows, 'Total', ym);
-
-    const kuaforNetMTD = kuaforMTD * KUAFOR_NET_SHARE;
-
-    const kuaforPrev = ymPrev ? (
-      sumFieldForMonth_(rows, 'Kuaför', ymPrev) + sumFieldForMonth_(rows, 'Kuafor', ymPrev) + sumFieldForMonth_(rows, 'Grooming', ymPrev)
-    ) : 0;
-
-    const mom = (kuaforPrev > 0) ? ((kuaforMTD - kuaforPrev) / kuaforPrev) : 0;
-
-    // Toplam net: kuaför dışında kalan 100% + kuaförün %65'i
-    const totalNetMTD = Math.max(0, (totalMTD - kuaforMTD) + kuaforNetMTD);
-    const share = totalNetMTD > 0 ? (kuaforNetMTD / totalNetMTD) : 0;
-
-    if (elCiro) elCiro.textContent = numberTL(kuaforMTD);
-    if (elNet)  elNet.textContent  = numberTL(kuaforNetMTD);
-
-    if (elMoM){
-      const pct = mom * 100;
-      elMoM.textContent = isFinite(pct) ? `${pct>=0?'+':''}${pct.toFixed(1)}%` : '–';
-      elMoM.classList.remove('kpi-up','kpi-down');
-      elMoM.classList.add(pct>=0 ? 'kpi-up' : 'kpi-down');
-    }
-    if (elMoMN){
-      elMoMN.textContent = ymPrev ? `(${ymPrev} → ${ym})` : '';
-    }
-
-    if (elShr){
-      const pct = share * 100;
-      elShr.textContent = isFinite(pct) ? `${pct.toFixed(1)}%` : '–';
-    }
-  }catch(e){
-    console.warn('renderKuaforKPIs error', e);
-  }
-}
-
-function getAllDailyRowsForKPI_(){
-  // Prefer the deduped/merged cache if present
-  if (Array.isArray(window.mergedRowsCache) && window.mergedRowsCache.length) return window.mergedRowsCache;
-  // Else combine loaded rows + staged rows (avoid mutation)
-  const a = Array.isArray(window.loadedRows) ? window.loadedRows : [];
-  const b = Array.isArray(window.stagedRows) ? window.stagedRows : [];
-  return a.concat(b);
-}
-
-// Keep Kuaför KPIs refreshed on load and after user actions
-(function hookKuaforKPIs(){
-  try{
-    window.addEventListener('load', ()=>{
-      try{ renderKuaforKPIs(getAllDailyRowsForKPI_()); }catch(_){ }
-    });
-  }catch(_){ }
-
-  // Patch refreshAll to also refresh Kuaför KPIs
-  try{
-    const prev = window.refreshAll;
-    if (typeof prev === 'function' && !prev.__kuaforPatched){
-      const wrapped = function(){
-        const r = prev.apply(this, arguments);
-        try{ renderKuaforKPIs(getAllDailyRowsForKPI_()); }catch(_){ }
-        return r;
-      };
-      wrapped.__kuaforPatched = true;
-      window.refreshAll = wrapped;
-    }
-  }catch(_){ }
-
-  // Also refresh after adding staged rows
-  try{
-    const prevRender = window.renderStagedRows;
-    if (typeof prevRender === 'function' && !prevRender.__kuaforPatched){
-      const wrapped2 = function(){
-        const r = prevRender.apply(this, arguments);
-        try{ renderKuaforKPIs(getAllDailyRowsForKPI_()); }catch(_){ }
-        return r;
-      };
-      wrapped2.__kuaforPatched = true;
-      window.renderStagedRows = wrapped2;
-    }
-  }catch(_){ }
-})();
-/* ================== /KUAFOR KPI (MTD) ================== */
-
 
 /* ================== DAILY REPORT PARSER (CKM + Kuaför split) ================== */
 // Parse WhatsApp/daily report text, extract Kuaför (Grooming) and avoid double counting in CKM.
@@ -2056,7 +1872,6 @@ function renderStagedRows(stagedRows) {
 
     window.stagedRows.push(row);
     renderStagedRows(window.stagedRows);
-    try{ renderKuaforKPIs(getAllDailyRowsForKPI_()); }catch(_){ }
     if (info) {
       info.textContent = `Satır eklendi. (${window.stagedRows.length}) • Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
     }
