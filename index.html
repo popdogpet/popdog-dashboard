@@ -957,7 +957,7 @@ function getSheetWebAppURL(){
 
 async function fetchFundQuote(code){
   const base = getSheetWebAppURL();
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
+  if (!base || typeof base !== 'string' || !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(base)){
     throw new Error('INVALID_WEBAPP_URL');
   }
 
@@ -1254,15 +1254,36 @@ function safeText(s){
     .replace(/'/g,'&#39;');
 }
 
-function loadCsv(url){
+function loadCsv(url, timeoutMs = 30000){
   return new Promise((resolve, reject)=>{
     if (!window.Papa){ reject(new Error('PAPA_MISSING')); return; }
+
+    let completed = false;
+    const timer = setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        reject(new Error('CSV_LOAD_TIMEOUT'));
+      }
+    }, timeoutMs);
+
     Papa.parse(url, {
       download: true,
       header: true,
       skipEmptyLines: true,
-      complete: (res)=> resolve(res.data || []),
-      error: (err)=> reject(err)
+      complete: (res)=> {
+        if (!completed) {
+          completed = true;
+          clearTimeout(timer);
+          resolve(res.data || []);
+        }
+      },
+      error: (err)=> {
+        if (!completed) {
+          completed = true;
+          clearTimeout(timer);
+          reject(err);
+        }
+      }
     });
   });
 }
@@ -1693,7 +1714,10 @@ document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.conta
 /* ================== HELPERS ================== */
 const nfTL  = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
 const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-const numberTL  = n => nfTL.format(Math.round(n||0));
+const numberTL  = n => {
+  const val = Number(n);
+  return nfTL.format(isNaN(val) ? 0 : Math.round(val));
+};
 const numberUSD = n => nfUSD.format(Math.round(n||0));
 
 
@@ -1970,7 +1994,17 @@ const DEFAULT_ZEE_AWAIT = [
         car:  { total: 24, paid: 0, instTRY: 0,        remainTRY: 0,         principalTRY: 0,         monthlyRate: 0 },
         biz2: { total: 24, paid: 0, instTRY: 71452.86, remainTRY: 1714868.61, principalTRY: 1714868.61, monthlyRate: 0 }
       },
-    zeeAwait: DEFAULT_ZEE_AWAIT.slice()
+    zeeAwaitUSD: DEFAULT_ZEE_AWAIT.slice(),  // Fixed: changed from zeeAwait to zeeAwaitUSD for consistency
+    demoBank: {
+      goldGram: 169,
+      gramTRY: 0,
+      fi5Units: 565,
+      fi5UnitTRY: 0,
+      sasUnits: 114236,
+      sasUnitTRY: 0,
+      isyUnits: 2530000,
+      isyUnitTRY: 0
+    }
     };
   }
   if (typeof window.getLoansState !== 'function'){
@@ -2092,43 +2126,7 @@ function getFieldCI(row, candidates){
   return '';
 }
 
-// === Expenses'tan TRY tutarı güvenli okuma (USD ise kurla çevirir) — case-insensitive ===
-function readExpenseAmountTRY(row){
-  // 1) Doğrudan TRY kolonları
-  const TRY_KEYS = ['AmountTRY','TRY','Amount (TRY)','Tutar','Amount_Try','TRY Amount'];
-  {
-    const v = getFieldCI(row, TRY_KEYS);
-    if (v !== '') {
-      const n = parseTL(v);
-      if (n > 0) return n;
-    }
-  }
-  // 2) USD kolonlarından çeviri
-  const USD_KEYS = ['AmountUSD','USD','Amount (USD)','USD Amount'];
-  {
-    const v = getFieldCI(row, USD_KEYS);
-    if (v !== ''){
-      const usd = parseUSD(v);
-      const fx = getTryPerUsd();
-      if (usd > 0 && fx > 0) return usd * fx;
-    }
-  }
-  // 3) Tek bir generic "Amount" kolonu varsa dene
-  {
-    const v = getFieldCI(row, ['Amount']);
-    if (v !== ''){
-      const s = String(v);
-      if (/\$|USD/i.test(s)){
-        const usd = parseUSD(s);
-        const fx = getTryPerUsd();
-        if (usd > 0 && fx > 0) return usd * fx;
-      }
-      const n = parseTL(s);
-      if (n > 0) return n;
-    }
-  }
-  return 0;
-}
+// === REMOVED: Duplicate function definition (kept the most comprehensive version at line ~4634) ===
 
 // === Satırdan subcategory metnini okuma (case-insensitive) ===
 function readExpenseSubcat(row){
@@ -2514,13 +2512,18 @@ async function refreshZeeAwaitFromExpenses(){
 document.addEventListener('DOMContentLoaded', async function(){
   // Ensure fresh expenses before both passes
   try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
-  try{ await refreshLoansFromExpenses(); }catch(_){}
-  // Clear again in case the prior pass populated cache
+
+  // Run sequential operations that depend on cache clear
+  try{ await refreshLoansFromExpenses(); }catch(e){ console.warn('refreshLoansFromExpenses error:', e); }
   try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
-  try{ await refreshZeeAwaitFromExpenses(); }catch(_){}
-  try{ await renderThisMonthExpenses(); }catch(_){}
-  try{ await renderThisMonthExpensesByCategory(); }catch(_){}
-  try{ await refreshGoldFromScript(); }catch(_){}
+  try{ await refreshZeeAwaitFromExpenses(); }catch(e){ console.warn('refreshZeeAwaitFromExpenses error:', e); }
+
+  // Run independent operations in parallel
+  await Promise.allSettled([
+    (async () => { try{ await renderThisMonthExpenses(); }catch(e){ console.warn('renderThisMonthExpenses error:', e); } })(),
+    (async () => { try{ await renderThisMonthExpensesByCategory(); }catch(e){ console.warn('renderThisMonthExpensesByCategory error:', e); } })(),
+    (async () => { try{ await refreshGoldFromScript(); }catch(e){ console.warn('refreshGoldFromScript error:', e); } })()
+  ]);
 }, { once:true });
 
 /* Re-run Zee + Loans refresh after "Gider Ekle" form submits (best-effort) */
@@ -2609,34 +2612,7 @@ let fxRateUSDPerTRY = null;
 let fxDate = null;
 let mergedRowsCache = [];
 
-// Deduplicate daily rows by Date; keep the row with higher Total or more non-zero fields
-function dedupeDailyRows(rows){
-  try{
-    const fields = ['Toptan','Online','CKM','CKM Nakit','Trendyol','Hepsiburada'];
-    const score = (r)=>{
-      let nonzero = 0, total = 0;
-      for (const k of fields){
-        const v = +r[k] || 0;
-        if (v) nonzero++;
-        total += v;
-      }
-      return { nonzero, total };
-    };
-    const map = new Map();
-    (rows||[]).forEach(r=>{
-      if(!r || !r.Date) return;
-      const cur = map.get(r.Date);
-      if(!cur){ map.set(r.Date, r); return; }
-      const a = score(cur), b = score(r);
-      const keepNew = (b.total > a.total) || (b.total === a.total && b.nonzero > a.nonzero);
-      map.set(r.Date, keepNew ? r : cur);
-    });
-    return Array.from(map.values()).sort((a,b)=> (a.Date<b.Date?-1:(a.Date>b.Date?1:0)));
-  }catch(e){
-    // If anything goes wrong, fall back to original rows
-    return Array.isArray(rows) ? rows : [];
-  }
-}
+// === REMOVED: Duplicate function definition (kept the version at line ~5231) ===
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
@@ -2916,20 +2892,21 @@ function dateToISO(d){
         throw new Error(`Server • ${json.error || json.message || 'unknown error'}`);
       }
       if (json && (json.error || json.message)){
-  try{
-    localStorage.removeItem('popdog_expenses_cache');
-    if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
-    if (typeof renderLoansBlock === 'function') renderLoansBlock();
-  }catch(_){}
-  return String(json.message || json.error);
-}
-try{
-  localStorage.removeItem('popdog_expenses_cache');
-  if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
-  if (typeof renderLoansBlock === 'function') renderLoansBlock();
-} catch(_){}
-return 'Sheet güncellendi';
-}catch(e){
+        try{
+          localStorage.removeItem('popdog_expenses_cache');
+          if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+          if (typeof renderLoansBlock === 'function') renderLoansBlock();
+        }catch(_){}
+        return String(json.message || json.error);
+      }
+      // Success case - update cache and return
+      try{
+        localStorage.removeItem('popdog_expenses_cache');
+        if (subcat) bumpLoansPaidIfMatches(subcat, amountTRY);
+        if (typeof renderLoansBlock === 'function') renderLoansBlock();
+      } catch(_){}
+      return 'Sheet güncellendi';
+    }catch(e){
       const s = String(e && e.message || '');
       if (/UNKNOWN_ACTION|unknown\s*action|no\s*such\s*action/i.test(s)) continue;
       // network or other errors → bubble up
@@ -3814,7 +3791,7 @@ function renderStockBlock(){
   });
 
   // 3) 90+ gün elde olanlar (₺ maliyet bazında en büyük 10)
-  const agedList = (invRows||[]).map(r=>{
+  const agedList = (invRows||[]).filter(r => r != null).map(r=>{
     const sku = String(r['SKU']||'').trim();
     const units = parseTL(r['TotalUnits']||0);
     const valCost = parseTL(r['Value@Cost']||r['Value @Cost']||0);
@@ -4587,50 +4564,9 @@ function getExpenseISODate(r){
   }catch(e){ return ''; }
 }
 
-function expenseCats(r){
-  const sub  = ((r && (r.FinalSubcategory || r.Subcategory || r.subcategory)) || '').toString().toLowerCase();
-  const cat  = ((r && (r.Category || r.category)) || '').toString().toLowerCase();
+// === REMOVED: Duplicate function definition (kept the most comprehensive version at line ~4759) ===
 
-  // --- HARD OVERRIDE: Zee.Dog görünmeli ---
-  if (sub.includes('zee')) return { main: 'Zee.Dog', sub: 'Zee.Dog' };
-
-  if (cat.includes('mal alımı') || cat.includes('cogs') || cat.includes('inventory') || cat.includes('stock')){
-    return { main: 'Mal Alımı', sub: (r.Subcategory || r.FinalSubcategory || 'Mal Alımı') };
-  }
-  if (cat.includes('kira')) return { main: 'Kira', sub: r.Subcategory || 'Kira' };
-  if (cat.includes('maaş') || cat.includes('personel') || cat.includes('sgk')) return { main: 'Personel', sub: r.Subcategory || 'Personel' };
-  if (cat.includes('pazarlama') || cat.includes('reklam') || cat.includes('ads')) return { main: 'Pazarlama', sub: r.Subcategory || 'Pazarlama' };
-  if (cat.includes('lojistik') || cat.includes('kargo') || cat.includes('shipping')) return { main: 'Lojistik', sub: r.Subcategory || 'Lojistik' };
-  if (cat.includes('genel') || cat.includes('g&a') || cat.includes('ofis')) return { main: 'Genel Gider', sub: r.Subcategory || 'Genel' };
-
-  const main = (r.Category || r.Subcategory || r.FinalSubcategory || 'Diğer').toString();
-  return { main, sub: r.Subcategory || r.FinalSubcategory || main };
-}
-
-function readExpenseAmountTRY(r){
-  try{
-    const cur = (r.Currency || r.currency || '').toString().trim().toUpperCase();
-    const amtRaw = r.Amount ?? r.amount ?? r['Tutar'] ?? r['TRY'] ?? 0;
-    const amtNum = (cur === 'USD') ? parseUSD(amtRaw) : parseTL(amtRaw);
-    if (!amtNum) return 0;
-
-    if (cur === 'USD'){
-      let tryPerUsd = 0;
-      tryPerUsd = getTryPerUsd();
-      if (!tryPerUsd && typeof fxRateUSDPerTRY === 'number' && fxRateUSDPerTRY > 0){
-        tryPerUsd = 1 / fxRateUSDPerTRY;
-      }
-      if (!tryPerUsd){
-        tryPerUsd = deriveTryPerUsdFromKPI() || 0;
-      }
-      if (!tryPerUsd) return 0; // FX yoksa şimdilik 0; kur gelince tablolar güncellenecek
-      return amtNum * tryPerUsd;
-    }
-    return parseTL(amtNum);
-  }catch(e){
-    return 0;
-  }
-}
+// === REMOVED: Duplicate function definition (kept the most comprehensive version below) ===
 function readExpenseAmountTRY(r){
   try{
     if(!r) return 0;
@@ -5035,8 +4971,10 @@ function renderMainExpenseTable(){
 }
 // Expenses charts removed (stability + simpler maintenance)
 function drawExpensesCharts(){
+  // Charts removed - placeholder function for compatibility
   if (!window.Chart) { return; }
- return; }
+  return;
+}
 
 /* ================== Expenses: Load & Refresh ================== */
 function refreshExpenses(){
@@ -5176,7 +5114,7 @@ function parseDailyText(txt){
     if (low.startsWith('hepsiburada')){ hb = extractValue(line); continue; }
   }
 
-  const ckm = toplam || (kk + qnb + nakit);
+  const ckm = (toplam > 0) ? toplam : (kk + qnb + nakit);
   return {
     Date: dateISO || '',
     Toptan: toptan || 0,
@@ -5273,8 +5211,21 @@ document.getElementById('downloadBtn').onclick = ()=>{
 
 /* ================== FX (TRY→USD) ================== */
 async function fetchFX(){
+  const fetchWithTimeout = async (url, timeout = 10000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      throw error;
+    }
+  };
+
   try{
-    const r = await fetch('https://open.er-api.com/v6/latest/TRY');
+    const r = await fetchWithTimeout('https://open.er-api.com/v6/latest/TRY');
     const j = await r.json();
     if(j && j.rates && j.rates.USD){
       fxRateUSDPerTRY = j.rates.USD;
@@ -5288,7 +5239,7 @@ return;
     }
   }catch(e){}
   try{
-    const r2 = await fetch('https://api.exchangerate.host/latest?base=TRY&symbols=USD');
+    const r2 = await fetchWithTimeout('https://api.exchangerate.host/latest?base=TRY&symbols=USD');
     const j2 = await r2.json();
     if(j2 && j2.rates && j2.rates.USD){
       fxRateUSDPerTRY = j2.rates.USD;
@@ -5444,7 +5395,14 @@ try {
         } catch(e){ console.warn('Expenses load/render error', e); }
       })();
 
-      await Promise.allSettled([pRev, pInv, pOrd, pExp]);
+      const results = await Promise.allSettled([pRev, pInv, pOrd, pExp]);
+      // Log any failed promises for debugging
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const names = ['Revenue', 'Inventory', 'Orders', 'Expenses'];
+          console.warn(`${names[index]} load failed:`, result.reason);
+        }
+      });
 
       // Derive FX once (if needed) after first paints
       try {
