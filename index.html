@@ -2537,9 +2537,9 @@ async function refreshZeeAwaitFromExpenses(){
       if (currency === 'USD') {
         amtUSD = amtTRY; // AmountTRY aslında USD ise
       } else {
-        // TRY ise USD'ye çevir
+        // TRY ise USD'ye çevir (getTryPerUsd = TRY/USD oranı, yani 1 TRY kaç USD)
         const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
-        amtUSD = fx > 0 ? (amtTRY / fx) : 0;
+        amtUSD = fx > 0 ? (amtTRY * fx) : 0;
       }
 
       // Sanity check: USD tutarı çok büyükse (>$500k), muhtemelen TRY yanlışlıkla USD olarak algılanmış
@@ -3522,9 +3522,9 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     // ID bulundu - bu ödemeyi ekle
     st.zeeAwaitUSD.forEach(z => {
       if (z.id.toUpperCase() === idFromNote) {
-        // Ödeme tutarını USD'ye çevir
+        // Ödeme tutarını USD'ye çevir (tryPerUsd = TRY/USD oranı)
         const tpu = tryPerUsd();
-        const paymentUsd = tpu > 0 ? (amountTRY / tpu) : 0;
+        const paymentUsd = tpu > 0 ? (amountTRY * tpu) : 0;
 
         // Ödenen miktarı güncelle
         z.paidUsd = Number(z.paidUsd || 0) + paymentUsd;
@@ -3546,7 +3546,7 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     // ID yok - tutar eşleşmesi dene (tam ödeme varsayımı)
     const usdNote = extractUSDFromNote(note);
     const tpu = tryPerUsd();
-    const usdFromTry = tpu ? (amountTRY / tpu) : 0;
+    const usdFromTry = tpu ? (amountTRY * tpu) : 0;
     const candidates = st.zeeAwaitUSD.filter(z => z.status !== 'paid');
     const matchBy = (val)=> candidates.find(z => Math.abs(z.usd - val) <= Math.max(5, z.usd*0.02)); // ±2% veya min $5
     let hit = null;
