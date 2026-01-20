@@ -498,7 +498,7 @@ th, td { white-space: nowrap; }
     </section>
 
     <!-- Charts -->
- <!-- Ciro (Grafiksiz) -->
+<!-- Ciro (Grafiksiz) -->
 <div class="grid grid-cols-1 gap-6" data-page="revenue">
   <div class="glass card-3d rounded-3xl p-5">
     <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
@@ -518,6 +518,14 @@ th, td { white-space: nowrap; }
       <div class="text-slate-700 dark:text-slate-200">Kanal Bazlı Aylık Ciro</div>
     </div>
     <div id="barStackTblWrap"></div>
+  </div>
+
+  <div class="glass card-3d rounded-3xl p-5">
+    <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+      <div class="text-slate-700 dark:text-slate-200">Kuaför Aylık Toplam</div>
+      <div class="hint text-xs">(Ciro sheet’teki “Kuaför” sütunundan)</div>
+    </div>
+    <div id="groomMonthlyTblWrap"></div>
   </div>
 </div>
 
@@ -1292,6 +1300,8 @@ async function renderRevenueTables(){
   // Default placeholder
   if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
   if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Yükleniyor…</div>';
+  const wrapGroom0 = document.getElementById('groomMonthlyTblWrap');
+  if (wrapGroom0) wrapGroom0.innerHTML = '<div class="hint text-sm">Yükleniyor…</div>';
 
   let rows = [];
   try{
@@ -1299,6 +1309,8 @@ async function renderRevenueTables(){
   }catch(e){
     if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro tablosu yüklenemedi.</div>';
     if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal tablosu yüklenemedi.</div>';
+    const wrapGroomE = document.getElementById('groomMonthlyTblWrap');
+    if (wrapGroomE) wrapGroomE.innerHTML = '<div class="hint text-sm">Kuaför tablosu yüklenemedi.</div>';
     console.warn('renderRevenueTables load error', e);
     return;
   }
@@ -1351,6 +1363,8 @@ async function renderRevenueTables(){
   if (!years.length){
     if (wrapTotal) wrapTotal.innerHTML = '<div class="hint text-sm">Ciro verisi bulunamadı.</div>';
     if (wrapCh)    wrapCh.innerHTML    = '<div class="hint text-sm">Kanal verisi bulunamadı.</div>';
+    const wrapGroomN = document.getElementById('groomMonthlyTblWrap');
+    if (wrapGroomN) wrapGroomN.innerHTML = '<div class="hint text-sm">Kuaför verisi bulunamadı.</div>';
     return;
   }
 
@@ -1489,6 +1503,60 @@ async function renderRevenueTables(){
 
     html += '</tbody></table></div>';
     wrapCh.innerHTML = html;
+  }
+
+  // === Grooming (Kuaför) monthly totals + MoM ===
+  const wrapGroom = document.getElementById('groomMonthlyTblWrap');
+  if (wrapGroom){
+    let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
+      + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
+      + '<th class="text-left py-2 pr-4">Ay</th>'
+      + '<th class="text-right py-2 pr-4">Kuaför</th>'
+      + '<th class="text-right py-2 pr-0">MoM</th>'
+      + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
+
+    yearsToRender.forEach((y)=>{
+      const mMap = byYear.get(y);
+      const months = Array.from(mMap.keys()).sort();
+
+      html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-semibold" colspan="3">${safeText(String(y))}</td>`
+        + `</tr>`;
+
+      let prev = 0;
+      let yearSum = 0;
+
+      months.forEach(mk=>{
+        const o = mMap.get(mk);
+        const v = Number((o && o.channels && o.channels.kuafor) || 0);
+        yearSum += v;
+
+        let mom = '–';
+        let cls = '';
+        if (prev > 0){
+          const pct = ((v - prev) / prev) * 100;
+          mom = fmtPct(pct);
+          cls = pct >= 0 ? 'kpi-up' : 'kpi-down';
+        }
+
+        html += `<tr>`
+          + `<td class="py-1 pr-4">${safeText(mk)}</td>`
+          + `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`
+          + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+          + `</tr>`;
+
+        prev = v;
+      });
+
+      html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
+        + `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Kuaför Toplam</td>`
+        + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(yearSum)}</td>`
+        + `<td class="py-2 pr-0"></td>`
+        + `</tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    wrapGroom.innerHTML = html;
   }
 }
 
