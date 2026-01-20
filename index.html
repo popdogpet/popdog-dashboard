@@ -2036,9 +2036,20 @@ const DEFAULT_ZEE_AWAIT = [
         if (!s) return;
         const amt = Number(amountTRY || 0);
         const st = getLoansState();
-        const isBiz = /ticari|işletme|taksitli.*ticari/.test(s);
+
+        // Check for "Kredi 2" first (most specific)
+        const isBiz2 = /kredi\s*2|kredi\s*ii|ticari\s*2|ticari\s*ii|işletme\s*2/.test(s);
+        // Then check for regular "ticari" (but not if it's Kredi 2)
+        const isBiz = !isBiz2 && /ticari|işletme|taksitli.*ticari|kredi(?!\s*2)/.test(s);
         const isCar = /araç|oto|otomobil|taşıt/.test(s);
-        if (isBiz){
+
+        if (isBiz2){
+          // Handle Taksitli Ticari Kredi 2
+          if (!st.loans.biz2) st.loans.biz2 = { total: 24, paid: 0, instTRY: 71452.86, remainTRY: 1714868.61, principalTRY: 1714868.61, monthlyRate: 0 };
+          st.loans.biz2.paid = Math.max(0, Number(st.loans.biz2.paid || 0)) + 1;
+          if (amt > 0) st.loans.biz2.remainTRY = Math.max(0, Number(st.loans.biz2.remainTRY || 0) - amt);
+          setLoansState(st);
+        } else if (isBiz){
           st.loans.biz.paid = Math.max(0, Number(st.loans.biz.paid || 0)) + 1;
           if (amt > 0) st.loans.biz.remainTRY = Math.max(0, Number(st.loans.biz.remainTRY || 0) - amt);
           setLoansState(st);
@@ -2348,6 +2359,10 @@ async function refreshLoansFromExpenses(){
     const BIZ_TARGET = Number(st?.loans?.biz?.instTRY) > 0 ? Number(st.loans.biz.instTRY) : 143_155;
     const BIZ_EPS    = 500; // ±500 TL tolerans
 
+    // Kredi 2 (Taksitli Ticari Kredi 2)
+    const BIZ2_TARGET = Number(st?.loans?.biz2?.instTRY) > 0 ? Number(st.loans.biz2.instTRY) : 71_453;
+    const BIZ2_EPS    = 500; // ±500 TL tolerans
+
     // Araç ipuçları
     const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
     const CAR_TARGET  = Number(st?.loans?.car?.instTRY) > 0 ? Number(st.loans.car.instTRY) : 30_000;
@@ -2355,6 +2370,7 @@ async function refreshLoansFromExpenses(){
 
     // Distinct month sets (YYYY-MM)
     const bizMonths = new Set();
+    const biz2Months = new Set();
     const carMonths = new Set();
 
     // Yardımcı: YYYY-MM anahtarı
@@ -2385,17 +2401,24 @@ async function refreshLoansFromExpenses(){
       // --- Araç kredisi ayıklama ---
       const isCarHint = CAR_HINT_RE.test(sub) || CAR_HINT_RE.test(finSub);
 
+      // --- Kredi 2 ayıklama ---
+      const isKredi2Hint = /kredi\s*2|kredi\s*ii|ticari\s*2/.test(sub) || /kredi\s*2|kredi\s*ii|ticari\s*2/.test(finSub);
+
       // Yalnızca "Kredi" alt kategorisini say (tam eşleşme)
       const isSubKredi = sub === 'kredi' || finSub === 'kredi';
 
-      // === İşletme/Ticari kredi ===
-      if (isSubKredi && !isCarHint){
+      // === Kredi 2 (check first, most specific) ===
+      if (isKredi2Hint){
+        const near = Math.abs(amt - BIZ2_TARGET) <= BIZ2_EPS;
+        if (near) biz2Months.add(monthK);
+      }
+      // === İşletme/Ticari kredi (regular) ===
+      else if (isSubKredi && !isCarHint){
         const near = Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
         if (near) bizMonths.add(monthK);
       }
-
       // === Araç kredisi ===
-      if (isSubKredi && isCarHint){
+      else if (isSubKredi && isCarHint){
         const nearCar = Math.abs(amt - CAR_TARGET) <= CAR_EPS;
         if (nearCar) carMonths.add(monthK);
       }
@@ -2403,6 +2426,7 @@ async function refreshLoansFromExpenses(){
 
     // AY bazında tekil sayım
     const bizPaid = bizMonths.size;
+    const biz2Paid = biz2Months.size;
     const carPaid = carMonths.size;
 
     // State'i güncelle
@@ -2414,12 +2438,15 @@ async function refreshLoansFromExpenses(){
       st.loans.biz2 || {}
     );
     st.loans.biz.paid = bizPaid;
+    st.loans.biz2.paid = biz2Paid;
     st.loans.car.paid = carPaid;
 
     // Kalan toplamı kabaca taksit* (kalan adet) olarak güncelle (opsiyonel)
     const bizRemainCnt = Math.max(0, (st.loans.biz.total||0) - bizPaid);
+    const biz2RemainCnt = Math.max(0, (st.loans.biz2.total||0) - biz2Paid);
     const carRemainCnt = Math.max(0, (st.loans.car.total||0) - carPaid);
     if (st.loans.biz.instTRY>0) st.loans.biz.remainTRY = bizRemainCnt * Number(st.loans.biz.instTRY||0);
+    if (st.loans.biz2.instTRY>0) st.loans.biz2.remainTRY = biz2RemainCnt * Number(st.loans.biz2.instTRY||0);
     if (st.loans.car.instTRY>0) st.loans.car.remainTRY = carRemainCnt * Number(st.loans.car.instTRY||0);
 
     // Kaydet + UI
