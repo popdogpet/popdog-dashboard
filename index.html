@@ -2,7 +2,10 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Pop Dog | 2025 CFO Dashboard (Sheet + WhatsApp + Weekly)</title>
   <!-- === Versioned cache reset (iOS/Safari safe) ===
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
@@ -161,6 +164,71 @@
 .dark .chip-ios .val{ color:#cbd5e1; }
 th, td { white-space: nowrap; }
 
+/* === MOBILE OPTIMIZATIONS === */
+/* Touch-friendly minimum sizes */
+@media (max-width: 768px) {
+  /* Buttons and interactive elements */
+  button, .btn, input[type="submit"], input[type="button"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+
+  /* Input fields */
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS zoom */
+    padding: 0.75rem !important;
+  }
+
+  /* Reduce padding on cards */
+  .glass, .card-glass-pro {
+    padding: 0.75rem !important;
+  }
+
+  /* Smaller font for compact tables on mobile */
+  .sales-turnover table th,
+  .sales-turnover table td,
+  #stockBlock table th,
+  #stockBlock table td {
+    font-size: 9px !important;
+  }
+
+  /* Badge sizes */
+  .badge, .badge-paid, .badge-wait, .badge-partial {
+    font-size: 11px !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  /* KPI cards stack better on mobile */
+  .target-card .ttl {
+    font-size: 0.75rem !important;
+  }
+  .target-card .val {
+    font-size: 0.85rem !important;
+  }
+
+  /* Chips more readable on mobile */
+  .chip-ios .label,
+  .chip-ios .val {
+    font-size: 0.85rem !important;
+  }
+
+  /* Table headers more visible */
+  thead th {
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* Better spacing for mobile */
+  .mt-5 { margin-top: 1.5rem !important; }
+  .mt-4 { margin-top: 1rem !important; }
+  .gap-4 { gap: 0.75rem !important; }
+}
 
 /* === Compact tables (stock + sales/turnover) — ultra compact === */
 .sales-turnover table th,
@@ -260,63 +328,63 @@ th, td { white-space: nowrap; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
-  <div class="max-w-7xl mx-auto p-6 space-y-6">
+  <div class="max-w-7xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
 
     <!-- Header -->
     <header class="flex items-center justify-between gap-3 flex-wrap">
       <div>
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">
           Pop Dog | 2025 CFO Dashboard
         </h1>
-        <p class="hint">Google Sheet + CSV + WhatsApp yapıştır · Haftalık mini kartlar · Hedefler (YTD ortalama)</p>
+        <p class="hint text-xs sm:text-sm">Google Sheet + CSV + WhatsApp yapıştır · Haftalık mini kartlar · Hedefler (YTD ortalama)</p>
       </div>
       <!-- Top Nav: Pages -->
       <div class="w-full mt-2 flex items-center gap-2 flex-wrap">
-        <button id="navSummary" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Özet</button>
-        <button id="navRevenue" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Ciro</button>
-        <button id="navExpenses" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Giderler</button>
-        <button id="navStock" class="glass card-3d px-3 py-1.5 rounded-xl text-sm">Stok</button>
+        <button id="navSummary" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Özet</button>
+        <button id="navRevenue" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Ciro</button>
+        <button id="navExpenses" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Giderler</button>
+        <button id="navStock" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Stok</button>
       </div>
-      <div class="flex items-center gap-3">
-  <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-slate-700 dark:text-slate-200">🌗 Tema</button>
-  <button id="refreshBtn" class="glass card-3d px-4 py-2 rounded-2xl">Yenile</button>
+      <div class="flex items-center gap-2 flex-wrap">
+  <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm text-slate-700 dark:text-slate-200">🌗 Tema</button>
+  <button id="refreshBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm">Yenile</button>
   <input id="fileInput" type="file" accept=".csv" class="hidden">
-  <button id="uploadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV Yükle</button>
-  <button id="downloadBtn" class="glass card-3d px-4 py-2 rounded-2xl">CSV İndir</button>
-  <button id="writeSheetBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Kaydet</button>
+  <button id="uploadBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">CSV Yükle</button>
+  <button id="downloadBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">CSV İndir</button>
+  <button id="writeSheetBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">Sheet'e Kaydet</button>
 </div>
     </header>
 
 
 
     <!-- KPIs + Alerts -->
-    <div class="grid md:grid-cols-2 gap-4 items-start" data-page="summary">
-      <div class="grid gap-4">
-        <div class="glass card-3d rounded-3xl p-5">
-          <div class="hint text-sm">Toplam Ciro (YTD)</div>
-          <div id="kpiYTD" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
-          <div id="kpiYTD_USD" class="text-sm hint">≈ – USD</div>
+    <div class="grid md:grid-cols-2 gap-3 sm:gap-4 items-start" data-page="summary">
+      <div class="grid gap-3 sm:gap-4">
+        <div class="glass card-3d rounded-3xl p-4 sm:p-5">
+          <div class="hint text-xs sm:text-sm">Toplam Ciro (YTD)</div>
+          <div id="kpiYTD" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
+          <div id="kpiYTD_USD" class="text-xs sm:text-sm hint">≈ – USD</div>
           <div id="kpiYTD_YoY" class="text-xs hint mt-1"></div>
           <div id="fxNote" class="text-xs hint mt-1"></div>
         </div>
-        <div class="glass card-3d rounded-3xl p-5">
-          <div class="hint text-sm">En Büyük Kanal</div>
-          <div id="kpiTop" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
-          <ul id="kpiOthers" class="text-sm hint mt-2 space-y-1"></ul>
+        <div class="glass card-3d rounded-3xl p-4 sm:p-5">
+          <div class="hint text-xs sm:text-sm">En Büyük Kanal</div>
+          <div id="kpiTop" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
+          <ul id="kpiOthers" class="text-xs sm:text-sm hint mt-2 space-y-1"></ul>
           <table id="kpiShareTbl"></table>
         </div>
       </div>
-      <div class="glass card-3d rounded-3xl p-5 space-y-4">
-        <div class="grid sm:grid-cols-2 gap-4">
-          <div class="glass rounded-2xl p-4">
-            <div class="hint text-sm">Stok Değeri (Maliyet)</div>
-            <div id="kpiInvCost" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
+      <div class="glass card-3d rounded-3xl p-4 sm:p-5 space-y-3 sm:space-y-4">
+        <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+          <div class="glass rounded-2xl p-3 sm:p-4">
+            <div class="hint text-xs sm:text-sm">Stok Değeri (Maliyet)</div>
+            <div id="kpiInvCost" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvCost_USD" class="text-xs hint mt-0.5">≈ – USD</div>
             <div class="hint text-xs mt-2">Vergi + Navlun dahil (+%65)</div>
             <div id="kpiInvCost_65" class="text-sm font-medium text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvCost_65_USD" class="text-xs hint mt-0.5">≈ – USD</div>
           </div>
-          <div class="glass rounded-2xl p-4">
+          <div class="glass rounded-2xl p-3 sm:p-4">
             <div class="hint text-sm">Stok Değeri (Satış)</div>
             <div id="kpiInvPrice" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvPrice_USD" class="text-xs hint mt-0.5">≈ – USD</div>
@@ -341,22 +409,22 @@ th, td { white-space: nowrap; }
     </div>
 
     <!-- Haftalık Mini Kartlar -->
-    <section class="glass card-3d rounded-3xl p-5" data-page="summary">
-      <div class="flex items-center justify-between gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium flex items-center gap-3">
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="summary">
+      <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
           Haftalık Görünüm
-          <span id="weekLabel" class="badge"></span>
+          <span id="weekLabel" class="badge text-xs"></span>
         </div>
         <div class="flex items-center gap-2">
-          <button id="weekPrev" class="glass card-3d px-3 py-1 rounded-xl">◀︎</button>
-          <button id="weekNext" class="glass card-3d px-3 py-1 rounded-xl">▶︎</button>
+          <button id="weekPrev" class="glass card-3d px-3 py-2 rounded-xl text-sm">◀︎</button>
+          <button id="weekNext" class="glass card-3d px-3 py-2 rounded-xl text-sm">▶︎</button>
         </div>
       </div>
-      <div id="weekCards" class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3"></div>
+      <div id="weekCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-3"></div>
       <div id="weekWoW" class="hint text-xs mt-2"></div>
-      <div class="mt-4">
+      <div class="mt-3 sm:mt-4">
         <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Son 7 Gün Özeti</div>
-        <div id="last7Wrap" class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-2"></div>
+        <div id="last7Wrap" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-2"></div>
         <div id="last7Note" class="hint text-xs mt-1"></div>
       </div>
     </section>
@@ -577,16 +645,16 @@ th, td { white-space: nowrap; }
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
-      <div class="glass card-3d card-glass-pro rounded-2xl p-4 mt-4" data-page="expenses">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-slate-700 dark:text-slate-200 text-lg font-medium flex items-center gap-2">
+      <div class="glass card-3d card-glass-pro rounded-2xl p-3 sm:p-4 mt-4" data-page="expenses">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2">
             <span aria-hidden="true">🧾</span>
             Aylık Gider Ekle
           </div>
-          <span class="soft-badge">Veri: expenses_master</span>
+          <span class="soft-badge text-xs">Veri: expenses_master</span>
         </div>
 
-        <div class="grid sm:grid-cols-4 gap-3 items-end">
+        <div class="grid sm:grid-cols-4 gap-2 sm:gap-3 items-end">
           <div>
             <label class="hint text-xs block mb-1">Tarih</label>
             <input id="expDate" type="date"
