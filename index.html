@@ -2530,12 +2530,14 @@ async function refreshZeeAwaitFromExpenses(){
       const amtTRY = Number(getFieldCI(r, AMT_KEYS) || 0);
       if (amtTRY <= 0) continue;
 
-      const currency = String(getFieldCI(r, CURR_KEYS) || 'TRY').toUpperCase();
+      // Zee.Dog ödemeleri için varsayılan para birimi USD (Currency sütunu yoksa veya boşsa)
+      const currencyField = getFieldCI(r, CURR_KEYS);
+      const currency = currencyField ? String(currencyField).toUpperCase() : 'USD';
 
       // USD'ye çevir
       let amtUSD = 0;
       if (currency === 'USD') {
-        amtUSD = amtTRY; // AmountTRY aslında USD ise
+        amtUSD = amtTRY; // AmountTRY aslında USD ise (sütun adı AmountTRY ama değer USD)
       } else {
         // TRY ise USD'ye çevir (getTryPerUsd = TRY/USD oranı, yani 1 TRY kaç USD)
         const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
@@ -3522,9 +3524,9 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     // ID bulundu - bu ödemeyi ekle
     st.zeeAwaitUSD.forEach(z => {
       if (z.id.toUpperCase() === idFromNote) {
-        // Ödeme tutarını USD'ye çevir (tryPerUsd = TRY/USD oranı)
-        const tpu = tryPerUsd();
-        const paymentUsd = tpu > 0 ? (amountTRY * tpu) : 0;
+        // Zee.Dog ödemeleri (YK# ID'li) varsayılan olarak USD cinsindendir
+        // amountTRY parametresi yanıltıcı isimde ama Zee.Dog için USD değeridir
+        const paymentUsd = amountTRY;
 
         // Ödenen miktarı güncelle
         z.paidUsd = Number(z.paidUsd || 0) + paymentUsd;
@@ -3544,14 +3546,14 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     });
   } else {
     // ID yok - tutar eşleşmesi dene (tam ödeme varsayımı)
+    // Not: Zee.Dog fonksiyonuna girildiğine göre, amountTRY aslında USD'dir
     const usdNote = extractUSDFromNote(note);
-    const tpu = tryPerUsd();
-    const usdFromTry = tpu ? (amountTRY * tpu) : 0;
+    const usdAmount = amountTRY; // Zee.Dog için varsayılan USD
     const candidates = st.zeeAwaitUSD.filter(z => z.status !== 'paid');
     const matchBy = (val)=> candidates.find(z => Math.abs(z.usd - val) <= Math.max(5, z.usd*0.02)); // ±2% veya min $5
     let hit = null;
     if (usdNote) hit = matchBy(usdNote);
-    if (!hit && usdFromTry) hit = matchBy(usdFromTry);
+    if (!hit && usdAmount) hit = matchBy(usdAmount);
     if (hit){
       hit.paidUsd = Number(hit.usd || 0);
       hit.remainingUsd = 0;
