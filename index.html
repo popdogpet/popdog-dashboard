@@ -2542,6 +2542,12 @@ async function refreshZeeAwaitFromExpenses(){
         amtUSD = fx > 0 ? (amtTRY / fx) : 0;
       }
 
+      // Sanity check: USD tutarı çok büyükse (>$500k), muhtemelen TRY yanlışlıkla USD olarak algılanmış
+      if (amtUSD > 500000) {
+        console.warn(`[Zee.Dog] Şüpheli yüksek ödeme tutarı: ${id} için $${amtUSD.toFixed(2)} (kaynak: ₺${amtTRY}, currency: ${currency}). Bu ödeme atlandı.`);
+        continue;
+      }
+
       // Bu ID için toplama ekle
       const current = paymentsByID.get(id) || 0;
       paymentsByID.set(id, current + amtUSD);
