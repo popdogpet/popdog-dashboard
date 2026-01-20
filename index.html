@@ -88,6 +88,12 @@
       border:1px solid #16a34a33;
       padding:.15rem .45rem; border-radius:999px; font-size:10px;
     }
+    .badge-partial{
+      background: #f9731633;
+      color:#f97316;
+      border:1px solid #f9731666;
+      padding:.15rem .45rem; border-radius:999px; font-size:10px;
+    }
     .badge-wait{
       background:#64748b1a; color:#64748b; border:1px solid #64748b33;
       padding:.15rem .45rem; border-radius:999px; font-size:10px;
@@ -422,15 +428,16 @@ th, td { white-space: nowrap; }
       <div class="mt-5 rounded-2xl p-4 card-glass-pro">
         <div class="flex items-center justify-between">
           <div class="font-medium">Zee.Dog Bekleyen Ödemeler</div>
-          <div class="hint text-xs">USD → TRY çeviri için KPI’dan türetilen kur kullanılır</div>
+          <div class="hint text-xs">USD → TRY çeviri için KPI'dan türetilen kur kullanılır</div>
         </div>
         <div class="overflow-auto mt-2">
           <table class="min-w-full text-sm">
             <thead class="text-slate-600 dark:text-slate-300">
               <tr>
                 <th class="text-left py-1 pr-3">ID</th>
-                <th class="text-right py-1 pr-3">Tutar (USD)</th>
-                <th class="text-right py-1 pr-3">≈ TRY</th>
+                <th class="text-right py-1 pr-3">Toplam (USD)</th>
+                <th class="text-right py-1 pr-3">Ödenen (USD)</th>
+                <th class="text-right py-1 pr-3">Kalan (USD)</th>
                 <th class="text-left py-1 pr-0">Durum</th>
               </tr>
             </thead>
@@ -1978,13 +1985,13 @@ window.getStagedDailyRows = () => (Array.isArray(window.stagedRows) ? window.sta
 /* ================== LOANS STATE HELPERS ================== */
 // Zee.Dog varsayılan bekleyen ödemeler (USD)
 const DEFAULT_ZEE_AWAIT = [
-  { id:'YK#033',   usd:4626.02, status:'waiting' },
-  { id:'YK#034',   usd:39425.33, status:'waiting' },
-  { id:'YK#034.1', usd:11827.00, status:'waiting' },
-  { id:'YK#034.2', usd:27597.00, status:'waiting' },
-  { id:'YK#035',   usd:37589.19, status:'waiting' },
-  { id:'YK#035.1', usd:11276.76, status:'waiting' },
-  { id:'YK#035.2', usd:26312.43, status:'waiting' },
+  { id:'YK#033',   usd:4626.02, paidUsd:0, remainingUsd:4626.02, status:'waiting' },
+  { id:'YK#034',   usd:39425.33, paidUsd:0, remainingUsd:39425.33, status:'waiting' },
+  { id:'YK#034.1', usd:11827.00, paidUsd:0, remainingUsd:11827.00, status:'waiting' },
+  { id:'YK#034.2', usd:27597.00, paidUsd:0, remainingUsd:27597.00, status:'waiting' },
+  { id:'YK#035',   usd:37589.19, paidUsd:0, remainingUsd:37589.19, status:'waiting' },
+  { id:'YK#035.1', usd:11276.76, paidUsd:0, remainingUsd:11276.76, status:'waiting' },
+  { id:'YK#035.2', usd:26312.43, paidUsd:0, remainingUsd:26312.43, status:'waiting' },
 ];
 (function(){
   if (typeof window.defaultLoansState === 'undefined') {
@@ -2016,7 +2023,18 @@ const DEFAULT_ZEE_AWAIT = [
         const d = JSON.parse(JSON.stringify(window.defaultLoansState));
         const out = Object.assign({}, d, obj || {});
         out.loans = Object.assign({}, d.loans, out.loans || {});
-        out.zeeAwait = Array.isArray(out.zeeAwait) && out.zeeAwait.length ? out.zeeAwait : DEFAULT_ZEE_AWAIT.slice();
+        out.zeeAwaitUSD = Array.isArray(out.zeeAwaitUSD) && out.zeeAwaitUSD.length ? out.zeeAwaitUSD : DEFAULT_ZEE_AWAIT.slice();
+        // Migrate old data structure to new: add paidUsd and remainingUsd if missing
+        out.zeeAwaitUSD = out.zeeAwaitUSD.map(z => {
+          const total = Number(z.usd || 0);
+          const paid = Number(z.paidUsd ?? 0);
+          const remaining = Number(z.remainingUsd ?? total);
+          return {
+            ...z,
+            paidUsd: paid,
+            remainingUsd: remaining
+          };
+        });
         out.loans.biz  = Object.assign({}, d.loans.biz,  out.loans.biz  || {});
         out.loans.car  = Object.assign({}, d.loans.car,  out.loans.car  || {});
         out.loans.biz2 = Object.assign({}, d.loans.biz2, out.loans.biz2 || {});
@@ -2342,7 +2360,7 @@ async function refreshLoansFromExpenses(){
         car:{ total:24, paid:0, instTRY:0, remainTRY:0, principalTRY:0, monthlyRate:0 },
         biz2: { total:24, paid:0, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0 }
       },
-      zeeAwait:[]
+      zeeAwaitUSD:[]
     });
 
     // === Filtre koşulları (daha sıkı ve AY bazında tekil sayım) ===
@@ -2497,33 +2515,70 @@ async function refreshZeeAwaitFromExpenses(){
       return /zee\.?dog/.test(sub);
     };
 
-    const paidIds = new Set();
+    // Ödeme tutarlarını ID bazında topla
+    const paymentsByID = new Map(); // Map<ID, totalUSD>
+    const AMT_KEYS = ['AmountTRY','Amount','Tutar','Tutar (TRY)','TRY'];
+    const CURR_KEYS = ['Currency','Para Birimi'];
+
     for (const r of rows) {
       if (!isZeeRow(r)) continue;
       let id = idFromNote(getNote(r));
       if (!id) id = idFromAnyField(r);
-      if (id) paidIds.add(id);
+      if (!id) continue;
+
+      // Tutar ve para birimini al
+      const amtTRY = Number(getFieldCI(r, AMT_KEYS) || 0);
+      if (amtTRY <= 0) continue;
+
+      const currency = String(getFieldCI(r, CURR_KEYS) || 'TRY').toUpperCase();
+
+      // USD'ye çevir
+      let amtUSD = 0;
+      if (currency === 'USD') {
+        amtUSD = amtTRY; // AmountTRY aslında USD ise
+      } else {
+        // TRY ise USD'ye çevir
+        const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
+        amtUSD = fx > 0 ? (amtTRY / fx) : 0;
+      }
+
+      // Bu ID için toplama ekle
+      const current = paymentsByID.get(id) || 0;
+      paymentsByID.set(id, current + amtUSD);
     }
 
     // 3) State'i al + yoksa default listeyi kullan
-    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || { zeeAwait: [] });
-    if (!Array.isArray(st.zeeAwait) || st.zeeAwait.length===0) {
-      st.zeeAwait = DEFAULT_ZEE_AWAIT.slice();
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || { zeeAwaitUSD: [] });
+    if (!Array.isArray(st.zeeAwaitUSD) || st.zeeAwaitUSD.length===0) {
+      st.zeeAwaitUSD = DEFAULT_ZEE_AWAIT.slice();
     }
 
     // 4) Kur (USD→TRY)
     const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
 
-    // 5) Güncelle
-    st.zeeAwait = st.zeeAwait.map(it => {
+    // 5) Her bir Zee.Dog ödeme kaydını güncelle
+    st.zeeAwaitUSD = st.zeeAwaitUSD.map(it => {
       const id = String(it.id || '').toUpperCase();
-      const usd = Number(it.usd || 0);
-      const paid = paidIds.has(id);
+      const totalUsd = Number(it.usd || 0);
+      const paidUsd = paymentsByID.get(id) || 0;
+      const remainingUsd = Math.max(0, totalUsd - paidUsd);
+
+      // Durum belirle
+      let status = 'waiting';
+      if (remainingUsd <= 0.01) { // Tam ödendi (1 cent tolerans)
+        status = 'paid';
+      } else if (paidUsd > 0) { // Kısmi ödendi
+        status = 'partially_paid';
+      }
+
       const prevTRY = (typeof it.try === 'number') ? it.try : null;
-      const nextTRY = (fx > 0 && usd > 0) ? (usd * fx) : prevTRY;
+      const nextTRY = (fx > 0 && totalUsd > 0) ? (totalUsd * fx) : prevTRY;
+
       return {
         ...it,
-        status: paid ? 'paid' : 'waiting',
+        paidUsd: paidUsd,
+        remainingUsd: remainingUsd,
+        status: status,
         try: nextTRY
       };
     });
@@ -3209,25 +3264,34 @@ function renderLoansBlock(){
     const tbody = document.getElementById('tblZeeAwait');
     if (tbody){
       const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
-      const list = Array.isArray(st.zeeAwait) && st.zeeAwait.length ? st.zeeAwait : (DEFAULT_ZEE_AWAIT || []);
+      const list = Array.isArray(st.zeeAwaitUSD) && st.zeeAwaitUSD.length ? st.zeeAwaitUSD : (DEFAULT_ZEE_AWAIT || []);
 
       if (!list.length){
-        tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Kayıt bulunamadı.</td></tr>';
+        tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Kayıt bulunamadı.</td></tr>';
       } else {
         const rows = list.map(it => {
-          const usd = Number(it.usd || 0);
-          const tryVal = (typeof it.try === 'number' && it.try > 0)
-            ? it.try
-            : (fx > 0 ? usd * fx : 0);
+          const totalUsd = Number(it.usd || 0);
+          const paidUsd = Number(it.paidUsd || 0);
+          const remainingUsd = Number(it.remainingUsd ?? totalUsd);
           const status = (it.status || '').toLowerCase();
-          const paid = status === 'paid';
-          const badgeCls = paid ? 'badge-paid' : 'badge-wait';
-          const badgeText = paid ? 'Ödendi' : 'Bekliyor';
+
+          // Badge stil ve metni
+          let badgeCls = 'badge-wait';
+          let badgeText = 'Bekliyor';
+          if (status === 'paid') {
+            badgeCls = 'badge-paid';
+            badgeText = 'Ödendi';
+          } else if (status === 'partially_paid') {
+            badgeCls = 'badge-partial';
+            badgeText = 'Kısmi Ödendi';
+          }
+
           return `
             <tr>
               <td class="py-1 pr-3">${it.id || ''}</td>
-              <td class="py-1 pr-3 text-right">${usd > 0 ? numberUSD(usd) : '–'}</td>
-              <td class="py-1 pr-3 text-right">${tryVal > 0 ? numberTL(tryVal) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${totalUsd > 0 ? numberUSD(totalUsd) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${paidUsd > 0 ? numberUSD(paidUsd) : '–'}</td>
+              <td class="py-1 pr-3 text-right">${remainingUsd > 0 ? numberUSD(remainingUsd) : '–'}</td>
               <td class="py-1 pr-0">
                 <span class="${badgeCls}">${badgeText}</span>
               </td>
@@ -3444,24 +3508,50 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
     st.loans.biz.paid = Math.min(st.loans.biz.total, (st.loans.biz.paid || 0) + n);
   }
 
-  // 2) Zee.Dog ödemesi: not içinde YK#xxx varsa doğrudan işaretle
+  // 2) Zee.Dog ödemesi: not içinde YK#xxx varsa kısmi/tam ödeme olarak işaretle
   let marked = false;
   const idFromNote = extractZeeIdFromNote(note);
+
   if (idFromNote){
+    // ID bulundu - bu ödemeyi ekle
     st.zeeAwaitUSD.forEach(z => {
-      if (z.id.toUpperCase() === idFromNote) { z.paid = true; marked = true; }
+      if (z.id.toUpperCase() === idFromNote) {
+        // Ödeme tutarını USD'ye çevir
+        const tpu = tryPerUsd();
+        const paymentUsd = tpu > 0 ? (amountTRY / tpu) : 0;
+
+        // Ödenen miktarı güncelle
+        z.paidUsd = Number(z.paidUsd || 0) + paymentUsd;
+        z.remainingUsd = Math.max(0, Number(z.usd || 0) - z.paidUsd);
+
+        // Durum güncelle
+        if (z.remainingUsd <= 0.01) { // Tam ödendi (1 cent tolerans)
+          z.status = 'paid';
+          z.remainingUsd = 0;
+        } else if (z.paidUsd > 0) { // Kısmi ödendi
+          z.status = 'partially_paid';
+        } else {
+          z.status = 'waiting';
+        }
+        marked = true;
+      }
     });
   } else {
-    // notta $ tutar varsa veya TRY tutarı USD’ye bölününce yaklaşık eşleşiyorsa
+    // ID yok - tutar eşleşmesi dene (tam ödeme varsayımı)
     const usdNote = extractUSDFromNote(note);
     const tpu = tryPerUsd();
     const usdFromTry = tpu ? (amountTRY / tpu) : 0;
-    const candidates = st.zeeAwaitUSD.filter(z => !z.paid);
+    const candidates = st.zeeAwaitUSD.filter(z => z.status !== 'paid');
     const matchBy = (val)=> candidates.find(z => Math.abs(z.usd - val) <= Math.max(5, z.usd*0.02)); // ±2% veya min $5
     let hit = null;
     if (usdNote) hit = matchBy(usdNote);
     if (!hit && usdFromTry) hit = matchBy(usdFromTry);
-    if (hit){ hit.paid = true; marked = true; }
+    if (hit){
+      hit.paidUsd = Number(hit.usd || 0);
+      hit.remainingUsd = 0;
+      hit.status = 'paid';
+      marked = true;
+    }
   }
 
   setLoansState(st);
