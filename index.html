@@ -107,6 +107,83 @@
     .glass { background: rgba(255,255,255,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.4); }
     .dark .glass { background: rgba(2,6,23,0.5); border-color: rgba(255,255,255,0.08) !important; }
     .hint { color:#64748b }
+
+    /* PIN Lock Overlay */
+    #pinOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    }
+    #pinOverlay.hidden { display: none; }
+    .pin-box {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      padding: 2.5rem;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+    }
+    .pin-box h2 {
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .pin-box p {
+      color: rgba(255,255,255,0.6);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+    .pin-input {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .pin-input input {
+      width: 50px;
+      height: 60px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .pin-input input:focus {
+      border-color: #60a5fa;
+      background: rgba(255,255,255,0.15);
+    }
+    .pin-input input.error {
+      border-color: #f87171;
+      animation: shake 0.3s ease-in-out;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .pin-error {
+      color: #f87171;
+      font-size: 0.875rem;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+      min-height: 1.25rem;
+    }
+    .pin-logo {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
     .dark .hint { color:#93a4bd }
     .badge { font-size:10px; padding:.15rem .45rem; border-radius:999px; background:#eef2ff; color:#334155; }
     .dark .badge { background:#0b1220; color:#cbd5e1; border:1px solid rgba(255,255,255,.08); }
@@ -328,7 +405,23 @@ th, td { white-space: nowrap; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
-  <div class="max-w-7xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+  <!-- PIN Lock Overlay -->
+  <div id="pinOverlay">
+    <div class="pin-box">
+      <div class="pin-logo">🐕</div>
+      <h2>Pop Dog CFO</h2>
+      <p>Devam etmek için PIN kodunu girin</p>
+      <div class="pin-input">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-pin="0">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-pin="1">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-pin="2">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-pin="3">
+      </div>
+      <div class="pin-error" id="pinError"></div>
+    </div>
+  </div>
+
+  <div id="mainContent" class="max-w-7xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6" style="display:none;">
 
     <!-- Header -->
     <header class="flex items-center justify-between gap-3 flex-wrap">
@@ -983,6 +1076,90 @@ th, td { white-space: nowrap; }
       <br>
       <span style="color:#22c55e;">✅ Test deplooooy - 18.09.2025</span>
     </footer>
+  </div><!-- /mainContent -->
+
+  <!-- PIN Lock Script -->
+  <script>
+  (function(){
+    const CORRECT_PIN = '1958';
+    const PIN_SESSION_KEY = 'popdog_pin_verified';
+
+    // Check if already verified in this session
+    if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
+      document.getElementById('pinOverlay').classList.add('hidden');
+      document.getElementById('mainContent').style.display = '';
+      return;
+    }
+
+    const inputs = document.querySelectorAll('.pin-input input');
+    const errorEl = document.getElementById('pinError');
+
+    // Focus first input on load
+    inputs[0].focus();
+
+    // Handle input
+    inputs.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = val;
+
+        // Clear error state
+        inputs.forEach(i => i.classList.remove('error'));
+        errorEl.textContent = '';
+
+        // Move to next input
+        if (val && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+        }
+
+        // Check if all filled
+        const pin = Array.from(inputs).map(i => i.value).join('');
+        if (pin.length === 4) {
+          if (pin === CORRECT_PIN) {
+            // Success
+            sessionStorage.setItem(PIN_SESSION_KEY, 'true');
+            document.getElementById('pinOverlay').style.opacity = '0';
+            document.getElementById('pinOverlay').style.transition = 'opacity 0.3s ease';
+            setTimeout(() => {
+              document.getElementById('pinOverlay').classList.add('hidden');
+              document.getElementById('mainContent').style.display = '';
+            }, 300);
+          } else {
+            // Error
+            inputs.forEach(i => {
+              i.classList.add('error');
+              i.value = '';
+            });
+            errorEl.textContent = 'Yanlış PIN kodu';
+            inputs[0].focus();
+          }
+        }
+      });
+
+      // Handle backspace
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+          inputs[idx - 1].focus();
+        }
+      });
+
+      // Handle paste
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+        paste.split('').forEach((char, i) => {
+          if (inputs[i]) inputs[i].value = char;
+        });
+        if (paste.length === 4) {
+          inputs[3].dispatchEvent(new Event('input'));
+        } else if (paste.length > 0) {
+          inputs[Math.min(paste.length, 3)].focus();
+        }
+      });
+    });
+  })();
+  </script>
+
   <script>
     // Simple page router (hide/show data-page sections)
     (function(){
