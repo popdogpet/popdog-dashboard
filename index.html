@@ -4819,10 +4819,25 @@ function readExpenseAmountTRY(r){
   try{
     if(!r) return 0;
 
+    // 0) Zee.Dog kontrolü - Zee.Dog giderleri HER ZAMAN USD'dir
+    const zeeRegex = /(zee[\s\.-]*dog|zeedog)/i;
+    const zeeFields = String(r.Category || '') + ' ' + String(r.Subcategory || '') + ' ' +
+                      String(r.FinalSubcategory || '') + ' ' + String(r.Description || '') + ' ' +
+                      String(r.Merchant || '') + ' ' + String(r.Payee || '') + ' ' +
+                      String(r.Source || '') + ' ' + String(r.Details || '') + ' ' +
+                      String(r.Note || r.Notes || r.Memo || r.Aciklama || r['Açıklama'] || '');
+    const isZeeDog = zeeRegex.test(zeeFields) ||
+                     (typeof isZeeExpense === 'function' && isZeeExpense(r));
+
     // 1) Currency hint from row (accept various header variants)
-    const currency = String(
+    let currency = String(
       r.Currency || r['Para Birimi'] || r['Currency Code'] || r['Currency'] || ''
     ).trim().toUpperCase();
+
+    // Zee.Dog için currency belirtilmemişse USD kabul et
+    if (isZeeDog && !currency) {
+      currency = 'USD';
+    }
 
     // 2) Candidate amount fields (robust to header variants)
     let raw =
@@ -4846,8 +4861,9 @@ function readExpenseAmountTRY(r){
     const isAccountingNegative = /^\s*\(.*\)\s*$/.test(s);
 
     // 4) Detect currency from field or inline symbols
-    const looksUSD = currency === 'USD' || /\bUSD\b/i.test(s) || /^\s*\$/.test(s);
-    const looksTRY = currency === 'TRY' || /₺|TL|TRY/i.test(s);
+    // Zee.Dog için özel: currency zaten USD olarak ayarlandı
+    const looksUSD = currency === 'USD' || /\bUSD\b/i.test(s) || /^\s*\$/.test(s) || isZeeDog;
+    const looksTRY = !isZeeDog && (currency === 'TRY' || /₺|TL|TRY/i.test(s));
 
     // 5) Helper to resolve TRY per USD (₺/USD)
     const resolveTryPerUsd = ()=>{
