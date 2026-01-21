@@ -1808,7 +1808,7 @@ document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.conta
 
 /* ================== HELPERS ================== */
 const nfTL  = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
-const nfUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const nfUSD = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const numberTL  = n => {
   const val = Number(n);
   return nfTL.format(isNaN(val) ? 0 : Math.round(val));
@@ -2836,16 +2836,19 @@ async function loadFromSheet(url){
         try{
           const data = (res.data||[]).map(r=>{
             const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
+            // Kuaför sütunu: Kuaför, Kuafor veya Grooming olabilir
+            const kuaforVal = parseTL(r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? 0);
             const row = {
               Date: iso,
               Toptan: parseTL(r.Toptan),
               Online: parseTL(r.Online),
               CKM: parseTL(r.CKM),
               "CKM Nakit": parseTL(r["CKM Nakit"]),
+              Kuaför: kuaforVal,
               Trendyol: parseTL(r.Trendyol),
               Hepsiburada: parseTL(r.Hepsiburada),
             };
-            row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
+            row.Total = row.Toptan + row.Online + row.CKM + row.Kuaför + row.Trendyol + row.Hepsiburada;
             return row;
           }).filter(r=>r.Date);
           // Optional cleaning while loading from Sheet:
