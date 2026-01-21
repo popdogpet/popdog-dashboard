@@ -428,6 +428,19 @@ th, td { white-space: nowrap; }
         <div id="last7Note" class="hint text-xs mt-1"></div>
       </div>
     </section>
+
+    <!-- Aylık Görünüm -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
+      <details open>
+        <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+          Aylık Görünüm
+          <span id="monthYearLabel" class="badge text-xs"></span>
+        </summary>
+        <div id="monthCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mt-3"></div>
+        <div id="monthMoM" class="hint text-xs mt-2"></div>
+      </details>
+    </section>
+
     <!-- === Krediler & Bekleyen Ödemeler === -->
     <section id="loansBlock" class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
       <div class="flex items-center justify-between mb-3">
@@ -636,12 +649,14 @@ th, td { white-space: nowrap; }
         </div>
       </div>
 
-      <div class="grid lg:grid-cols-1 gap-6 mt-4">
-        <div class="glass card-3d rounded-2xl p-4">
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-slate-700 dark:text-slate-200">Aylık Giderler</div>
-          </div>
-          <div id="expensesMonthlyTblWrap"></div>
+      <div class="grid lg:grid-cols-1 gap-4 mt-4">
+        <div class="glass card-3d rounded-2xl p-3">
+          <details class="expenses-compact">
+            <summary class="cursor-pointer flex items-center justify-between mb-2">
+              <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Aylık Giderler <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
+            </summary>
+            <div id="expensesMonthlyTblWrap" class="max-h-64 overflow-auto"></div>
+          </details>
         </div>
       </div>
       <!-- Gider Ekle — Hızlı Form -->
@@ -720,39 +735,42 @@ th, td { white-space: nowrap; }
           </div>
         </div>
       </div>
-      <!-- Bu Ayın Giderleri (Kategori + Alt Kategori) -->
-      <div class="glass card-3d rounded-2xl p-4 mt-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-slate-700 dark:text-slate-200">Bu Ayın Giderleri</div>
-          <div class="text-right">
-            <div id="expThisMonthTotal" class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">–</div>
-            <div id="expThisMonthMoM" class="hint text-[11px]">MoM: –</div>
+      <!-- Bu Ayın Giderleri (Kategori + Alt Kategori) - Kompakt -->
+      <div class="glass card-3d rounded-2xl p-3 mt-4">
+        <details class="expenses-compact">
+          <summary class="cursor-pointer flex items-center justify-between mb-2">
+            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Bu Ayın Giderleri <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
+            <div class="text-right">
+              <div id="expThisMonthTotal" class="text-xs font-medium text-slate-700 dark:text-slate-200">–</div>
+              <div id="expThisMonthMoM" class="hint text-[10px]">MoM: –</div>
+            </div>
+          </summary>
+          <div class="overflow-auto max-h-48">
+            <table class="min-w-full text-xs">
+              <thead class="text-slate-600 dark:text-slate-300">
+                <tr>
+                  <th class="text-left py-1 pr-2">Tarih</th>
+                  <th class="text-left py-1 pr-2">Kategori</th>
+                  <th class="text-left py-1 pr-2">Alt Kat.</th>
+                  <th class="text-right py-1 pr-0">Tutar</th>
+                </tr>
+              </thead>
+              <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
+                <tr><td class="hint py-2" colspan="4">Yükleniyor…</td></tr>
+              </tbody>
+            </table>
           </div>
-        </div>
-        <div class="overflow-auto">
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-1 pr-3">Tarih</th>
-                <th class="text-left py-1 pr-3">Kategori</th>
-                <th class="text-left py-1 pr-3">Nihai Alt Kategori</th>
-                <th class="text-left py-1 pr-3">Alt Kategori</th>
-                <th class="text-right py-1 pr-0">Tutar (₺)</th>
-              </tr>
-            </thead>
-            <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
-              <tr><td class="hint py-2" colspan="5">Yükleniyor…</td></tr>
-            </tbody>
-          </table>
-        </div>
+        </details>
       </div>
-      <!-- Bu Ay — Kategori Altında Ödemeler -->
-      <div class="glass card-3d rounded-2xl p-4 mt-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-slate-700 dark:text-slate-200">Bu Ay — Kategori Altında Ödemeler</div>
-          <div id="expByCatTotal" class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">–</div>
-        </div>
-        <div id="expThisMonthByCat" class="text-sm"></div>
+      <!-- Bu Ay — Kategori Altında Ödemeler - Kompakt -->
+      <div class="glass card-3d rounded-2xl p-3 mt-4">
+        <details class="expenses-compact">
+          <summary class="cursor-pointer flex items-center justify-between mb-2">
+            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Bu Ay — Kategori Kırılımı <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
+            <div id="expByCatTotal" class="text-xs font-medium text-slate-700 dark:text-slate-200">–</div>
+          </summary>
+          <div id="expThisMonthByCat" class="text-xs max-h-48 overflow-auto"></div>
+        </details>
       </div>
     </section>
 
@@ -1177,7 +1195,8 @@ async function refreshFundQuotes(){
           const ageMin = at? Math.round((Date.now()-at)/60000) : null;
           if (noteEl) noteEl.textContent = `Önbellekten kullanıldı${ageMin!=null ? ` • ${ageMin} dk önce` : ''}`;
         }
-        console.warn('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
+        // Sessiz hata - API sorunları kullanıcıyı ilgilendirmez, cache kullanılır
+        // console.debug('fundQuote fetch failed:', String(f.code).toLowerCase(), e && e.message ? e.message : e);
       }
     }
     // Kartlardaki toplamları/hesap notlarını tazele
@@ -1259,7 +1278,8 @@ async function refreshGoldFromScript(){
     if (note){
       note.textContent = 'Altın fiyatı otomatik alınamadı, lütfen gram fiyatını elle girin.';
     }
-    console.warn('refreshGoldFromScript() error:', e && e.message ? e.message : e);
+    // Sessiz hata - API sorunları kullanıcıyı ilgilendirmez
+    // console.debug('refreshGoldFromScript() error:', e && e.message ? e.message : e);
   }
 }
 
@@ -2290,7 +2310,7 @@ async function renderThisMonthExpenses(){
     }
 
     if (!inMonth.length){
-      tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Bu ay için gider bulunamadı.</td></tr>';
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Bu ay için gider bulunamadı.</td></tr>';
       return;
     }
 
@@ -2307,29 +2327,25 @@ async function renderThisMonthExpenses(){
     // Nihai alt kategori (varsa FinalSubcategory öncelikli)
     const getFinalSub = (r)=> getFieldCI(r, ['FinalSubcategory','Final Subcategory','Final','Nihai Alt Kategori']) ||
                               getFieldCI(r, ['Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
-    // Kaynak (ham) Subcategory
-    const getRawSub = (r)=> getFieldCI(r, ['Subcategory','Sub-Category','Alt Kategori','AltKategori','Detail','Kalem']) || '';
 
-    // Render
+    // Render (kompakt - 4 sütun)
     const html = inMonth.map(r=>{
-      const date = String(r.Date || r.date || '').slice(0,10);
+      const date = String(r.Date || r.date || '').slice(5,10); // MM-DD formatı (kompakt)
       const cat  = getCat(r);
       const fsub = getFinalSub(r);
-      const rsub = getRawSub(r);
       const amt  = readExpenseAmountTRY(r); // TRY tutarı güvenli okuma
       return `<tr>
-        <td class="py-1 pr-3">${date}</td>
-        <td class="py-1 pr-3">${cat}</td>
-        <td class="py-1 pr-3">${fsub}</td>
-        <td class="py-1 pr-3">${rsub}</td>
-        <td class="py-1 pr-0 text-right">${fmtTL(amt)}</td>
+        <td class="py-0.5 pr-2">${date}</td>
+        <td class="py-0.5 pr-2">${cat}</td>
+        <td class="py-0.5 pr-2">${fsub}</td>
+        <td class="py-0.5 pr-0 text-right">${fmtTL(amt)}</td>
       </tr>`;
     }).join('');
     tbody.innerHTML = html;
   }catch(e){
     console.warn('renderThisMonthExpenses() error:', e);
     const tbody = document.getElementById('tblExpThisMonth');
-    if (tbody) tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Liste yüklenemedi.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td class="hint py-2" colspan="4">Liste yüklenemedi.</td></tr>';
   }
 }
 
@@ -2607,9 +2623,10 @@ async function refreshZeeAwaitFromExpenses(){
       if (currency === 'USD') {
         amtUSD = amtTRY; // AmountTRY aslında USD ise (sütun adı AmountTRY ama değer USD)
       } else {
-        // TRY ise USD'ye çevir (getTryPerUsd = TRY/USD oranı, yani 1 TRY kaç USD)
+        // TRY ise USD'ye çevir (getTryPerUsd = kaç TRY = 1 USD, mesela 43.3)
+        // TRY → USD dönüşümü: TRY tutarı / (TRY/USD oranı)
         const fx = (typeof getTryPerUsd === 'function') ? getTryPerUsd() : 0;
-        amtUSD = fx > 0 ? (amtTRY * fx) : 0;
+        amtUSD = fx > 0 ? (amtTRY / fx) : 0;
       }
 
       // Sanity check: USD tutarı çok büyükse (>$500k), muhtemelen TRY yanlışlıkla USD olarak algılanmış
@@ -2657,6 +2674,40 @@ async function refreshZeeAwaitFromExpenses(){
         status: status,
         try: nextTRY
       };
+    });
+
+    // 5.5) Ana ID'leri alt ID'lerden hesapla (YK#034 = YK#034.1 + YK#034.2 gibi)
+    // Ana ID'leri bul (nokta içermeyen, örn: YK#034, YK#035)
+    const parentIds = st.zeeAwaitUSD.filter(z => !String(z.id).includes('.')).map(z => z.id.toUpperCase());
+
+    parentIds.forEach(parentId => {
+      // Bu ana ID'nin alt ID'lerini bul (YK#034.1, YK#034.2 gibi)
+      const children = st.zeeAwaitUSD.filter(z => {
+        const id = String(z.id).toUpperCase();
+        return id.startsWith(parentId + '.'); // YK#034. ile başlayanlar
+      });
+
+      if (children.length === 0) return; // Alt ID yoksa atla
+
+      // Alt ID'lerin toplam ödenen ve kalanını hesapla
+      const childrenPaidTotal = children.reduce((sum, c) => sum + Number(c.paidUsd || 0), 0);
+      const childrenRemainingTotal = children.reduce((sum, c) => sum + Number(c.remainingUsd || 0), 0);
+
+      // Ana ID'yi güncelle
+      const parent = st.zeeAwaitUSD.find(z => z.id.toUpperCase() === parentId);
+      if (parent) {
+        parent.paidUsd = childrenPaidTotal;
+        parent.remainingUsd = childrenRemainingTotal;
+
+        // Durum güncelle
+        if (childrenRemainingTotal <= 0.01) {
+          parent.status = 'paid';
+        } else if (childrenPaidTotal > 0) {
+          parent.status = 'partially_paid';
+        } else {
+          parent.status = 'waiting';
+        }
+      }
     });
 
     // 6) Kaydet + UI
@@ -3707,7 +3758,7 @@ function applyExpenseToLoans({ amountTRY, subcat, note }){
       try{ renderLoansBlock(); }catch(_){}
     }catch(err){
       // Silent failure is okay; user can still type manually.
-      console.warn('Gold auto price update failed:', err && err.message ? err.message : err);
+      // console.debug('Gold auto price update skipped:', err && err.message ? err.message : err);
     }
   }
 
@@ -4267,10 +4318,10 @@ function buildMonthly(rows){
     const d = new Date(r.Date + "T00:00:00Z");
     if(isNaN(+d)) return;
     const key = monthKey(d);
-    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, ckmN=+r["CKM Nakit"]||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-    const computedTotal = tpt + onl + ckm + trn + hb;
-    const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Total:0 };
-    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Total+=computedTotal;
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, ckmN=+r["CKM Nakit"]||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0, kua=+r.Kuaför||0;
+    const computedTotal = tpt + onl + ckm + trn + hb + kua;
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=computedTotal;
     map.set(key, prev);
   });
   return Array.from(map.values()).filter(m=>m.Total>0).sort((a,b)=>a.month.localeCompare(b.month));
@@ -4284,10 +4335,10 @@ function buildWeekly(rows){
     if(isNaN(+d)) return;
     const mon = toMonday(d);
     const key = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
-    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-    const total = tpt + onl + ckm + trn + hb;
-    const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Total:0 };
-    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Total+=total;
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0, kua=+r.Kuaför||0;
+    const total = tpt + onl + ckm + trn + hb + kua;
+    const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=total;
     map.set(key, prev);
   });
   return Array.from(map.values()).sort((a,b)=>a.monday.localeCompare(b.monday));
@@ -4353,6 +4404,7 @@ function setKPIs(monthly){
     { k: 'CKM',         v: sumTY('CKM') },
     { k: 'Trendyol',    v: sumTY('Trendyol') },
     { k: 'Hepsiburada', v: sumTY('Hepsiburada') },
+    { k: 'Kuaför',      v: sumTY('Kuaför') },
   ].sort((a, b) => b.v - a.v);
 
   const totalCh = channels.reduce((a, b) => a + b.v, 0) || 1;
@@ -5238,8 +5290,8 @@ function renderWeek(){
 
   document.getElementById('weekLabel').textContent = weekRangeLabel(new Date(cur.monday + "T00:00:00"));
 
-  const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada'];
-  const labels = {Total:'Toplam', Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada'};
+  const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada','Kuaför'];
+  const labels = {Total:'Toplam', Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Kuaför'};
   const wrap = document.getElementById('weekCards'); wrap.innerHTML='';
   keys.forEach(k=>{
     const v = cur[k]||0;
@@ -5266,6 +5318,65 @@ document.getElementById('weekNext').onclick = ()=>{
   const idx = weeklyAgg.findIndex(w=>w.monday===selectedMondayISO);
   if(idx<weeklyAgg.length-1){ selectedMondayISO = weeklyAgg[idx+1].monday; renderWeek(); }
 };
+
+/* ================== Monthly View UI ================== */
+function renderMonthlyView(){
+  const mc = monthlyCache || [];
+  const wrap = document.getElementById('monthCards');
+  const labelEl = document.getElementById('monthYearLabel');
+  const momEl = document.getElementById('monthMoM');
+  if(!wrap) return;
+
+  if(!mc.length){
+    wrap.innerHTML = '<div class="hint text-sm">Aylık veri yok.</div>';
+    if(labelEl) labelEl.textContent = '';
+    if(momEl) momEl.textContent = '';
+    return;
+  }
+
+  // Son yılın aylarını göster
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const thisYearMonths = mc.filter(m => m.year === currentYear);
+  const dataMonths = thisYearMonths.length ? thisYearMonths : mc.slice(-12);
+
+  if(labelEl) labelEl.textContent = dataMonths.length ? `${dataMonths[0].year}` : '';
+
+  const keys = ['Toptan','Online','CKM','Trendyol','Hepsiburada','Kuaför','Total'];
+  const labels = {Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Kuaför', Total:'Toplam'};
+
+  // Her kanal için bu yılın toplamını ve geçen aya göre değişimi göster
+  const sumThisYear = k => dataMonths.reduce((a, m) => a + (m[k] || 0), 0);
+  const lastMonth = dataMonths.length ? dataMonths[dataMonths.length - 1] : null;
+  const prevMonth = dataMonths.length >= 2 ? dataMonths[dataMonths.length - 2] : null;
+
+  wrap.innerHTML = '';
+  keys.forEach(k => {
+    const ytdVal = sumThisYear(k);
+    const curVal = lastMonth ? (lastMonth[k] || 0) : 0;
+    const prvVal = prevMonth ? (prevMonth[k] || 0) : 0;
+    const mom = prvVal ? (curVal - prvVal) / prvVal : 0;
+
+    const card = document.createElement('div');
+    card.className = 'glass card-3d rounded-2xl p-3';
+    card.innerHTML = `
+      <div class="hint text-xs">${labels[k]}</div>
+      <div class="text-slate-800 dark:text-slate-100 font-semibold text-sm">${numberTL(ytdVal)}</div>
+      <div class="hint text-xs mt-1">Son ay: ${numberTL(curVal)}</div>
+      <div class="${mom >= 0 ? 'kpi-up' : 'kpi-down'} text-xs">MoM: ${(mom * 100).toFixed(1)}%</div>`;
+    wrap.appendChild(card);
+  });
+
+  // Genel MoM
+  if(momEl && lastMonth && prevMonth){
+    const totalMom = prevMonth.Total ? (lastMonth.Total - prevMonth.Total) / prevMonth.Total : 0;
+    const lastMonthName = lastMonth.month.slice(5);
+    const prevMonthName = prevMonth.month.slice(5);
+    momEl.textContent = `MoM (${prevMonthName} → ${lastMonthName}): ${(totalMom * 100).toFixed(1)}%`;
+  } else if(momEl){
+    momEl.textContent = '';
+  }
+}
 
 /* ================== WhatsApp Paste → stage table ================== */
 function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
@@ -5501,6 +5612,7 @@ function refreshAll(){
   renderTargets(monthly);
   renderStaged();
   renderWeek();
+  renderMonthlyView();
   renderLast7();
 
   // 6) Stok bloğu
