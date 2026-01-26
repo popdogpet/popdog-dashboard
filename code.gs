@@ -574,9 +574,10 @@ function appendDaily_(rows){
       }
 
       // Validate required field (Date)
-      var dateCol = idx['date'] || idx['tarih'];
+      // Note: idx['date'] can be 0 (first column), so use != null instead of ||
+      var dateCol = (idx['date'] != null) ? idx['date'] : idx['tarih'];
       if (dateCol == null || !rowArr[dateCol]){
-        throw new Error('Date field is required for all rows');
+        throw new Error('Date field is required for all rows. Debug: dateCol=' + dateCol + ', rowArr[0]=' + rowArr[0] + ', idx keys=' + Object.keys(idx).join(',') + ', input Date=' + r['Date'] + ', input date=' + r['date']);
       }
 
       return rowArr;
