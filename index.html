@@ -6346,6 +6346,11 @@ async function writeStagedToSheet(){
     console.log('[Sheet Write] Payload rows:', JSON.stringify(payloadRows, null, 2));
     console.log('[Sheet Write] Kuaför values:', payloadRows.map(r => r['Kuaför']));
 
+    // DEBUG: Tarih ve Kuaför değerlerini ekranda göster
+    const dates = payloadRows.map(r => r.Date || '(boş)').join(', ');
+    const kuafors = payloadRows.map(r => r['Kuaför']).join(', ');
+    alert(`Tarih: [${dates}]\nKuaför: [${kuafors}]`);
+
     let out;
     try{
       out = await postOnce({
