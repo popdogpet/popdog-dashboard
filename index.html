@@ -2341,7 +2341,6 @@ function parseDailyReportText_v2(text) {
   // Total (channels sum) — CKM retail + Kuaför counted once
   const totalTRY = (toptanTRY || 0) + (onlineTRY || 0) + (ckmRetailTRY || 0) + (groomingTRY || 0) + (trendyolTRY || 0) + (hbTRY || 0);
 
-  try{ console.log('kuafor_debug', { groomingTRY, cashSalesTRY, storeTotalTRY, kkTRY, cashSalesHasNumber }); }catch(_){ }
 
   return {
     'Date': date,
@@ -2401,7 +2400,6 @@ function renderStagedRows(stagedRows) {
       row = parseDailyReportText_v2(text);
       // Guarantee Kuaför key exists
       if (row && typeof row['Kuaför'] === 'undefined') row['Kuaför'] = 0;
-      console.log('dailyRowParsed', row);
       if (info && row) {
         info.textContent = `Önizleme: CKM=${numberTL(row.CKM||0)} • Kuaför=${numberTL(row['Kuaför']||0)} • Trendyol=${numberTL(row.Trendyol||0)} • HB=${numberTL(row.Hepsiburada||0)} • Total=${numberTL(row.Total||0)}`;
       }
@@ -6214,7 +6212,6 @@ async function boot(){
   const ordersUrl   = localStorage.getItem('popdog_orders_csv_url')    || (typeof DEFAULT_ORDERS_CSV    !== 'undefined' ? DEFAULT_ORDERS_CSV    : '');
   const expensesUrl = localStorage.getItem('popdog_expenses_csv_url')  || (typeof DEFAULT_EXPENSES_CSV  !== 'undefined' ? DEFAULT_EXPENSES_CSV  : '');
 
-  console.log('Data URLs →', { sheetUrl, invUrl, ordersUrl, expensesUrl });
 
 // Expenses load (CSV)
 try {
@@ -6231,7 +6228,6 @@ try {
 
   // 5) Load revenue (sheet)
   if (sheetUrl) {
-    console.log('Sheet’ten veri çekiliyor...');
     try {
       const data = await loadFromSheet(sheetUrl);
       if (!data.length) throw new Error('Sheet boş döndü');
@@ -6239,7 +6235,6 @@ try {
       localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
       const first = loadedRows[0]?.Date || '—';
       const last  = loadedRows.at(-1)?.Date || '—';
-      console.log(`Sheet yüklendi (${loadedRows.length} satır) • ${first} → ${last}`);
     } catch (e) {
       console.warn('Sheet yüklenemedi. URL ve yayınlama ayarlarını kontrol et.', e);
     }
@@ -6342,14 +6337,6 @@ async function writeStagedToSheet(){
       return { res, raw, json };
     }
 
-    // DEBUG: Log payload to console
-    console.log('[Sheet Write] Payload rows:', JSON.stringify(payloadRows, null, 2));
-    console.log('[Sheet Write] Kuaför values:', payloadRows.map(r => r['Kuaför']));
-
-    // DEBUG: Tarih ve Kuaför değerlerini ekranda göster
-    const dates = payloadRows.map(r => r.Date || '(boş)').join(', ');
-    const kuafors = payloadRows.map(r => r['Kuaför']).join(', ');
-    alert(`Tarih: [${dates}]\nKuaför: [${kuafors}]`);
 
     let out;
     try{
@@ -6376,9 +6363,6 @@ async function writeStagedToSheet(){
     const raw = out.raw;
     let j = out.json;
 
-    // DEBUG: Log response
-    console.log('[Sheet Write] Response:', raw);
-    console.log('[Sheet Write] Parsed JSON:', j);
 
     if (!res.ok || (j && j.ok === false)) {
       const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
@@ -6386,13 +6370,6 @@ async function writeStagedToSheet(){
     }
 
     const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
-    console.log('[Sheet Write] Debug info from server:', j && j.debug);
-
-    // DEBUG: Ekranda göster
-    const kuaforSent = payloadRows.map(r => r['Kuaför']).join(', ');
-    const serverDebug = j && j.debug ? JSON.stringify(j.debug) : 'yok';
-    const debugMsg = `Kuaför gönderildi: [${kuaforSent}] | Server: ${serverDebug}`;
-    alert(debugMsg);
 
     if (infoEl) infoEl.textContent = `Sheet'e yazıldı (${added} satır).`;
 
@@ -6468,7 +6445,6 @@ boot();
       if (inp && !inp.value) inp.value = String(unit);
       if (typeof renderLoansBlock === 'function') renderLoansBlock();
     }catch(_){}
-    console.log(`[fundQuote] ${type.toUpperCase()} = ${unit} (${source||'server'})`);
   }
 
   async function maybeRefreshFund(type){
