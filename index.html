@@ -6382,6 +6382,13 @@ async function writeStagedToSheet(){
 
     const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
     console.log('[Sheet Write] Debug info from server:', j && j.debug);
+
+    // DEBUG: Ekranda göster
+    const kuaforSent = payloadRows.map(r => r['Kuaför']).join(', ');
+    const serverDebug = j && j.debug ? JSON.stringify(j.debug) : 'yok';
+    const debugMsg = `Kuaför gönderildi: [${kuaforSent}] | Server: ${serverDebug}`;
+    alert(debugMsg);
+
     if (infoEl) infoEl.textContent = `Sheet'e yazıldı (${added} satır).`;
 
     // Clear staged rows
