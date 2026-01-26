@@ -6342,6 +6342,10 @@ async function writeStagedToSheet(){
       return { res, raw, json };
     }
 
+    // DEBUG: Log payload to console
+    console.log('[Sheet Write] Payload rows:', JSON.stringify(payloadRows, null, 2));
+    console.log('[Sheet Write] Kuaför values:', payloadRows.map(r => r['Kuaför']));
+
     let out;
     try{
       out = await postOnce({
@@ -6367,13 +6371,18 @@ async function writeStagedToSheet(){
     const raw = out.raw;
     let j = out.json;
 
+    // DEBUG: Log response
+    console.log('[Sheet Write] Response:', raw);
+    console.log('[Sheet Write] Parsed JSON:', j);
+
     if (!res.ok || (j && j.ok === false)) {
       const msg = (j && (j.error || j.message)) ? (j.error || j.message) : raw;
       throw new Error(msg || ('HTTP ' + res.status));
     }
 
     const added = (j && typeof j.added === 'number') ? j.added : payloadRows.length;
-    if (infoEl) infoEl.textContent = `Sheet’e yazıldı (${added} satır).`;
+    console.log('[Sheet Write] Debug info from server:', j && j.debug);
+    if (infoEl) infoEl.textContent = `Sheet'e yazıldı (${added} satır).`;
 
     // Clear staged rows
     if (Array.isArray(window.stagedRows)) window.stagedRows.length = 0;
