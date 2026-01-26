@@ -1104,31 +1104,180 @@ th, td { white-space: nowrap; }
 
     <!-- === Stock Block: KPI + Tablolar === -->
     <section id="stockBlock" class="glass card-3d rounded-3xl p-5" data-page="stock">
+      <!-- Header with search and export -->
       <div class="flex items-center justify-between gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Stok Özeti</div>
-        <div class="hint text-xs">Kaynak: inventory_value + orders_raw</div>
+        <div class="flex items-center gap-3">
+          <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Stok Özeti</div>
+          <div class="hint text-xs" id="stockLastUpdate">Son güncelleme: –</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="stockSearchInput" placeholder="SKU veya ürün ara..." class="glass rounded-xl px-3 py-1 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <button id="stockExportBtn" class="glass card-3d px-3 py-1 rounded-xl text-xs hover:bg-slate-200 dark:hover:bg-slate-700" title="CSV olarak indir">📥 Export</button>
+        </div>
+      </div>
+
+      <!-- Stok Değeri Özet Kartları (Ana) -->
+      <div class="grid md:grid-cols-4 gap-4 mt-4">
+        <div class="glass rounded-2xl p-4 border-l-4 border-blue-500">
+          <div class="hint text-xs">Toplam Stok Değeri (Maliyet)</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost">–</div>
+          <div class="hint text-xs" id="kpiInvCost_USD">≈ – USD</div>
+        </div>
+        <div class="glass rounded-2xl p-4 border-l-4 border-green-500">
+          <div class="hint text-xs">Toplam Stok Değeri (Satış)</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice">–</div>
+          <div class="hint text-xs" id="kpiInvPrice_USD">≈ – USD</div>
+        </div>
+        <div class="glass rounded-2xl p-4 border-l-4 border-purple-500">
+          <div class="hint text-xs">Maliyet +%65 (Vergi+Navlun)</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost_65">–</div>
+          <div class="hint text-xs" id="kpiInvCost_65_USD">≈ – USD</div>
+        </div>
+        <div class="glass rounded-2xl p-4 border-l-4 border-orange-500">
+          <div class="hint text-xs">Satış KDV Hariç (−%20)</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice_exVAT">–</div>
+          <div class="hint text-xs" id="kpiInvPrice_exVAT_USD">≈ – USD</div>
+        </div>
+      </div>
+
+      <!-- Kategori Bazlı Özet -->
+      <div class="grid md:grid-cols-3 gap-4 mt-4">
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">🐕 Zee Dog</div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatZee">– adet</div>
+          <div class="hint text-xs" id="kpiCatZeeVal">₺–</div>
+        </div>
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">🐶 Pop Dog</div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatPop">– adet</div>
+          <div class="hint text-xs" id="kpiCatPopVal">₺–</div>
+        </div>
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">📦 Diğer</div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatOther">– adet</div>
+          <div class="hint text-xs" id="kpiCatOtherVal">₺–</div>
+        </div>
       </div>
 
       <!-- Ek KPI'lar -->
-      <div class="grid md:grid-cols-4 gap-4 mt-3">
+      <div class="grid md:grid-cols-5 gap-4 mt-4">
         <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">90+ gün elde <span class="ml-1 opacity-70 text-[10px]">(son satış ≥90g olan stok toplamı)</span></div>
+          <div class="hint text-xs">Stok Devir Hızı</div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiTurnover">–</div>
+          <div class="hint text-[10px]">Yıllık satış / ort. stok</div>
+        </div>
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">90+ gün elde</div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAged90Value">–</div>
           <div class="hint text-xs" id="kpiAged90Qty">– adet</div>
         </div>
         <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Median stok yaşı <span class="ml-1 opacity-70 text-[10px]">(SKU'ların son satıştan bugüne medyan gün)</span></div>
+          <div class="hint text-xs">Dead Stock (180+)</div>
+          <div class="text-slate-800 dark:text-slate-100 font-semibold text-red-600 dark:text-red-400" id="kpiDeadStock">–</div>
+          <div class="hint text-xs" id="kpiDeadStockQty">– adet</div>
+        </div>
+        <div class="glass rounded-2xl p-3">
+          <div class="hint text-xs">Median Stok Yaşı</div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiMedianAge">– gün</div>
         </div>
-        <div class="glass rounded-2xl p-3" title="DIO(30/60/90) üçlü: kart üstü 60g, tooltip 30/90">
-          <div class="hint text-xs">DIO (60g) <span class="ml-1 opacity-70 text-[10px]">(son 60g ort. satış hızına göre stokun yeteceği gün)</span></div>
+        <div class="glass rounded-2xl p-3" title="DIO: Days of Inventory">
+          <div class="hint text-xs">DIO (60g)</div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiDIO60">– gün</div>
           <div class="hint text-[11px]" id="kpiDIOx">30g: – • 90g: –</div>
         </div>
+      </div>
+
+      <!-- Toplam Ürün Adedi -->
+      <div class="grid md:grid-cols-1 gap-4 mt-4">
         <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Toplam Ürün Adedi <span class="ml-1 opacity-70 text-[10px]">(depo bazında dağılım)</span></div>
+          <div class="hint text-xs">Toplam Ürün Adedi (depo bazında)</div>
           <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiTotalUnits">– adet</div>
           <div class="hint text-xs" id="kpiTotalUnitsNote">Thrones: – • Caddebostan: –</div>
+        </div>
+      </div>
+
+      <!-- Stok Yaşlandırma Bar Chart -->
+      <div class="mt-4 glass rounded-2xl p-4">
+        <div class="hint text-sm mb-3">Stok Yaşlandırma Dağılımı (adet bazında)</div>
+        <div class="flex items-end gap-2 h-32" id="agingChartBars">
+          <div class="flex-1 flex flex-col items-center">
+            <div class="w-full bg-green-500 rounded-t transition-all" id="agingBar0_30" style="height:0%"></div>
+            <div class="hint text-[10px] mt-1">0-30g</div>
+            <div class="text-xs font-medium" id="agingLbl0_30">–</div>
+          </div>
+          <div class="flex-1 flex flex-col items-center">
+            <div class="w-full bg-yellow-500 rounded-t transition-all" id="agingBar31_60" style="height:0%"></div>
+            <div class="hint text-[10px] mt-1">31-60g</div>
+            <div class="text-xs font-medium" id="agingLbl31_60">–</div>
+          </div>
+          <div class="flex-1 flex flex-col items-center">
+            <div class="w-full bg-orange-500 rounded-t transition-all" id="agingBar61_90" style="height:0%"></div>
+            <div class="hint text-[10px] mt-1">61-90g</div>
+            <div class="text-xs font-medium" id="agingLbl61_90">–</div>
+          </div>
+          <div class="flex-1 flex flex-col items-center">
+            <div class="w-full bg-red-500 rounded-t transition-all" id="agingBar90plus" style="height:0%"></div>
+            <div class="hint text-[10px] mt-1">90+g</div>
+            <div class="text-xs font-medium" id="agingLbl90plus">–</div>
+          </div>
+        </div>
+        <div class="hint text-[10px] mt-2 text-center" id="agingChartNote">Toplam: – adet</div>
+      </div>
+
+      <!-- ABC Analizi -->
+      <div class="mt-4 glass rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="hint text-sm">ABC Analizi (Satış Değerine Göre)</div>
+          <div class="hint text-[10px]">A: %80 satış, B: %15, C: %5</div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3">
+          <div class="bg-green-100 dark:bg-green-900/30 rounded-xl p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-green-700 dark:text-green-400 font-bold text-lg">A</span>
+              <span class="hint text-xs">Yüksek öncelik</span>
+            </div>
+            <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAbcA">– SKU</div>
+            <div class="hint text-xs" id="kpiAbcAVal">₺– (%–)</div>
+          </div>
+          <div class="bg-yellow-100 dark:bg-yellow-900/30 rounded-xl p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-yellow-700 dark:text-yellow-400 font-bold text-lg">B</span>
+              <span class="hint text-xs">Orta öncelik</span>
+            </div>
+            <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAbcB">– SKU</div>
+            <div class="hint text-xs" id="kpiAbcBVal">₺– (%–)</div>
+          </div>
+          <div class="bg-red-100 dark:bg-red-900/30 rounded-xl p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-red-700 dark:text-red-400 font-bold text-lg">C</span>
+              <span class="hint text-xs">Düşük öncelik</span>
+            </div>
+            <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAbcC">– SKU</div>
+            <div class="hint text-xs" id="kpiAbcCVal">₺– (%–)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reorder Point Uyarıları -->
+      <div class="mt-4">
+        <div class="glass rounded-2xl p-3 overflow-auto border-l-4 border-yellow-500">
+          <div class="flex items-center justify-between mb-2">
+            <div class="hint text-sm">⚠️ Sipariş Verilmesi Gereken Ürünler</div>
+            <div class="hint text-[10px]">Lead time: 45 gün + Safety stock: 7 gün</div>
+          </div>
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-2 pr-4">SKU</th>
+                <th class="text-left py-2 pr-4">Title</th>
+                <th class="text-right py-2 pr-4">On-hand</th>
+                <th class="text-right py-2 pr-4">Günlük hız</th>
+                <th class="text-right py-2 pr-4">Reorder Point</th>
+                <th class="text-right py-2 pr-4">Önerilen Sipariş</th>
+              </tr>
+            </thead>
+            <tbody id="tblReorderPoint" class="text-slate-800 dark:text-slate-100"></tbody>
+          </table>
         </div>
       </div>
 
@@ -1136,9 +1285,9 @@ th, td { white-space: nowrap; }
       <div class="mt-4 grid lg:grid-cols-2 gap-4">
         <div>
           <div class="hint text-sm mb-1">₺ maliyet bazında en yüksek 10 SKU</div>
-          <div class="overflow-auto">
-            <table class="min-w-full text-sm">
-              <thead class="text-slate-600 dark:text-slate-300">
+          <div class="overflow-auto max-h-80">
+            <table class="min-w-full text-sm" id="tblTopStockTable">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
                 <tr>
                   <th class="text-left  py-2 pr-4">SKU</th>
                   <th class="text-left  py-2 pr-4">Title</th>
@@ -1154,9 +1303,9 @@ th, td { white-space: nowrap; }
         </div>
         <div>
           <div class="hint text-sm mb-1">90+ gün elde (₺ bazında ilk 10)</div>
-          <div class="overflow-auto">
+          <div class="overflow-auto max-h-80">
             <table class="min-w-full text-sm">
-              <thead class="text-slate-600 dark:text-slate-300">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
                 <tr>
                   <th class="text-left  py-2 pr-4">SKU</th>
                   <th class="text-left  py-2 pr-4">Title</th>
@@ -1171,39 +1320,66 @@ th, td { white-space: nowrap; }
           </div>
         </div>
       </div>
+
+      <!-- Dead Stock Tablosu (180+ gün) -->
+      <div class="mt-4">
+        <div class="glass rounded-2xl p-3 overflow-auto border-l-4 border-red-500">
+          <div class="hint text-sm mb-1">💀 Dead Stock (180+ gün satış yok)</div>
+          <div class="overflow-auto max-h-60">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
+                <tr>
+                  <th class="text-left py-2 pr-4">SKU</th>
+                  <th class="text-left py-2 pr-4">Title</th>
+                  <th class="text-right py-2 pr-4">On-hand</th>
+                  <th class="text-right py-2 pr-4">Value @Cost</th>
+                  <th class="text-right py-2 pr-4">Son Satış</th>
+                  <th class="text-right py-2 pr-4">Yaş (gün)</th>
+                </tr>
+              </thead>
+              <tbody id="tblDeadStock" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Stokout Risk (≤14 gün) -->
       <div class="mt-4">
-        <div class="glass rounded-2xl p-3 overflow-auto">
-          <div class="hint text-sm mb-1">Stokout Riski (≤14 gün) — Pencere: <span id="riskWindowLbl" class="badge"></span></div>
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left  py-2 pr-4">SKU</th>
-                <th class="text-left  py-2 pr-4">Title</th>
-                <th class="text-right py-2 pr-4">On-hand</th>
-                <th class="text-right py-2 pr-4">Günlük hız</th>
-                <th class="text-right py-2 pr-4">Kalan gün</th>
-              </tr>
-            </thead>
-            <tbody id="tblStockoutRisk" class="text-slate-800 dark:text-slate-100"></tbody>
-          </table>
+        <div class="glass rounded-2xl p-3 overflow-auto border-l-4 border-orange-500">
+          <div class="hint text-sm mb-1">🔥 Stokout Riski (≤14 gün) — Pencere: <span id="riskWindowLbl" class="badge"></span></div>
+          <div class="overflow-auto max-h-60">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
+                <tr>
+                  <th class="text-left  py-2 pr-4">SKU</th>
+                  <th class="text-left  py-2 pr-4">Title</th>
+                  <th class="text-right py-2 pr-4">On-hand</th>
+                  <th class="text-right py-2 pr-4">Günlük hız</th>
+                  <th class="text-right py-2 pr-4">Kalan gün</th>
+                </tr>
+              </thead>
+              <tbody id="tblStockoutRisk" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Largest Stock (Top 25) -->
       <div class="mt-4">
         <div class="glass rounded-2xl p-3 overflow-auto">
-          <div class="hint text-sm mb-1">Stoğu En Fazla Olan (Top 25)</div>
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left  py-2 pr-4">SKU</th>
-                <th class="text-left  py-2 pr-4">Title</th>
-                <th class="text-right py-2 pr-4">On-hand</th>
-              </tr>
-            </thead>
-            <tbody id="tblLargestStock" class="text-slate-800 dark:text-slate-100"></tbody>
-          </table>
+          <div class="hint text-sm mb-1">📦 Stoğu En Fazla Olan (Top 25)</div>
+          <div class="overflow-auto max-h-60">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
+                <tr>
+                  <th class="text-left  py-2 pr-4">SKU</th>
+                  <th class="text-left  py-2 pr-4">Title</th>
+                  <th class="text-right py-2 pr-4">On-hand</th>
+                </tr>
+              </thead>
+              <tbody id="tblLargestStock" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -4625,8 +4801,313 @@ function renderStockBlock(){
     } catch (e) {
       console.warn('Largest stock render error', e);
     }
+
+    // 6.g Kategori bazlı özet (Zee Dog / Pop Dog / Diğer)
+    try {
+      let zeeQty=0, zeeVal=0, popQty=0, popVal=0, otherQty=0, otherVal=0;
+      (invRows||[]).forEach(r=>{
+        const title = (r['Title']||'').toLowerCase();
+        const units = parseTL(r['TotalUnits']||0);
+        const val = parseTL(r['Value@Cost']||r['Value @Cost']||0);
+        if(title.includes('zee')){
+          zeeQty += units; zeeVal += val;
+        } else if(title.includes('pop dog') || title.includes('popdog')){
+          popQty += units; popVal += val;
+        } else {
+          otherQty += units; otherVal += val;
+        }
+      });
+      const catZeeEl = document.getElementById('kpiCatZee');
+      const catZeeValEl = document.getElementById('kpiCatZeeVal');
+      const catPopEl = document.getElementById('kpiCatPop');
+      const catPopValEl = document.getElementById('kpiCatPopVal');
+      const catOtherEl = document.getElementById('kpiCatOther');
+      const catOtherValEl = document.getElementById('kpiCatOtherVal');
+      if(catZeeEl) catZeeEl.textContent = `${zeeQty} adet`;
+      if(catZeeValEl) catZeeValEl.textContent = numberTL(zeeVal);
+      if(catPopEl) catPopEl.textContent = `${popQty} adet`;
+      if(catPopValEl) catPopValEl.textContent = numberTL(popVal);
+      if(catOtherEl) catOtherEl.textContent = `${otherQty} adet`;
+      if(catOtherValEl) catOtherValEl.textContent = numberTL(otherVal);
+    } catch(e){}
+
+    // 6.h Stok Devir Hızı (Turnover) = Yıllık satış / ortalama stok değeri
+    try {
+      const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000);
+      let yearSalesVal = 0;
+      (ordersMap||[]).forEach(o=>{
+        if(o.date && o.date >= oneYearAgo){
+          yearSalesVal += (o.qty||0) * (o.price||0);
+        }
+      });
+      const avgStockVal = inv.valCost || 1;
+      const turnover = yearSalesVal / avgStockVal;
+      const turnoverEl = document.getElementById('kpiTurnover');
+      if(turnoverEl) turnoverEl.textContent = turnover > 0 ? turnover.toFixed(2) + 'x' : '–';
+    } catch(e){}
+
+    // 6.i Dead Stock (180+ gün)
+    try {
+      const deadList = (invRows||[]).map(r=>{
+        const sku = String(r['SKU']||'').trim();
+        const units = parseTL(r['TotalUnits']||0);
+        const valCost = parseTL(r['Value@Cost']||r['Value @Cost']||0);
+        const last = lastSaleDateForSKU(sku, ordersMap);
+        const age = last ? Math.floor((Date.now()-last.getTime())/(1000*60*60*24)) : 9999;
+        return { sku, title:r['Title']||'', units, valCost, last, age };
+      }).filter(x=>x.units>0 && x.age>=180)
+        .sort((a,b)=> b.valCost - a.valCost);
+
+      const deadQty = deadList.reduce((a,x)=>a+x.units, 0);
+      const deadVal = deadList.reduce((a,x)=>a+x.valCost, 0);
+
+      const deadStockEl = document.getElementById('kpiDeadStock');
+      const deadStockQtyEl = document.getElementById('kpiDeadStockQty');
+      if(deadStockEl) deadStockEl.textContent = numberTL(deadVal);
+      if(deadStockQtyEl) deadStockQtyEl.textContent = `${deadQty} adet`;
+
+      const deadTbody = document.getElementById('tblDeadStock');
+      if(deadTbody){
+        deadTbody.innerHTML = deadList.slice(0,15).map(x=>{
+          const lastStr = x.last ? x.last.toISOString().slice(0,10) : '—';
+          return `<tr class="text-red-600 dark:text-red-400">
+            <td class="py-2 pr-4">${x.sku}</td>
+            <td class="py-2 pr-4">${x.title}</td>
+            <td class="py-2 pr-4 text-right">${x.units}</td>
+            <td class="py-2 pr-4 text-right">${numberTL(x.valCost)}</td>
+            <td class="py-2 pr-4 text-right">${lastStr}</td>
+            <td class="py-2 pr-4 text-right">${x.age}</td>
+          </tr>`;
+        }).join('') || '<tr><td class="hint py-2" colspan="6">Dead stock yok.</td></tr>';
+      }
+    } catch(e){}
+
+    // 6.j Stok Yaşlandırma Bar Chart
+    try {
+      const buckets = aging.buckets;
+      const total = Object.values(buckets).reduce((a,b)=>a+b, 0) || 1;
+      const maxVal = Math.max(...Object.values(buckets)) || 1;
+
+      const bar0_30 = document.getElementById('agingBar0_30');
+      const bar31_60 = document.getElementById('agingBar31_60');
+      const bar61_90 = document.getElementById('agingBar61_90');
+      const bar90plus = document.getElementById('agingBar90plus');
+
+      if(bar0_30) bar0_30.style.height = ((buckets['0-30']||0)/maxVal*100) + '%';
+      if(bar31_60) bar31_60.style.height = ((buckets['31-60']||0)/maxVal*100) + '%';
+      if(bar61_90) bar61_90.style.height = ((buckets['61-90']||0)/maxVal*100) + '%';
+      if(bar90plus) bar90plus.style.height = ((buckets['90+']||0)/maxVal*100) + '%';
+
+      const lbl0_30 = document.getElementById('agingLbl0_30');
+      const lbl31_60 = document.getElementById('agingLbl31_60');
+      const lbl61_90 = document.getElementById('agingLbl61_90');
+      const lbl90plus = document.getElementById('agingLbl90plus');
+
+      if(lbl0_30) lbl0_30.textContent = buckets['0-30']||0;
+      if(lbl31_60) lbl31_60.textContent = buckets['31-60']||0;
+      if(lbl61_90) lbl61_90.textContent = buckets['61-90']||0;
+      if(lbl90plus) lbl90plus.textContent = buckets['90+']||0;
+
+      const chartNote = document.getElementById('agingChartNote');
+      if(chartNote) chartNote.textContent = `Toplam: ${total} adet`;
+    } catch(e){}
+
+    // 6.k ABC Analizi
+    try {
+      // SKU bazında satış değeri (pencere içinde)
+      const skuSales = new Map();
+      (ordersMap||[]).forEach(o=>{
+        if(o.date && o.date >= cutoff){
+          const val = (o.qty||0) * (o.price||0);
+          skuSales.set(o.sku, (skuSales.get(o.sku)||0) + val);
+        }
+      });
+
+      const sorted = Array.from(skuSales.entries())
+        .map(([sku,val])=>({sku, val}))
+        .sort((a,b)=>b.val-a.val);
+
+      const totalSalesVal = sorted.reduce((a,x)=>a+x.val, 0) || 1;
+      let cumulative = 0;
+      let aCount=0, aVal=0, bCount=0, bVal=0, cCount=0, cVal=0;
+
+      sorted.forEach(x=>{
+        cumulative += x.val;
+        const pct = cumulative / totalSalesVal;
+        if(pct <= 0.80){
+          aCount++; aVal += x.val;
+        } else if(pct <= 0.95){
+          bCount++; bVal += x.val;
+        } else {
+          cCount++; cVal += x.val;
+        }
+      });
+
+      const abcAEl = document.getElementById('kpiAbcA');
+      const abcAValEl = document.getElementById('kpiAbcAVal');
+      const abcBEl = document.getElementById('kpiAbcB');
+      const abcBValEl = document.getElementById('kpiAbcBVal');
+      const abcCEl = document.getElementById('kpiAbcC');
+      const abcCValEl = document.getElementById('kpiAbcCVal');
+
+      if(abcAEl) abcAEl.textContent = `${aCount} SKU`;
+      if(abcAValEl) abcAValEl.textContent = `${numberTL(aVal)} (${(aVal/totalSalesVal*100).toFixed(0)}%)`;
+      if(abcBEl) abcBEl.textContent = `${bCount} SKU`;
+      if(abcBValEl) abcBValEl.textContent = `${numberTL(bVal)} (${(bVal/totalSalesVal*100).toFixed(0)}%)`;
+      if(abcCEl) abcCEl.textContent = `${cCount} SKU`;
+      if(abcCValEl) abcCValEl.textContent = `${numberTL(cVal)} (${(cVal/totalSalesVal*100).toFixed(0)}%)`;
+    } catch(e){}
+
+    // 6.l Reorder Point Uyarıları (Lead time: 45 gün, Safety stock: 7 gün)
+    try {
+      const leadTime = 45;
+      const safetyDays = 7;
+      const reorderList = [];
+
+      onHandMap.forEach((on, sku)=>{
+        const title = titleMap.get(sku) || '';
+        if(!title.toLowerCase().includes('zee')) return; // Sadece Zee Dog
+        if(on <= 0) return;
+
+        const sold = soldMap.get(sku) || 0;
+        const daily = sold / (salesWindowDays || 1);
+        if(daily <= 0) return;
+
+        const reorderPoint = daily * (leadTime + safetyDays);
+        if(on <= reorderPoint){
+          const suggestedOrder = Math.ceil(daily * 90) - on; // 90 günlük stok hedefi
+          reorderList.push({
+            sku,
+            title,
+            onHand: on,
+            daily,
+            reorderPoint,
+            suggested: Math.max(0, suggestedOrder)
+          });
+        }
+      });
+
+      reorderList.sort((a,b)=> (a.onHand/a.daily) - (b.onHand/b.daily));
+
+      const reorderTbody = document.getElementById('tblReorderPoint');
+      if(reorderTbody){
+        reorderTbody.innerHTML = reorderList.slice(0,15).map(x=>`
+          <tr class="bg-yellow-50 dark:bg-yellow-900/20">
+            <td class="py-2 pr-4">${x.sku}</td>
+            <td class="py-2 pr-4">${x.title}</td>
+            <td class="py-2 pr-4 text-right">${x.onHand}</td>
+            <td class="py-2 pr-4 text-right">${x.daily.toFixed(2)}</td>
+            <td class="py-2 pr-4 text-right">${Math.ceil(x.reorderPoint)}</td>
+            <td class="py-2 pr-4 text-right font-semibold text-yellow-700 dark:text-yellow-400">${x.suggested}</td>
+          </tr>
+        `).join('') || '<tr><td class="hint py-2" colspan="6">Sipariş gerektiren ürün yok.</td></tr>';
+      }
+    } catch(e){}
+
+    // 6.m Son güncelleme tarihi
+    try {
+      const updateEl = document.getElementById('stockLastUpdate');
+      if(updateEl){
+        const now = new Date();
+        updateEl.textContent = `Son güncelleme: ${now.toLocaleString('tr-TR')}`;
+      }
+    } catch(e){}
+
+    // 6.n Renk kodlarını uygula
+    setTimeout(applyStockRowColors, 100);
+
   } catch(err) {
     console.warn('Sales/Turnover lists error', err);
+  }
+}
+
+// Stok arama fonksiyonu
+function initStockSearch(){
+  const input = document.getElementById('stockSearchInput');
+  if(!input) return;
+
+  input.addEventListener('input', function(){
+    const query = this.value.toLowerCase().trim();
+    const tables = ['tblTopStock','tblAged90','tblDeadStock','tblStockoutRisk','tblLargestStock','tblReorderPoint'];
+
+    tables.forEach(id=>{
+      const tbody = document.getElementById(id);
+      if(!tbody) return;
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(row=>{
+        const text = row.textContent.toLowerCase();
+        row.style.display = (!query || text.includes(query)) ? '' : 'none';
+      });
+    });
+  });
+}
+
+// CSV Export fonksiyonu
+function initStockExport(){
+  const btn = document.getElementById('stockExportBtn');
+  if(!btn) return;
+
+  btn.addEventListener('click', function(){
+    const invRows = JSON.parse(localStorage.getItem('popdog_inv_cache') || '[]');
+    if(!invRows.length){
+      alert('Export edilecek veri yok.');
+      return;
+    }
+
+    // CSV oluştur
+    const headers = ['SKU','Title','TotalUnits','Value@Cost','Value@Price'];
+    const csv = [
+      headers.join(','),
+      ...invRows.map(r => headers.map(h => {
+        let val = r[h] || '';
+        if(typeof val === 'string' && val.includes(',')) val = `"${val}"`;
+        return val;
+      }).join(','))
+    ].join('\n');
+
+    // Download
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stok_export_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+// Tablolara renk kodları ekle (kritik satırlara)
+function applyStockRowColors(){
+  // Stokout risk tablosunda kalan gün < 7 ise kırmızı
+  const riskTbody = document.getElementById('tblStockoutRisk');
+  if(riskTbody){
+    riskTbody.querySelectorAll('tr').forEach(row=>{
+      const cells = row.querySelectorAll('td');
+      if(cells.length >= 5){
+        const remain = parseFloat(cells[4].textContent) || 999;
+        if(remain <= 7){
+          row.classList.add('bg-red-100','dark:bg-red-900/30');
+        } else if(remain <= 10){
+          row.classList.add('bg-orange-100','dark:bg-orange-900/30');
+        }
+      }
+    });
+  }
+
+  // Aged tablosunda yaş > 120 ise koyu kırmızı
+  const agedTbody = document.getElementById('tblAged90');
+  if(agedTbody){
+    agedTbody.querySelectorAll('tr').forEach(row=>{
+      const cells = row.querySelectorAll('td');
+      if(cells.length >= 6){
+        const age = parseInt(cells[5].textContent) || 0;
+        if(age >= 180){
+          row.classList.add('text-red-700','dark:text-red-400');
+        } else if(age >= 120){
+          row.classList.add('text-orange-600','dark:text-orange-400');
+        }
+      }
+    });
   }
 }
 
@@ -6255,6 +6736,8 @@ try {
   } catch (e) { console.warn('ORDERS CSV error', e); }
 
   initSalesWindowSelector();
+  initStockSearch();
+  initStockExport();
   refreshAll();
   (function(){
     const t = document.getElementById('yoyToggle');
