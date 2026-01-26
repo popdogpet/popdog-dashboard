@@ -610,7 +610,6 @@ th, td { white-space: nowrap; }
         <h1 class="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">
           Pop Dog | 2025 CFO Dashboard
         </h1>
-        <p class="hint text-xs sm:text-sm">Google Sheet + CSV + WhatsApp yapıştır · Haftalık mini kartlar · Hedefler (YTD ortalama)</p>
       </div>
       <!-- Top Nav: Pages -->
       <div class="w-full mt-2 flex items-center gap-2 flex-wrap">
@@ -6134,29 +6133,29 @@ function renderLast7(){
     days.push(d);
   }
 
-  const byDate = new Map(); // ISO-> {Total, Toptan, Online, CKM, Trendyol, Hepsiburada}
+  const byDate = new Map(); // ISO-> {Total, Toptan, Online, CKM, Kuafor, Trendyol, Hepsiburada}
   rows.forEach(r=>{
     if(!r.Date) return;
     const d = new Date(r.Date + 'T00:00:00'); d.setHours(0,0,0,0);
     const iso = d.toISOString().slice(0,10);
-    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
-    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-    acc.Total += (tpt+onl+ckm+trn+hb);
-    acc.Toptan += tpt; acc.Online += onl; acc.CKM += ckm; acc.Trendyol += trn; acc.Hepsiburada += hb;
+    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Kuafor:0,Trendyol:0,Hepsiburada:0};
+    const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, kua=+(r['Kuaför']||r.Kuafor)||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
+    acc.Total += (tpt+onl+ckm+kua+trn+hb);
+    acc.Toptan += tpt; acc.Online += onl; acc.CKM += ckm; acc.Kuafor += kua; acc.Trendyol += trn; acc.Hepsiburada += hb;
     byDate.set(iso, acc);
   });
 
   wrap.innerHTML = '';
   days.forEach(d=>{
     const iso = d.toISOString().slice(0,10);
-    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Trendyol:0,Hepsiburada:0};
+    const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Kuafor:0,Trendyol:0,Hepsiburada:0};
     const card = document.createElement('div');
     card.className = 'glass card-3d rounded-2xl p-3';
     const lbl = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
     card.innerHTML = `
       <div class="hint text-xs">${lbl}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(acc.Total)}</div>
-      <div class="hint text-[11px]">T:${numberTL(acc.Toptan)} • O:${numberTL(acc.Online)} • C:${numberTL(acc.CKM)} • Tr:${numberTL(acc.Trendyol)} • H:${numberTL(acc.Hepsiburada)}</div>
+      <div class="hint text-[11px]">T:${numberTL(acc.Toptan)} • O:${numberTL(acc.Online)} • C:${numberTL(acc.CKM)} • K:${numberTL(acc.Kuafor)} • Tr:${numberTL(acc.Trendyol)} • H:${numberTL(acc.Hepsiburada)}</div>
     `;
     wrap.appendChild(card);
   });
