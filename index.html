@@ -681,6 +681,157 @@ th, td { white-space: nowrap; }
       </div>
     </div>
 
+    <!-- === Nakit Akış & Finansal Sağlık === -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="summary">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2">
+          💰 Nakit Akış & Finansal Sağlık
+        </div>
+        <div class="hint text-xs" id="cashFlowLastUpdate">Son güncelleme: –</div>
+      </div>
+
+      <!-- Ana Metrikler -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Gross Margin -->
+        <div class="glass rounded-2xl p-3 border-l-4 border-green-500">
+          <div class="hint text-xs">Brüt Kar Marjı (YTD)</div>
+          <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiGrossMargin">–%</div>
+          <div class="hint text-[10px] mt-1" id="kpiGrossMarginNote">Ciro − COGS / Ciro</div>
+        </div>
+        <!-- Net Profit Margin -->
+        <div class="glass rounded-2xl p-3 border-l-4 border-blue-500">
+          <div class="hint text-xs">Net Kar Marjı (YTD)</div>
+          <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiNetMargin">–%</div>
+          <div class="hint text-[10px] mt-1" id="kpiNetMarginNote">Net Kar / Ciro</div>
+        </div>
+        <!-- Gider/Ciro Oranı -->
+        <div class="glass rounded-2xl p-3 border-l-4 border-orange-500">
+          <div class="hint text-xs">Gider / Ciro Oranı</div>
+          <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiExpenseRatio">–%</div>
+          <div class="hint text-[10px] mt-1" id="kpiExpenseRatioNote">Toplam Gider / Ciro</div>
+        </div>
+        <!-- Runway -->
+        <div class="glass rounded-2xl p-3 border-l-4 border-purple-500">
+          <div class="hint text-xs">Tahmini Runway</div>
+          <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiRunway">– ay</div>
+          <div class="hint text-[10px] mt-1" id="kpiRunwayNote">Stok değeri / aylık gider</div>
+        </div>
+      </div>
+
+      <!-- Hedef vs Gerçekleşen -->
+      <div class="mt-4 glass rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="hint text-sm">🎯 Yıllık Hedef İlerlemesi</div>
+          <div class="flex items-center gap-2">
+            <span class="hint text-xs">Hedef:</span>
+            <input type="text" id="annualTargetInput" placeholder="ör. 25.000.000" class="glass rounded-lg px-2 py-1 text-xs w-28 focus:outline-none" value="">
+            <span class="hint text-xs">₺</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden">
+            <div id="targetProgressBar" class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <div class="text-sm font-semibold text-slate-800 dark:text-slate-100 w-16 text-right" id="targetProgressPct">0%</div>
+        </div>
+        <div class="flex items-center justify-between mt-2">
+          <div class="hint text-xs" id="targetCurrentVal">Gerçekleşen: ₺–</div>
+          <div class="hint text-xs" id="targetRemainingVal">Kalan: ₺–</div>
+        </div>
+        <div class="hint text-[10px] mt-1" id="targetPaceNote"></div>
+      </div>
+
+      <!-- Yaklaşan Ödemeler -->
+      <div class="mt-4 glass rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="hint text-sm">📅 Bu Ay Yaklaşan Ödemeler</div>
+          <div class="text-sm font-semibold text-red-600 dark:text-red-400" id="upcomingPaymentsTotal">Toplam: ₺–</div>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2" id="upcomingPaymentsList">
+          <div class="hint text-xs">Yükleniyor...</div>
+        </div>
+      </div>
+
+      <!-- Karlılık Detayı -->
+      <details class="mt-4">
+        <summary class="cursor-pointer hint text-sm flex items-center gap-2">
+          📊 Karlılık Detayı (tıkla: aç/kapat)
+        </summary>
+        <div class="mt-3 overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-2 pr-4">Metrik</th>
+                <th class="text-right py-2 pr-4">Değer</th>
+                <th class="text-right py-2 pr-4">USD</th>
+                <th class="text-left py-2">Açıklama</th>
+              </tr>
+            </thead>
+            <tbody id="tblProfitability" class="text-slate-800 dark:text-slate-100">
+              <tr class="border-b border-slate-200 dark:border-slate-700">
+                <td class="py-2 pr-4 font-medium">Toplam Ciro (YTD)</td>
+                <td class="py-2 pr-4 text-right" id="profRevenue">–</td>
+                <td class="py-2 pr-4 text-right hint" id="profRevenueUSD">–</td>
+                <td class="py-2 hint text-xs">Tüm kanallardan toplam satış</td>
+              </tr>
+              <tr class="border-b border-slate-200 dark:border-slate-700">
+                <td class="py-2 pr-4 font-medium">Tahmini COGS</td>
+                <td class="py-2 pr-4 text-right" id="profCOGS">–</td>
+                <td class="py-2 pr-4 text-right hint" id="profCOGSUSD">–</td>
+                <td class="py-2 hint text-xs">Satılan malın maliyeti (stok maliyet oranı)</td>
+              </tr>
+              <tr class="border-b border-slate-200 dark:border-slate-700 bg-green-50 dark:bg-green-900/20">
+                <td class="py-2 pr-4 font-medium text-green-700 dark:text-green-400">Brüt Kar</td>
+                <td class="py-2 pr-4 text-right font-semibold text-green-700 dark:text-green-400" id="profGrossProfit">–</td>
+                <td class="py-2 pr-4 text-right hint" id="profGrossProfitUSD">–</td>
+                <td class="py-2 hint text-xs">Ciro − COGS</td>
+              </tr>
+              <tr class="border-b border-slate-200 dark:border-slate-700">
+                <td class="py-2 pr-4 font-medium">Toplam Gider (YTD)</td>
+                <td class="py-2 pr-4 text-right" id="profExpenses">–</td>
+                <td class="py-2 pr-4 text-right hint" id="profExpensesUSD">–</td>
+                <td class="py-2 hint text-xs">Operasyonel giderler</td>
+              </tr>
+              <tr class="bg-blue-50 dark:bg-blue-900/20">
+                <td class="py-2 pr-4 font-medium text-blue-700 dark:text-blue-400">Net Kar</td>
+                <td class="py-2 pr-4 text-right font-semibold text-blue-700 dark:text-blue-400" id="profNetProfit">–</td>
+                <td class="py-2 pr-4 text-right hint" id="profNetProfitUSD">–</td>
+                <td class="py-2 hint text-xs">Brüt Kar − Giderler</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <!-- Kanal Karlılığı -->
+      <details class="mt-4">
+        <summary class="cursor-pointer hint text-sm flex items-center gap-2">
+          📈 Kanal Bazlı Karlılık (tıkla: aç/kapat)
+        </summary>
+        <div class="mt-3">
+          <div class="hint text-[10px] mb-2">* Komisyon oranları tahminidir. Gerçek değerler için kanalların raporlarına bakınız.</div>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300">
+                <tr>
+                  <th class="text-left py-2 pr-3">Kanal</th>
+                  <th class="text-right py-2 pr-3">Ciro (YTD)</th>
+                  <th class="text-right py-2 pr-3">Pay</th>
+                  <th class="text-right py-2 pr-3">Komisyon %</th>
+                  <th class="text-right py-2 pr-3">Tah. Komisyon</th>
+                  <th class="text-right py-2 pr-3">Net Ciro</th>
+                  <th class="text-right py-2">Tah. Brüt Kar</th>
+                </tr>
+              </thead>
+              <tbody id="tblChannelProfitability" class="text-slate-800 dark:text-slate-100">
+                <tr><td class="hint py-2" colspan="7">Yükleniyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </section>
+
     <!-- Haftalık Mini Kartlar -->
     <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="summary">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
@@ -1255,31 +1406,6 @@ th, td { white-space: nowrap; }
             </div>
             <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAbcC">– SKU</div>
             <div class="hint text-xs" id="kpiAbcCVal">₺– (%–)</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reorder Point Uyarıları -->
-      <div class="mt-4">
-        <div class="glass rounded-2xl p-3 overflow-auto border-l-4 border-yellow-500">
-          <div class="flex items-center justify-between mb-2">
-            <div class="hint text-sm">⚠️ Sipariş Verilmesi Gereken Ürün Grupları</div>
-            <div class="hint text-[10px]">Lead time: 45 gün + Safety: 7 gün • Kategori + Beden bazlı</div>
-          </div>
-          <div class="overflow-auto max-h-72">
-            <table class="min-w-full text-sm">
-              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/90 dark:bg-slate-800/90">
-                <tr>
-                  <th class="text-left py-2 pr-4">Ürün Grubu</th>
-                  <th class="text-center py-2 pr-4">Beden</th>
-                  <th class="text-right py-2 pr-4">Stok</th>
-                  <th class="text-right py-2 pr-4">Günlük Satış</th>
-                  <th class="text-right py-2 pr-4">Kalan Gün</th>
-                  <th class="text-right py-2 pr-4">Önerilen Sipariş</th>
-                </tr>
-              </thead>
-              <tbody id="tblReorderPoint" class="text-slate-800 dark:text-slate-100"></tbody>
-            </table>
           </div>
         </div>
       </div>
@@ -4982,129 +5108,6 @@ function renderStockBlock(){
     // 6.l Reorder Point - Kategori + Beden Bazlı
     try {
       const leadTime = 45;
-      const safetyDays = 7;
-
-      // Ürün adından kategori çıkar
-      function extractCategory(title){
-        const t = (title||'').toLowerCase();
-        // Öncelik sırasına göre kategori eşleştir
-        const categories = [
-          { pattern: /softer walk.*göğüs|göğüs.*softer walk/i, name: 'Softer Walk Göğüs Tasması' },
-          { pattern: /soft walk.*göğüs|göğüs.*soft walk/i, name: 'Soft Walk Göğüs Tasması' },
-          { pattern: /step.?in.*göğüs|göğüs.*step.?in/i, name: 'Step-in Göğüs Tasması' },
-          { pattern: /göğüs tasma/i, name: 'Göğüs Tasması' },
-          { pattern: /boyun tasma/i, name: 'Boyun Tasması' },
-          { pattern: /martingale/i, name: 'Martingale Tasma' },
-          { pattern: /h.?tasma|h-tasma/i, name: 'H-Tasma' },
-          { pattern: /kayış|leash/i, name: 'Kayış' },
-          { pattern: /mama kabı|bowl/i, name: 'Mama Kabı' },
-          { pattern: /yatak|bed/i, name: 'Yatak' },
-          { pattern: /oyuncak|toy/i, name: 'Oyuncak' },
-          { pattern: /bandana/i, name: 'Bandana' },
-          { pattern: /yağmurluk|raincoat/i, name: 'Yağmurluk' },
-          { pattern: /mont|jacket|coat/i, name: 'Mont/Ceket' },
-          { pattern: /tişört|t-shirt|tshirt/i, name: 'Tişört' },
-          { pattern: /hoodie|sweat/i, name: 'Hoodie/Sweat' },
-          { pattern: /polar|fleece/i, name: 'Polar' },
-          { pattern: /şişme yelek|puffer/i, name: 'Şişme Yelek' },
-          { pattern: /çanta|bag|carrier/i, name: 'Çanta/Taşıyıcı' },
-          { pattern: /kedi/i, name: 'Kedi Ürünü' },
-        ];
-        for(const c of categories){
-          if(c.pattern.test(t)) return c.name;
-        }
-        // Bulamazsa ilk 3-4 kelimeyi al
-        const words = (title||'').split(/\s+/).slice(0,4).join(' ');
-        return words || 'Diğer';
-      }
-
-      // Ürün adından beden çıkar
-      function extractSize(title, sku){
-        const combined = `${title} ${sku}`.toUpperCase();
-        // Önce standart bedenleri ara
-        const sizePatterns = [
-          { pattern: /\b(XXXS|3XS)\b/, name: 'XXXS' },
-          { pattern: /\b(XXS|2XS)\b/, name: 'XXS' },
-          { pattern: /\b(XS)\b/, name: 'XS' },
-          { pattern: /\b(XXXL|3XL)\b/, name: 'XXXL' },
-          { pattern: /\b(XXL|2XL)\b/, name: 'XXL' },
-          { pattern: /\b(XL)\b/, name: 'XL' },
-          { pattern: /\bSMALL\b|\b[^X]S\b|[\s\-_]S[\s\-_]|[\s\-_]S$|^S[\s\-_]/, name: 'S' },
-          { pattern: /\bMEDIUM\b|\bM\b/, name: 'M' },
-          { pattern: /\bLARGE\b|\b[^X]L\b|[\s\-_]L[\s\-_]|[\s\-_]L$|^L[\s\-_]/, name: 'L' },
-        ];
-        for(const s of sizePatterns){
-          if(s.pattern.test(combined)) return s.name;
-        }
-        return 'Tek Beden';
-      }
-
-      // Kategori + Beden bazında gruplama
-      const groupMap = new Map(); // "Kategori|Beden" -> { stock, sold, skus[] }
-
-      onHandMap.forEach((on, sku)=>{
-        const title = titleMap.get(sku) || '';
-        if(!title) return; // Başlık yoksa atla
-
-        const category = extractCategory(title);
-        const size = extractSize(title, sku);
-        const key = `${category}|${size}`;
-
-        const sold = soldMap.get(sku) || 0;
-
-        if(!groupMap.has(key)){
-          groupMap.set(key, { category, size, stock: 0, sold: 0, skus: [] });
-        }
-        const g = groupMap.get(key);
-        g.stock += on;
-        g.sold += sold;
-        g.skus.push({ sku, title, on, sold });
-      });
-
-      // Reorder point hesapla ve filtrele
-      const reorderList = [];
-      groupMap.forEach((g, key)=>{
-        if(g.stock <= 0) return;
-        const daily = g.sold / (salesWindowDays || 1);
-        if(daily <= 0) return;
-
-        const reorderPoint = daily * (leadTime + safetyDays);
-        const remainDays = g.stock / daily;
-
-        if(g.stock <= reorderPoint){
-          const suggested = Math.ceil(daily * 90) - g.stock; // 90 günlük hedef
-          reorderList.push({
-            category: g.category,
-            size: g.size,
-            stock: g.stock,
-            daily,
-            remainDays,
-            reorderPoint,
-            suggested: Math.max(0, suggested),
-            skuCount: g.skus.length
-          });
-        }
-      });
-
-      reorderList.sort((a,b)=> a.remainDays - b.remainDays);
-
-      const reorderTbody = document.getElementById('tblReorderPoint');
-      if(reorderTbody){
-        reorderTbody.innerHTML = reorderList.slice(0,20).map(x=>{
-          const urgency = x.remainDays <= 14 ? 'bg-red-100 dark:bg-red-900/30' :
-                          x.remainDays <= 30 ? 'bg-orange-100 dark:bg-orange-900/30' :
-                          'bg-yellow-50 dark:bg-yellow-900/20';
-          return `
-          <tr class="${urgency}">
-            <td class="py-2 pr-4 font-medium">${x.category}</td>
-            <td class="py-2 pr-4 text-center">${x.size}</td>
-            <td class="py-2 pr-4 text-right">${x.stock}</td>
-            <td class="py-2 pr-4 text-right">${x.daily.toFixed(2)}</td>
-            <td class="py-2 pr-4 text-right font-semibold ${x.remainDays <= 14 ? 'text-red-600 dark:text-red-400' : ''}">${x.remainDays.toFixed(0)} gün</td>
-            <td class="py-2 pr-4 text-right font-semibold text-yellow-700 dark:text-yellow-400">${x.suggested}</td>
-          </tr>
-        `}).join('') || '<tr><td class="hint py-2" colspan="6">Sipariş gerektiren ürün grubu yok.</td></tr>';
-      }
     } catch(e){}
 
     // 6.m Son güncelleme tarihi
@@ -5131,7 +5134,7 @@ function initStockSearch(){
 
   input.addEventListener('input', function(){
     const query = this.value.toLowerCase().trim();
-    const tables = ['tblTopStock','tblAged90','tblDeadStock','tblStockoutRisk','tblLargestStock','tblReorderPoint'];
+    const tables = ['tblTopStock','tblAged90','tblDeadStock','tblStockoutRisk','tblLargestStock'];
 
     tables.forEach(id=>{
       const tbody = document.getElementById(id);
@@ -5402,21 +5405,102 @@ function setKPIs(monthly){
 /* ================== Alerts ================== */
 function buildAlerts(monthly){
   const alerts = [];
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  // 1) MoM Ciro Düşüşü
   if(monthly.length>=2){
     const mLast = monthly.at(-1), mPrev = monthly.at(-2);
     const mom = mPrev.Total ? (mLast.Total - mPrev.Total) / mPrev.Total : 0;
-    if(mom < -0.15){ alerts.push({type:'risk', text:`MoM toplam ciro düşüşü ${ (mom*100).toFixed(1) }%`}); }
+    if(mom < -0.15){
+      alerts.push({type:'risk', text:`MoM toplam ciro düşüşü ${(mom*100).toFixed(1)}%`, priority: 1});
+    }
+    // Kanal bazlı düşüşler
     ["Toptan","Online","CKM","Trendyol","Hepsiburada"].forEach(k=>{
       const r = mPrev[k] ? (mLast[k]-mPrev[k]) / mPrev[k] : 0;
-      if(r < -0.20){ alerts.push({type:'warn', text:`${k} aylık -${(Math.abs(r)*100).toFixed(0)}%`}); }
+      if(r < -0.20){
+        alerts.push({type:'warn', text:`${k} aylık -${(Math.abs(r)*100).toFixed(0)}%`, priority: 2});
+      }
     });
   }
-  const ul = document.getElementById('alertsList'); ul.innerHTML='';
-  if(alerts.length===0){ ul.innerHTML = `<li class="hint">Uyarı yok.</li>`; return; }
-  alerts.forEach(a=>{
+
+  // 2) Kredi Ödeme Uyarıları
+  try {
+    const st = (typeof getLoansState === 'function') ? getLoansState() : {};
+    const loans = st.loans || {};
+    const dayOfMonth = now.getDate();
+
+    // Kredi taksitleri yaklaşıyorsa (ayın 10'undan sonra uyar)
+    if (dayOfMonth >= 10) {
+      if (loans.biz && loans.biz.paid < loans.biz.total) {
+        const inst = Number(loans.biz.instTRY || 0);
+        if (inst > 0) alerts.push({type:'info', text:`Ticari kredi taksiti yaklaşıyor: ${numberTL(inst)}`, priority: 3});
+      }
+      if (loans.car && loans.car.paid < loans.car.total) {
+        const inst = Number(loans.car.instTRY || 0);
+        if (inst > 0) alerts.push({type:'info', text:`Araç kredisi taksiti yaklaşıyor: ${numberTL(inst)}`, priority: 3});
+      }
+    }
+  } catch(e){}
+
+  // 3) Margin Uyarıları
+  try {
+    const ytdRevenue = parseFloat((document.getElementById('kpiYTD')?.textContent || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+    const ytdExpenses = parseFloat((document.getElementById('kpiExpYTD')?.textContent || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+
+    if (ytdRevenue > 0 && ytdExpenses > 0) {
+      const expenseRatio = (ytdExpenses / ytdRevenue) * 100;
+      if (expenseRatio > 50) {
+        alerts.push({type:'risk', text:`Gider/Ciro oranı yüksek: %${expenseRatio.toFixed(1)}`, priority: 1});
+      } else if (expenseRatio > 40) {
+        alerts.push({type:'warn', text:`Gider/Ciro oranı dikkat: %${expenseRatio.toFixed(1)}`, priority: 2});
+      }
+    }
+  } catch(e){}
+
+  // 4) Hedef Takibi Uyarısı
+  try {
+    const annualTarget = parseFloat(localStorage.getItem(ANNUAL_TARGET_KEY) || '0') || 0;
+    if (annualTarget > 0) {
+      const ytdRevenue = parseFloat((document.getElementById('kpiYTD')?.textContent || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      const expectedProgress = (currentMonth / 12) * annualTarget;
+      const behindBy = expectedProgress - ytdRevenue;
+
+      if (behindBy > 0 && (behindBy / expectedProgress) > 0.15) {
+        alerts.push({type:'warn', text:`Yıllık hedefin %${((behindBy/expectedProgress)*100).toFixed(0)} gerisinde`, priority: 2});
+      }
+    }
+  } catch(e){}
+
+  // 5) Stok Uyarıları
+  try {
+    const deadStockEl = document.getElementById('kpiDeadStock');
+    if (deadStockEl) {
+      const deadStockText = deadStockEl.textContent || '';
+      const deadStockVal = parseFloat(deadStockText.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      if (deadStockVal > 500000) {
+        alerts.push({type:'warn', text:`Yüksek dead stock: ${numberTL(deadStockVal)}`, priority: 2});
+      }
+    }
+  } catch(e){}
+
+  // Sırala: önce risk, sonra warn, sonra info
+  alerts.sort((a, b) => (a.priority || 99) - (b.priority || 99));
+
+  // UI güncelle
+  const ul = document.getElementById('alertsList');
+  ul.innerHTML='';
+  if(alerts.length===0){
+    ul.innerHTML = `<li class="hint">✅ Uyarı yok - her şey yolunda!</li>`;
+    return;
+  }
+
+  alerts.slice(0, 6).forEach(a=>{
     const li = document.createElement('li');
     const color = a.type==='risk'?'#ef4444':(a.type==='warn'?'#f59e0b':'#6366f1');
-    li.innerHTML = `<span class="dot" style="background:${color}"></span>${a.text}`;
+    const icon = a.type==='risk'?'🚨':(a.type==='warn'?'⚠️':'ℹ️');
+    li.innerHTML = `<span class="dot" style="background:${color}"></span>${icon} ${a.text}`;
     ul.appendChild(li);
   });
 }
@@ -6578,6 +6662,21 @@ try {
 } catch (e) {
   console.warn('Expenses render error', e);
 }
+
+  // 7) Finansal Sağlık Metrikleri
+  try {
+    if (typeof renderFinancialHealth === 'function') {
+      setTimeout(renderFinancialHealth, 500);
+    }
+    if (typeof renderChannelProfitability === 'function') {
+      setTimeout(renderChannelProfitability, 600);
+    }
+    if (typeof renderYoYComparison === 'function') {
+      setTimeout(renderYoYComparison, 600);
+    }
+  } catch(e) {
+    console.warn('Financial health render error', e);
+  }
 }
 // ================== BOOTSTRAP (safe, idempotent) ==================
 (function bootPopdog(){
@@ -7184,6 +7283,485 @@ document.addEventListener('DOMContentLoaded', function(){
   // Yeni: expenses_master'tan dinamik sayım yap
   try{ refreshLoansFromExpenses(); }catch(_){}
 }, { once:true });
+
+// === Nakit Akış & Finansal Sağlık Metrikleri ===
+const ANNUAL_TARGET_KEY = 'popdog_annual_target';
+
+function renderFinancialHealth(){
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+
+    // YTD Ciro - mevcut KPI'dan al
+    let ytdRevenue = 0;
+    try {
+      const kpiYTDEl = document.getElementById('kpiYTD');
+      if (kpiYTDEl) {
+        const txt = kpiYTDEl.textContent || '';
+        ytdRevenue = parseFloat(txt.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      }
+    } catch(e){}
+
+    // YTD Giderler - mevcut KPI'dan al
+    let ytdExpenses = 0;
+    try {
+      const kpiExpEl = document.getElementById('kpiExpYTD');
+      if (kpiExpEl) {
+        const txt = kpiExpEl.textContent || '';
+        ytdExpenses = parseFloat(txt.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      }
+    } catch(e){}
+
+    // Stok maliyeti - mevcut KPI'dan al
+    let stockCost = 0;
+    try {
+      const kpiStockEl = document.getElementById('kpiInvCost');
+      if (kpiStockEl) {
+        const txt = kpiStockEl.textContent || '';
+        stockCost = parseFloat(txt.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      }
+    } catch(e){}
+
+    // Stok satış değeri
+    let stockSaleValue = 0;
+    try {
+      const kpiStockSaleEl = document.getElementById('kpiInvPrice');
+      if (kpiStockSaleEl) {
+        const txt = kpiStockSaleEl.textContent || '';
+        stockSaleValue = parseFloat(txt.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      }
+    } catch(e){}
+
+    // COGS tahmini: Stok maliyet/satış oranı üzerinden hesapla
+    let cogsRatio = 0.45; // varsayılan %45
+    if (stockCost > 0 && stockSaleValue > 0) {
+      cogsRatio = stockCost / stockSaleValue;
+    }
+    const estimatedCOGS = ytdRevenue * cogsRatio;
+
+    // Brüt Kar
+    const grossProfit = ytdRevenue - estimatedCOGS;
+    const grossMargin = ytdRevenue > 0 ? (grossProfit / ytdRevenue) * 100 : 0;
+
+    // Net Kar (Ciro - COGS - Giderler)
+    const netProfit = grossProfit - ytdExpenses;
+    const netMargin = ytdRevenue > 0 ? (netProfit / ytdRevenue) * 100 : 0;
+
+    // Gider/Ciro oranı
+    const expenseRatio = ytdRevenue > 0 ? (ytdExpenses / ytdRevenue) * 100 : 0;
+
+    // Runway: Stok değeri / aylık ortalama gider
+    const monthsElapsed = currentMonth + 1;
+    const avgMonthlyExpense = monthsElapsed > 0 ? ytdExpenses / monthsElapsed : 0;
+    const runway = avgMonthlyExpense > 0 ? stockCost / avgMonthlyExpense : 0;
+
+    // USD dönüşümü için FX
+    let fxRate = 0;
+    try {
+      fxRate = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+      if (!fxRate) {
+        const derived = (typeof deriveTryPerUsdFromKPI === 'function') ? deriveTryPerUsdFromKPI() : 0;
+        fxRate = derived || 35;
+      }
+    } catch(e){ fxRate = 35; }
+    const usdPerTry = fxRate > 0 ? 1 / fxRate : 0;
+
+    // KPI'ları güncelle
+    const elGrossMargin = document.getElementById('kpiGrossMargin');
+    if (elGrossMargin) {
+      elGrossMargin.textContent = grossMargin > 0 ? `%${grossMargin.toFixed(1)}` : '–%';
+      elGrossMargin.className = grossMargin >= 40 ? 'text-xl font-bold text-green-600 dark:text-green-400' :
+                                 grossMargin >= 25 ? 'text-xl font-bold text-yellow-600 dark:text-yellow-400' :
+                                 'text-xl font-bold text-red-600 dark:text-red-400';
+    }
+
+    const elNetMargin = document.getElementById('kpiNetMargin');
+    if (elNetMargin) {
+      elNetMargin.textContent = netMargin !== 0 ? `%${netMargin.toFixed(1)}` : '–%';
+      elNetMargin.className = netMargin >= 15 ? 'text-xl font-bold text-green-600 dark:text-green-400' :
+                               netMargin >= 5 ? 'text-xl font-bold text-yellow-600 dark:text-yellow-400' :
+                               'text-xl font-bold text-red-600 dark:text-red-400';
+    }
+
+    const elExpenseRatio = document.getElementById('kpiExpenseRatio');
+    if (elExpenseRatio) {
+      elExpenseRatio.textContent = expenseRatio > 0 ? `%${expenseRatio.toFixed(1)}` : '–%';
+      elExpenseRatio.className = expenseRatio <= 30 ? 'text-xl font-bold text-green-600 dark:text-green-400' :
+                                  expenseRatio <= 50 ? 'text-xl font-bold text-yellow-600 dark:text-yellow-400' :
+                                  'text-xl font-bold text-red-600 dark:text-red-400';
+    }
+
+    const elRunway = document.getElementById('kpiRunway');
+    if (elRunway) {
+      elRunway.textContent = runway > 0 ? `${runway.toFixed(1)} ay` : '– ay';
+      elRunway.className = runway >= 6 ? 'text-xl font-bold text-green-600 dark:text-green-400' :
+                            runway >= 3 ? 'text-xl font-bold text-yellow-600 dark:text-yellow-400' :
+                            'text-xl font-bold text-red-600 dark:text-red-400';
+    }
+
+    const elRunwayNote = document.getElementById('kpiRunwayNote');
+    if (elRunwayNote && avgMonthlyExpense > 0) {
+      elRunwayNote.textContent = `Ort. aylık gider: ${numberTL(avgMonthlyExpense)}`;
+    }
+
+    // Karlılık detay tablosu
+    const elProfRevenue = document.getElementById('profRevenue');
+    if (elProfRevenue) elProfRevenue.textContent = numberTL(ytdRevenue);
+
+    const elProfRevenueUSD = document.getElementById('profRevenueUSD');
+    if (elProfRevenueUSD) elProfRevenueUSD.textContent = usdPerTry > 0 ? `$${(ytdRevenue * usdPerTry).toLocaleString('en-US', {maximumFractionDigits: 0})}` : '–';
+
+    const elProfCOGS = document.getElementById('profCOGS');
+    if (elProfCOGS) elProfCOGS.textContent = numberTL(estimatedCOGS);
+
+    const elProfCOGSUSD = document.getElementById('profCOGSUSD');
+    if (elProfCOGSUSD) elProfCOGSUSD.textContent = usdPerTry > 0 ? `$${(estimatedCOGS * usdPerTry).toLocaleString('en-US', {maximumFractionDigits: 0})}` : '–';
+
+    const elProfGrossProfit = document.getElementById('profGrossProfit');
+    if (elProfGrossProfit) elProfGrossProfit.textContent = numberTL(grossProfit);
+
+    const elProfGrossProfitUSD = document.getElementById('profGrossProfitUSD');
+    if (elProfGrossProfitUSD) elProfGrossProfitUSD.textContent = usdPerTry > 0 ? `$${(grossProfit * usdPerTry).toLocaleString('en-US', {maximumFractionDigits: 0})}` : '–';
+
+    const elProfExpenses = document.getElementById('profExpenses');
+    if (elProfExpenses) elProfExpenses.textContent = numberTL(ytdExpenses);
+
+    const elProfExpensesUSD = document.getElementById('profExpensesUSD');
+    if (elProfExpensesUSD) elProfExpensesUSD.textContent = usdPerTry > 0 ? `$${(ytdExpenses * usdPerTry).toLocaleString('en-US', {maximumFractionDigits: 0})}` : '–';
+
+    const elProfNetProfit = document.getElementById('profNetProfit');
+    if (elProfNetProfit) elProfNetProfit.textContent = numberTL(netProfit);
+
+    const elProfNetProfitUSD = document.getElementById('profNetProfitUSD');
+    if (elProfNetProfitUSD) elProfNetProfitUSD.textContent = usdPerTry > 0 ? `$${(netProfit * usdPerTry).toLocaleString('en-US', {maximumFractionDigits: 0})}` : '–';
+
+    // Son güncelleme
+    const elUpdate = document.getElementById('cashFlowLastUpdate');
+    if (elUpdate) elUpdate.textContent = `Son güncelleme: ${now.toLocaleString('tr-TR')}`;
+
+    // Hedef vs Gerçekleşen
+    renderAnnualTarget(ytdRevenue, currentMonth);
+
+    // Yaklaşan ödemeler
+    renderUpcomingPayments();
+
+  } catch(e) {
+    console.warn('renderFinancialHealth error:', e);
+  }
+}
+
+function renderAnnualTarget(ytdRevenue, currentMonth){
+  try {
+    const savedTarget = localStorage.getItem(ANNUAL_TARGET_KEY);
+    const targetInput = document.getElementById('annualTargetInput');
+
+    if (targetInput) {
+      if (savedTarget && !targetInput.value) {
+        targetInput.value = Number(savedTarget).toLocaleString('tr-TR');
+      }
+      targetInput.addEventListener('change', function(){
+        const val = parseFloat(this.value.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+        if (val > 0) {
+          localStorage.setItem(ANNUAL_TARGET_KEY, val.toString());
+          renderAnnualTarget(ytdRevenue, currentMonth);
+        }
+      });
+    }
+
+    const annualTarget = parseFloat(savedTarget || '0') || 0;
+
+    if (annualTarget <= 0) {
+      const elBar = document.getElementById('targetProgressBar');
+      if (elBar) elBar.style.width = '0%';
+      const elPct = document.getElementById('targetProgressPct');
+      if (elPct) elPct.textContent = '–';
+      const elCurrent = document.getElementById('targetCurrentVal');
+      if (elCurrent) elCurrent.textContent = `Gerçekleşen: ${numberTL(ytdRevenue)}`;
+      const elRemain = document.getElementById('targetRemainingVal');
+      if (elRemain) elRemain.textContent = 'Hedef belirlenmedi';
+      return;
+    }
+
+    const progress = Math.min(100, (ytdRevenue / annualTarget) * 100);
+    const remaining = Math.max(0, annualTarget - ytdRevenue);
+
+    const elBar = document.getElementById('targetProgressBar');
+    if (elBar) {
+      elBar.style.width = `${progress}%`;
+      if (progress >= 100) {
+        elBar.className = 'h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500';
+      } else {
+        const expectedProgress = ((currentMonth + 1) / 12) * 100;
+        if (progress >= expectedProgress * 0.9) {
+          elBar.className = 'h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500';
+        } else if (progress >= expectedProgress * 0.7) {
+          elBar.className = 'h-full bg-gradient-to-r from-yellow-500 to-orange-400 rounded-full transition-all duration-500';
+        } else {
+          elBar.className = 'h-full bg-gradient-to-r from-red-500 to-rose-400 rounded-full transition-all duration-500';
+        }
+      }
+    }
+
+    const elPct = document.getElementById('targetProgressPct');
+    if (elPct) elPct.textContent = `${progress.toFixed(1)}%`;
+
+    const elCurrent = document.getElementById('targetCurrentVal');
+    if (elCurrent) elCurrent.textContent = `Gerçekleşen: ${numberTL(ytdRevenue)}`;
+
+    const elRemain = document.getElementById('targetRemainingVal');
+    if (elRemain) elRemain.textContent = `Kalan: ${numberTL(remaining)}`;
+
+    const elPace = document.getElementById('targetPaceNote');
+    if (elPace) {
+      const monthsRemaining = 12 - (currentMonth + 1);
+      if (monthsRemaining > 0 && remaining > 0) {
+        const requiredMonthly = remaining / monthsRemaining;
+        const currentMonthlyAvg = ytdRevenue / (currentMonth + 1);
+        const paceStatus = currentMonthlyAvg >= (annualTarget / 12) ? '✅ Hedefe uygun tempoda' : '⚠️ Tempo artmalı';
+        elPace.textContent = `Kalan ${monthsRemaining} ay için aylık ${numberTL(requiredMonthly)} gerekli • ${paceStatus}`;
+      } else if (remaining <= 0) {
+        elPace.textContent = '🎉 Yıllık hedef tutturuldu!';
+      } else {
+        elPace.textContent = '';
+      }
+    }
+
+  } catch(e) {
+    console.warn('renderAnnualTarget error:', e);
+  }
+}
+
+function renderUpcomingPayments(){
+  try {
+    const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {});
+    const loans = st.loans || {};
+
+    let totalUpcoming = 0;
+    const payments = [];
+
+    // Kredi taksitleri
+    if (loans.biz && loans.biz.paid < loans.biz.total) {
+      const inst = Number(loans.biz.instTRY || 0);
+      totalUpcoming += inst;
+      payments.push({ name: 'Ticari Kredi Taksiti', amount: inst, type: 'loan' });
+    }
+
+    if (loans.car && loans.car.paid < loans.car.total) {
+      const inst = Number(loans.car.instTRY || 0);
+      totalUpcoming += inst;
+      payments.push({ name: 'Araç Kredisi Taksiti', amount: inst, type: 'loan' });
+    }
+
+    if (loans.biz2 && loans.biz2.paid < loans.biz2.total) {
+      const inst = Number(loans.biz2.instTRY || 0);
+      totalUpcoming += inst;
+      payments.push({ name: 'Ticari Kredi 2 Taksiti', amount: inst, type: 'loan' });
+    }
+
+    // Zee.Dog bekleyen ödemeler
+    const zeeList = Array.isArray(st.zeeAwaitUSD) ? st.zeeAwaitUSD : [];
+    const fxRate = (typeof tryPerUsd === 'function') ? tryPerUsd() : 35;
+
+    let zeeTotal = 0;
+    zeeList.forEach(z => {
+      if (!z.paid && z.status !== 'paid') {
+        const remaining = Number(z.remainingUsd || z.usd || 0);
+        zeeTotal += remaining;
+      }
+    });
+
+    if (zeeTotal > 0) {
+      const zeeTRY = zeeTotal * fxRate;
+      totalUpcoming += zeeTRY;
+      payments.push({ name: 'Zee.Dog Ödemeleri', amount: zeeTRY, amountUSD: zeeTotal, type: 'supplier' });
+    }
+
+    const elTotal = document.getElementById('upcomingPaymentsTotal');
+    if (elTotal) elTotal.textContent = `Toplam: ${numberTL(totalUpcoming)}`;
+
+    const elList = document.getElementById('upcomingPaymentsList');
+    if (elList) {
+      if (payments.length === 0) {
+        elList.innerHTML = '<div class="hint text-xs">Bu ay bekleyen ödeme yok.</div>';
+      } else {
+        elList.innerHTML = payments.map(p => {
+          const bgColor = p.type === 'loan' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400' :
+                          p.type === 'supplier' ? 'bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-400' :
+                          'bg-slate-50 dark:bg-slate-800/50';
+          const usdNote = p.amountUSD ? `<div class="hint text-[10px]">≈ $${p.amountUSD.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>` : '';
+          return `<div class="${bgColor} rounded-lg p-2">
+            <div class="text-xs font-medium text-slate-700 dark:text-slate-200">${p.name}</div>
+            <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">${numberTL(p.amount)}</div>
+            ${usdNote}
+          </div>`;
+        }).join('');
+      }
+    }
+
+  } catch(e) {
+    console.warn('renderUpcomingPayments error:', e);
+  }
+}
+
+// Kanal komisyon oranları (tahmini)
+const CHANNEL_COMMISSIONS = {
+  'Toptan': 0,          // Toptan - komisyon yok, ama indirimli fiyat
+  'Online': 0,          // Pop Dog Online - kendi sitemiz
+  'CKM': 0,             // Caddebostan mağaza
+  'Trendyol': 0.20,     // Trendyol %20 komisyon
+  'Hepsiburada': 0.18,  // Hepsiburada %18 komisyon
+  'Kuaför': 0           // Kuaför hizmeti
+};
+
+function renderChannelProfitability(){
+  try {
+    const tbody = document.getElementById('tblChannelProfitability');
+    if (!tbody) return;
+
+    // Monthly cache'den YTD verilerini al
+    if (!Array.isArray(monthlyCache) || monthlyCache.length === 0) {
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="7">Veri yükleniyor...</td></tr>';
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const ytdMonths = monthlyCache.filter(m => {
+      const y = parseInt(m.Month?.split('-')[0] || '0');
+      return y === currentYear;
+    });
+
+    // Kanal bazlı toplamları hesapla
+    const channelTotals = {};
+    let grandTotal = 0;
+
+    ytdMonths.forEach(m => {
+      // Her kanal için topla
+      ['Toptan', 'Online', 'CKM', 'Trendyol', 'Hepsiburada', 'Kuaför'].forEach(ch => {
+        const val = Number(m[ch] || 0);
+        if (!channelTotals[ch]) channelTotals[ch] = 0;
+        channelTotals[ch] += val;
+        grandTotal += val;
+      });
+    });
+
+    // Stok maliyet oranını al (COGS hesabı için)
+    let cogsRatio = 0.45;
+    try {
+      const stockCostEl = document.getElementById('kpiInvCost');
+      const stockSaleEl = document.getElementById('kpiInvPrice');
+      if (stockCostEl && stockSaleEl) {
+        const cost = parseFloat(stockCostEl.textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+        const sale = parseFloat(stockSaleEl.textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+        if (cost > 0 && sale > 0) cogsRatio = cost / sale;
+      }
+    } catch(e){}
+
+    // Tablo satırlarını oluştur
+    const rows = [];
+    const sortedChannels = Object.entries(channelTotals)
+      .filter(([ch, val]) => val > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    sortedChannels.forEach(([channel, revenue]) => {
+      const share = grandTotal > 0 ? (revenue / grandTotal) * 100 : 0;
+      const commissionRate = CHANNEL_COMMISSIONS[channel] || 0;
+      const commission = revenue * commissionRate;
+      const netRevenue = revenue - commission;
+      const estimatedCOGS = netRevenue * cogsRatio;
+      const grossProfit = netRevenue - estimatedCOGS;
+      const grossMargin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
+
+      // Renk kodlaması
+      const marginClass = grossMargin >= 40 ? 'text-green-600 dark:text-green-400' :
+                          grossMargin >= 25 ? 'text-yellow-600 dark:text-yellow-400' :
+                          'text-red-600 dark:text-red-400';
+
+      rows.push(`
+        <tr class="border-b border-slate-200 dark:border-slate-700">
+          <td class="py-2 pr-3 font-medium">${channel}</td>
+          <td class="py-2 pr-3 text-right">${numberTL(revenue)}</td>
+          <td class="py-2 pr-3 text-right">${share.toFixed(1)}%</td>
+          <td class="py-2 pr-3 text-right ${commissionRate > 0 ? 'text-orange-600 dark:text-orange-400' : 'hint'}">${commissionRate > 0 ? `%${(commissionRate * 100).toFixed(0)}` : '–'}</td>
+          <td class="py-2 pr-3 text-right ${commissionRate > 0 ? 'text-orange-600 dark:text-orange-400' : 'hint'}">${commission > 0 ? numberTL(commission) : '–'}</td>
+          <td class="py-2 pr-3 text-right">${numberTL(netRevenue)}</td>
+          <td class="py-2 text-right font-semibold ${marginClass}">${numberTL(grossProfit)}</td>
+        </tr>
+      `);
+    });
+
+    // Toplam satırı
+    const totalCommission = sortedChannels.reduce((sum, [ch, rev]) => sum + (rev * (CHANNEL_COMMISSIONS[ch] || 0)), 0);
+    const totalNetRevenue = grandTotal - totalCommission;
+    const totalGrossProfit = totalNetRevenue - (totalNetRevenue * cogsRatio);
+
+    rows.push(`
+      <tr class="bg-slate-100 dark:bg-slate-800 font-semibold">
+        <td class="py-2 pr-3">TOPLAM</td>
+        <td class="py-2 pr-3 text-right">${numberTL(grandTotal)}</td>
+        <td class="py-2 pr-3 text-right">100%</td>
+        <td class="py-2 pr-3 text-right">–</td>
+        <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${numberTL(totalCommission)}</td>
+        <td class="py-2 pr-3 text-right">${numberTL(totalNetRevenue)}</td>
+        <td class="py-2 text-right text-green-600 dark:text-green-400">${numberTL(totalGrossProfit)}</td>
+      </tr>
+    `);
+
+    tbody.innerHTML = rows.join('');
+
+  } catch(e) {
+    console.warn('renderChannelProfitability error:', e);
+  }
+}
+
+// YoY Aylık Karşılaştırma
+function renderYoYComparison(){
+  try {
+    // Mevcut YoY elementleri varsa güncelle
+    const elYoY = document.getElementById('kpiYTD_YoY');
+    if (!elYoY || !Array.isArray(monthlyCache) || monthlyCache.length === 0) return;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+    const lastYear = currentYear - 1;
+
+    // Bu yılın ve geçen yılın aynı dönemini hesapla
+    let thisYearTotal = 0;
+    let lastYearTotal = 0;
+
+    monthlyCache.forEach(m => {
+      const [y, mo] = (m.Month || '').split('-').map(Number);
+      if (y === currentYear && mo <= currentMonth) {
+        thisYearTotal += Number(m.Total || 0);
+      }
+      if (y === lastYear && mo <= currentMonth) {
+        lastYearTotal += Number(m.Total || 0);
+      }
+    });
+
+    if (lastYearTotal > 0) {
+      const yoyChange = ((thisYearTotal - lastYearTotal) / lastYearTotal) * 100;
+      const arrow = yoyChange >= 0 ? '↑' : '↓';
+      const color = yoyChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+      elYoY.innerHTML = `<span class="${color}">YoY ${arrow}${Math.abs(yoyChange).toFixed(1)}%</span> <span class="hint">(${lastYear}: ${numberTL(lastYearTotal)})</span>`;
+    }
+
+  } catch(e) {
+    console.warn('renderYoYComparison error:', e);
+  }
+}
+
+// Financial health'i başlat
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(renderFinancialHealth, 2000);
+  setTimeout(renderChannelProfitability, 2500);
+  setTimeout(renderYoYComparison, 2500);
+}, { once:true });
+
+window.renderFinancialHealth = renderFinancialHealth;
+window.renderChannelProfitability = renderChannelProfitability;
+window.renderYoYComparison = renderYoYComparison;
 </script>
 </body>
 </html>
