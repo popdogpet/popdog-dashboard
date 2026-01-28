@@ -1120,23 +1120,23 @@ th, td { white-space: nowrap; }
       <div class="grid md:grid-cols-4 gap-4 mt-4">
         <div class="glass rounded-2xl p-4 border-l-4 border-blue-500">
           <div class="hint text-xs">Toplam Stok Değeri (Maliyet)</div>
-          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost">–</div>
-          <div class="hint text-xs" id="kpiInvCost_USD">≈ – USD</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost2">–</div>
+          <div class="hint text-xs" id="kpiInvCost2_USD">≈ – USD</div>
         </div>
         <div class="glass rounded-2xl p-4 border-l-4 border-green-500">
           <div class="hint text-xs">Toplam Stok Değeri (Satış)</div>
-          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice">–</div>
-          <div class="hint text-xs" id="kpiInvPrice_USD">≈ – USD</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice2">–</div>
+          <div class="hint text-xs" id="kpiInvPrice2_USD">≈ – USD</div>
         </div>
         <div class="glass rounded-2xl p-4 border-l-4 border-purple-500">
           <div class="hint text-xs">Maliyet +%65 (Vergi+Navlun)</div>
-          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost_65">–</div>
-          <div class="hint text-xs" id="kpiInvCost_65_USD">≈ – USD</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvCost2_65">–</div>
+          <div class="hint text-xs" id="kpiInvCost2_65_USD">≈ – USD</div>
         </div>
         <div class="glass rounded-2xl p-4 border-l-4 border-orange-500">
           <div class="hint text-xs">Satış KDV Hariç (−%20)</div>
-          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice_exVAT">–</div>
-          <div class="hint text-xs" id="kpiInvPrice_exVAT_USD">≈ – USD</div>
+          <div class="text-slate-800 dark:text-slate-100 text-xl font-bold" id="kpiInvPrice2_exVAT">–</div>
+          <div class="hint text-xs" id="kpiInvPrice2_exVAT_USD">≈ – USD</div>
         </div>
       </div>
 
@@ -4463,29 +4463,36 @@ function renderStockBlock(){
   const invRows   = JSON.parse(localStorage.getItem('popdog_inv_cache')   || '[]');
   const ordersMap = getOrdersCache();
 
-  // 1) Stok değeri KPI’ları
+  // 1) Stok değeri KPI'ları
   const inv = summarizeInventoryValue(invRows);
-  document.getElementById('kpiInvCost').textContent  = numberTL(inv.valCost);
-  document.getElementById('kpiInvPrice').textContent = numberTL(inv.valPrice);
+  const costValTL = numberTL(inv.valCost);
+  const priceValTL = numberTL(inv.valPrice);
+  const costValUSD = fxRateUSDPerTRY ? `≈ ${numberUSD(inv.valCost * fxRateUSDPerTRY)} USD` : '≈ – USD';
+  const priceValUSD = fxRateUSDPerTRY ? `≈ ${numberUSD(inv.valPrice * fxRateUSDPerTRY)} USD` : '≈ – USD';
+
+  // Özet sayfasındaki kartlar
+  const el1 = document.getElementById('kpiInvCost');
+  const el2 = document.getElementById('kpiInvPrice');
+  if(el1) el1.textContent = costValTL;
+  if(el2) el2.textContent = priceValTL;
+
+  // Stok sayfasındaki kartlar
+  const el1b = document.getElementById('kpiInvCost2');
+  const el2b = document.getElementById('kpiInvPrice2');
+  if(el1b) el1b.textContent = costValTL;
+  if(el2b) el2b.textContent = priceValTL;
 
   // USD equivalents (using latest fetched fxRateUSDPerTRY)
   try {
     const costUsdEl  = document.getElementById('kpiInvCost_USD');
     const priceUsdEl = document.getElementById('kpiInvPrice_USD');
-    if (costUsdEl) {
-      if (fxRateUSDPerTRY) {
-        costUsdEl.textContent  = `≈ ${numberUSD(inv.valCost * fxRateUSDPerTRY)} USD`;
-      } else {
-        costUsdEl.textContent  = '≈ – USD';
-      }
-    }
-    if (priceUsdEl) {
-      if (fxRateUSDPerTRY) {
-        priceUsdEl.textContent = `≈ ${numberUSD(inv.valPrice * fxRateUSDPerTRY)} USD`;
-      } else {
-        priceUsdEl.textContent = '≈ – USD';
-      }
-    }
+    const costUsdEl2  = document.getElementById('kpiInvCost2_USD');
+    const priceUsdEl2 = document.getElementById('kpiInvPrice2_USD');
+
+    if (costUsdEl) costUsdEl.textContent = costValUSD;
+    if (priceUsdEl) priceUsdEl.textContent = priceValUSD;
+    if (costUsdEl2) costUsdEl2.textContent = costValUSD;
+    if (priceUsdEl2) priceUsdEl2.textContent = priceValUSD;
   } catch (e) {
     // silent
   }
@@ -4494,21 +4501,32 @@ function renderStockBlock(){
   try {
     const costPlus = inv.valCost * 1.65;           // +%65 eklendi
     const priceEx  = inv.valPrice / 1.20;          // %20 KDV çıkartıldı
+    const costPlusTL = numberTL(costPlus);
+    const priceExTL = numberTL(priceEx);
+    const costPlusUSD = fxRateUSDPerTRY ? `≈ ${numberUSD(costPlus * fxRateUSDPerTRY)} USD` : '≈ – USD';
+    const priceExUSD = fxRateUSDPerTRY ? `≈ ${numberUSD(priceEx * fxRateUSDPerTRY)} USD` : '≈ – USD';
 
+    // Özet sayfası
     const c65El      = document.getElementById('kpiInvCost_65');
     const c65UsdEl   = document.getElementById('kpiInvCost_65_USD');
     const exVatEl    = document.getElementById('kpiInvPrice_exVAT');
     const exVatUsdEl = document.getElementById('kpiInvPrice_exVAT_USD');
 
-    if (c65El)    c65El.textContent    = numberTL(costPlus);
-    if (exVatEl)  exVatEl.textContent  = numberTL(priceEx);
+    if (c65El)    c65El.textContent    = costPlusTL;
+    if (exVatEl)  exVatEl.textContent  = priceExTL;
+    if (c65UsdEl) c65UsdEl.textContent = costPlusUSD;
+    if (exVatUsdEl) exVatUsdEl.textContent = priceExUSD;
 
-    if (c65UsdEl) {
-      c65UsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(costPlus * fxRateUSDPerTRY)} USD` : '≈ – USD';
-    }
-    if (exVatUsdEl) {
-      exVatUsdEl.textContent = fxRateUSDPerTRY ? `≈ ${numberUSD(priceEx * fxRateUSDPerTRY)} USD` : '≈ – USD';
-    }
+    // Stok sayfası
+    const c65El2      = document.getElementById('kpiInvCost2_65');
+    const c65UsdEl2   = document.getElementById('kpiInvCost2_65_USD');
+    const exVatEl2    = document.getElementById('kpiInvPrice2_exVAT');
+    const exVatUsdEl2 = document.getElementById('kpiInvPrice2_exVAT_USD');
+
+    if (c65El2)    c65El2.textContent    = costPlusTL;
+    if (exVatEl2)  exVatEl2.textContent  = priceExTL;
+    if (c65UsdEl2) c65UsdEl2.textContent = costPlusUSD;
+    if (exVatUsdEl2) exVatUsdEl2.textContent = priceExUSD;
   } catch (e) { /* silent */ }
 
   // 1.b) Toplam Ürün Adedi + depo bazında dağılım (Thrones / Caddebostan)
