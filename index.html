@@ -720,9 +720,10 @@ th, td { white-space: nowrap; }
 
       <!-- Hedef vs Gerçekleşen -->
       <div class="mt-4 glass rounded-2xl p-4">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
           <div class="hint text-sm">🎯 Yıllık Hedef İlerlemesi</div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="autoTargetBtn" class="glass rounded-lg px-2 py-1 text-[10px] hover:bg-slate-200 dark:hover:bg-slate-700" title="Geçen yıl + %10 (USD bazlı)">🔄 Otomatik</button>
             <span class="hint text-xs">Hedef:</span>
             <input type="text" id="annualTargetInput" placeholder="ör. 25.000.000" class="glass rounded-lg px-2 py-1 text-xs w-28 focus:outline-none" value="">
             <span class="hint text-xs">₺</span>
@@ -739,6 +740,7 @@ th, td { white-space: nowrap; }
           <div class="hint text-xs" id="targetRemainingVal">Kalan: ₺–</div>
         </div>
         <div class="hint text-[10px] mt-1" id="targetPaceNote"></div>
+        <div class="hint text-[10px] mt-1" id="targetUsdNote"></div>
       </div>
 
       <!-- Yaklaşan Ödemeler -->
@@ -7527,10 +7529,88 @@ function renderAnnualTarget(ytdRevenue, currentMonth){
       }
     }
 
+    // USD karşılığını göster
+    const elUsdNote = document.getElementById('targetUsdNote');
+    if (elUsdNote) {
+      let fxRate = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+      if (!fxRate) fxRate = (typeof deriveTryPerUsdFromKPI === 'function') ? deriveTryPerUsdFromKPI() : 35;
+      if (fxRate > 0) {
+        const targetUSD = annualTarget / fxRate;
+        const currentUSD = ytdRevenue / fxRate;
+        elUsdNote.textContent = `USD: Hedef $${targetUSD.toLocaleString('en-US', {maximumFractionDigits: 0})} • Gerçekleşen $${currentUSD.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+      }
+    }
+
   } catch(e) {
     console.warn('renderAnnualTarget error:', e);
   }
 }
+
+// Otomatik hedef hesapla: Geçen yıl toplam ciro (USD) + %10, güncel kurla TRY'ye çevir
+function calculateAutoTarget(){
+  try {
+    if (!Array.isArray(monthlyCache) || monthlyCache.length === 0) {
+      alert('Veri henüz yüklenmedi. Lütfen bekleyin.');
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const lastYear = currentYear - 1;
+
+    // Geçen yılın toplam cirosunu al
+    const lastYearTotal = monthlyCache
+      .filter(m => m.year === lastYear)
+      .reduce((sum, m) => sum + (m.Total || 0), 0);
+
+    if (lastYearTotal <= 0) {
+      alert(`${lastYear} yılına ait veri bulunamadı.`);
+      return;
+    }
+
+    // USD kurunu al
+    let fxRate = Number(localStorage.getItem('popdog_fx_try_per_usd') || '0');
+    if (!fxRate) fxRate = (typeof deriveTryPerUsdFromKPI === 'function') ? deriveTryPerUsdFromKPI() : 35;
+    if (!fxRate || fxRate <= 0) fxRate = 35;
+
+    // Geçen yılın USD değeri
+    // Not: Geçen yılın kuru farklı olabilir, ama şu anki kurla hesaplıyoruz
+    // Daha doğru hesap için: geçen yılın ortalama kuru kullanılabilir
+    const lastYearUSD = lastYearTotal / fxRate;
+
+    // %10 artış
+    const targetUSD = lastYearUSD * 1.10;
+
+    // Güncel kurla TRY'ye çevir
+    const targetTRY = targetUSD * fxRate;
+
+    // Kaydet
+    localStorage.setItem(ANNUAL_TARGET_KEY, targetTRY.toString());
+
+    // Input'u güncelle
+    const input = document.getElementById('annualTargetInput');
+    if (input) input.value = Math.round(targetTRY).toLocaleString('tr-TR');
+
+    // Yeniden render et
+    const ytdRevenue = monthlyCache
+      .filter(m => m.year === currentYear)
+      .reduce((sum, m) => sum + (m.Total || 0), 0);
+    renderAnnualTarget(ytdRevenue, new Date().getMonth());
+
+    alert(`Hedef hesaplandı!\n\n${lastYear} Ciro: ${numberTL(lastYearTotal)} (≈$${lastYearUSD.toLocaleString('en-US', {maximumFractionDigits: 0})})\n+%10 = $${targetUSD.toLocaleString('en-US', {maximumFractionDigits: 0})}\n\n${currentYear} Hedef: ${numberTL(targetTRY)}`);
+
+  } catch(e) {
+    console.warn('calculateAutoTarget error:', e);
+    alert('Hedef hesaplanamadı: ' + e.message);
+  }
+}
+
+// Otomatik hedef butonu event listener
+document.addEventListener('DOMContentLoaded', function(){
+  const btn = document.getElementById('autoTargetBtn');
+  if (btn) {
+    btn.addEventListener('click', calculateAutoTarget);
+  }
+}, { once: true });
 
 function renderUpcomingPayments(){
   try {
@@ -7626,9 +7706,9 @@ function renderChannelProfitability(){
     }
 
     const currentYear = new Date().getFullYear();
+    // m.month formatı: "2025-01" şeklinde veya m.year sayısal
     const ytdMonths = monthlyCache.filter(m => {
-      const y = parseInt(m.Month?.split('-')[0] || '0');
-      return y === currentYear;
+      return m.year === currentYear;
     });
 
     // Kanal bazlı toplamları hesapla
