@@ -1263,22 +1263,24 @@ th, td { white-space: nowrap; }
       <div class="mt-4">
         <div class="glass rounded-2xl p-3 overflow-auto border-l-4 border-yellow-500">
           <div class="flex items-center justify-between mb-2">
-            <div class="hint text-sm">⚠️ Sipariş Verilmesi Gereken Ürünler</div>
-            <div class="hint text-[10px]">Lead time: 45 gün + Safety stock: 7 gün</div>
+            <div class="hint text-sm">⚠️ Sipariş Verilmesi Gereken Ürün Grupları</div>
+            <div class="hint text-[10px]">Lead time: 45 gün + Safety: 7 gün • Kategori + Beden bazlı</div>
           </div>
-          <table class="min-w-full text-sm">
-            <thead class="text-slate-600 dark:text-slate-300">
-              <tr>
-                <th class="text-left py-2 pr-4">SKU</th>
-                <th class="text-left py-2 pr-4">Title</th>
-                <th class="text-right py-2 pr-4">On-hand</th>
-                <th class="text-right py-2 pr-4">Günlük hız</th>
-                <th class="text-right py-2 pr-4">Reorder Point</th>
-                <th class="text-right py-2 pr-4">Önerilen Sipariş</th>
-              </tr>
-            </thead>
-            <tbody id="tblReorderPoint" class="text-slate-800 dark:text-slate-100"></tbody>
-          </table>
+          <div class="overflow-auto max-h-72">
+            <table class="min-w-full text-sm">
+              <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/90 dark:bg-slate-800/90">
+                <tr>
+                  <th class="text-left py-2 pr-4">Ürün Grubu</th>
+                  <th class="text-center py-2 pr-4">Beden</th>
+                  <th class="text-right py-2 pr-4">Stok</th>
+                  <th class="text-right py-2 pr-4">Günlük Satış</th>
+                  <th class="text-right py-2 pr-4">Kalan Gün</th>
+                  <th class="text-right py-2 pr-4">Önerilen Sipariş</th>
+                </tr>
+              </thead>
+              <tbody id="tblReorderPoint" class="text-slate-800 dark:text-slate-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -4977,49 +4979,131 @@ function renderStockBlock(){
       if(abcCValEl) abcCValEl.textContent = `${numberTL(cVal)} (${(cVal/totalSalesVal*100).toFixed(0)}%)`;
     } catch(e){}
 
-    // 6.l Reorder Point Uyarıları (Lead time: 45 gün, Safety stock: 7 gün)
+    // 6.l Reorder Point - Kategori + Beden Bazlı
     try {
       const leadTime = 45;
       const safetyDays = 7;
-      const reorderList = [];
+
+      // Ürün adından kategori çıkar
+      function extractCategory(title){
+        const t = (title||'').toLowerCase();
+        // Öncelik sırasına göre kategori eşleştir
+        const categories = [
+          { pattern: /softer walk.*göğüs|göğüs.*softer walk/i, name: 'Softer Walk Göğüs Tasması' },
+          { pattern: /soft walk.*göğüs|göğüs.*soft walk/i, name: 'Soft Walk Göğüs Tasması' },
+          { pattern: /step.?in.*göğüs|göğüs.*step.?in/i, name: 'Step-in Göğüs Tasması' },
+          { pattern: /göğüs tasma/i, name: 'Göğüs Tasması' },
+          { pattern: /boyun tasma/i, name: 'Boyun Tasması' },
+          { pattern: /martingale/i, name: 'Martingale Tasma' },
+          { pattern: /h.?tasma|h-tasma/i, name: 'H-Tasma' },
+          { pattern: /kayış|leash/i, name: 'Kayış' },
+          { pattern: /mama kabı|bowl/i, name: 'Mama Kabı' },
+          { pattern: /yatak|bed/i, name: 'Yatak' },
+          { pattern: /oyuncak|toy/i, name: 'Oyuncak' },
+          { pattern: /bandana/i, name: 'Bandana' },
+          { pattern: /yağmurluk|raincoat/i, name: 'Yağmurluk' },
+          { pattern: /mont|jacket|coat/i, name: 'Mont/Ceket' },
+          { pattern: /tişört|t-shirt|tshirt/i, name: 'Tişört' },
+          { pattern: /hoodie|sweat/i, name: 'Hoodie/Sweat' },
+          { pattern: /polar|fleece/i, name: 'Polar' },
+          { pattern: /şişme yelek|puffer/i, name: 'Şişme Yelek' },
+          { pattern: /çanta|bag|carrier/i, name: 'Çanta/Taşıyıcı' },
+          { pattern: /kedi/i, name: 'Kedi Ürünü' },
+        ];
+        for(const c of categories){
+          if(c.pattern.test(t)) return c.name;
+        }
+        // Bulamazsa ilk 3-4 kelimeyi al
+        const words = (title||'').split(/\s+/).slice(0,4).join(' ');
+        return words || 'Diğer';
+      }
+
+      // Ürün adından beden çıkar
+      function extractSize(title, sku){
+        const combined = `${title} ${sku}`.toUpperCase();
+        // Önce standart bedenleri ara
+        const sizePatterns = [
+          { pattern: /\b(XXXS|3XS)\b/, name: 'XXXS' },
+          { pattern: /\b(XXS|2XS)\b/, name: 'XXS' },
+          { pattern: /\b(XS)\b/, name: 'XS' },
+          { pattern: /\b(XXXL|3XL)\b/, name: 'XXXL' },
+          { pattern: /\b(XXL|2XL)\b/, name: 'XXL' },
+          { pattern: /\b(XL)\b/, name: 'XL' },
+          { pattern: /\bSMALL\b|\b[^X]S\b|[\s\-_]S[\s\-_]|[\s\-_]S$|^S[\s\-_]/, name: 'S' },
+          { pattern: /\bMEDIUM\b|\bM\b/, name: 'M' },
+          { pattern: /\bLARGE\b|\b[^X]L\b|[\s\-_]L[\s\-_]|[\s\-_]L$|^L[\s\-_]/, name: 'L' },
+        ];
+        for(const s of sizePatterns){
+          if(s.pattern.test(combined)) return s.name;
+        }
+        return 'Tek Beden';
+      }
+
+      // Kategori + Beden bazında gruplama
+      const groupMap = new Map(); // "Kategori|Beden" -> { stock, sold, skus[] }
 
       onHandMap.forEach((on, sku)=>{
         const title = titleMap.get(sku) || '';
         if(!title.toLowerCase().includes('zee')) return; // Sadece Zee Dog
-        if(on <= 0) return;
+
+        const category = extractCategory(title);
+        const size = extractSize(title, sku);
+        const key = `${category}|${size}`;
 
         const sold = soldMap.get(sku) || 0;
-        const daily = sold / (salesWindowDays || 1);
+
+        if(!groupMap.has(key)){
+          groupMap.set(key, { category, size, stock: 0, sold: 0, skus: [] });
+        }
+        const g = groupMap.get(key);
+        g.stock += on;
+        g.sold += sold;
+        g.skus.push({ sku, title, on, sold });
+      });
+
+      // Reorder point hesapla ve filtrele
+      const reorderList = [];
+      groupMap.forEach((g, key)=>{
+        if(g.stock <= 0) return;
+        const daily = g.sold / (salesWindowDays || 1);
         if(daily <= 0) return;
 
         const reorderPoint = daily * (leadTime + safetyDays);
-        if(on <= reorderPoint){
-          const suggestedOrder = Math.ceil(daily * 90) - on; // 90 günlük stok hedefi
+        const remainDays = g.stock / daily;
+
+        if(g.stock <= reorderPoint){
+          const suggested = Math.ceil(daily * 90) - g.stock; // 90 günlük hedef
           reorderList.push({
-            sku,
-            title,
-            onHand: on,
+            category: g.category,
+            size: g.size,
+            stock: g.stock,
             daily,
+            remainDays,
             reorderPoint,
-            suggested: Math.max(0, suggestedOrder)
+            suggested: Math.max(0, suggested),
+            skuCount: g.skus.length
           });
         }
       });
 
-      reorderList.sort((a,b)=> (a.onHand/a.daily) - (b.onHand/b.daily));
+      reorderList.sort((a,b)=> a.remainDays - b.remainDays);
 
       const reorderTbody = document.getElementById('tblReorderPoint');
       if(reorderTbody){
-        reorderTbody.innerHTML = reorderList.slice(0,15).map(x=>`
-          <tr class="bg-yellow-50 dark:bg-yellow-900/20">
-            <td class="py-2 pr-4">${x.sku}</td>
-            <td class="py-2 pr-4">${x.title}</td>
-            <td class="py-2 pr-4 text-right">${x.onHand}</td>
+        reorderTbody.innerHTML = reorderList.slice(0,20).map(x=>{
+          const urgency = x.remainDays <= 14 ? 'bg-red-100 dark:bg-red-900/30' :
+                          x.remainDays <= 30 ? 'bg-orange-100 dark:bg-orange-900/30' :
+                          'bg-yellow-50 dark:bg-yellow-900/20';
+          return `
+          <tr class="${urgency}">
+            <td class="py-2 pr-4 font-medium">${x.category}</td>
+            <td class="py-2 pr-4 text-center">${x.size}</td>
+            <td class="py-2 pr-4 text-right">${x.stock}</td>
             <td class="py-2 pr-4 text-right">${x.daily.toFixed(2)}</td>
-            <td class="py-2 pr-4 text-right">${Math.ceil(x.reorderPoint)}</td>
+            <td class="py-2 pr-4 text-right font-semibold ${x.remainDays <= 14 ? 'text-red-600 dark:text-red-400' : ''}">${x.remainDays.toFixed(0)} gün</td>
             <td class="py-2 pr-4 text-right font-semibold text-yellow-700 dark:text-yellow-400">${x.suggested}</td>
           </tr>
-        `).join('') || '<tr><td class="hint py-2" colspan="6">Sipariş gerektiren ürün yok.</td></tr>';
+        `}).join('') || '<tr><td class="hint py-2" colspan="6">Sipariş gerektiren ürün grubu yok.</td></tr>';
       }
     } catch(e){}
 
