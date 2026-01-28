@@ -5044,7 +5044,7 @@ function renderStockBlock(){
 
       onHandMap.forEach((on, sku)=>{
         const title = titleMap.get(sku) || '';
-        if(!title.toLowerCase().includes('zee')) return; // Sadece Zee Dog
+        if(!title) return; // Başlık yoksa atla
 
         const category = extractCategory(title);
         const size = extractSize(title, sku);
