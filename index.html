@@ -1159,41 +1159,42 @@ th, td { white-space: nowrap; }
         </div>
       </div>
 
-      <!-- Ek KPI'lar -->
-      <div class="grid md:grid-cols-5 gap-4 mt-4">
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Stok Devir Hızı</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiTurnover">–</div>
-          <div class="hint text-[10px]">Yıllık satış / ort. stok</div>
-        </div>
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">90+ gün elde</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiAged90Value">–</div>
-          <div class="hint text-xs" id="kpiAged90Qty">– adet</div>
-        </div>
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Dead Stock (180+)</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold text-red-600 dark:text-red-400" id="kpiDeadStock">–</div>
-          <div class="hint text-xs" id="kpiDeadStockQty">– adet</div>
-        </div>
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Median Stok Yaşı</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiMedianAge">– gün</div>
-        </div>
-        <div class="glass rounded-2xl p-3" title="DIO: Days of Inventory">
-          <div class="hint text-xs">DIO (60g)</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiDIO60">– gün</div>
-          <div class="hint text-[11px]" id="kpiDIOx">30g: – • 90g: –</div>
-        </div>
-      </div>
-
-      <!-- Toplam Ürün Adedi -->
-      <div class="grid md:grid-cols-1 gap-4 mt-4">
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">Toplam Ürün Adedi (depo bazında)</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiTotalUnits">– adet</div>
-          <div class="hint text-xs" id="kpiTotalUnitsNote">Thrones: – • Caddebostan: –</div>
-        </div>
+      <!-- Ek KPI'lar - Kompakt Tablo -->
+      <div class="glass rounded-2xl p-3 mt-4">
+        <table class="w-full text-sm">
+          <tbody>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">Stok Devir Hızı</td>
+              <td class="py-2 pr-4 font-semibold text-slate-800 dark:text-slate-100" id="kpiTurnover">–</td>
+              <td class="py-2 hint text-xs">Yıllık satış değeri / ortalama stok maliyeti</td>
+            </tr>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">90+ gün elde</td>
+              <td class="py-2 pr-4"><span class="font-semibold text-orange-600 dark:text-orange-400" id="kpiAged90Value">–</span> <span class="hint text-xs" id="kpiAged90Qty">(– adet)</span></td>
+              <td class="py-2 hint text-xs">Son satışı 90+ gün önce olan stok toplamı</td>
+            </tr>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">Dead Stock (180+)</td>
+              <td class="py-2 pr-4"><span class="font-semibold text-red-600 dark:text-red-400" id="kpiDeadStock">–</span> <span class="hint text-xs" id="kpiDeadStockQty">(– adet)</span></td>
+              <td class="py-2 hint text-xs">6 aydan fazla satış görmeyen "ölü" stok</td>
+            </tr>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">Median Stok Yaşı</td>
+              <td class="py-2 pr-4 font-semibold text-slate-800 dark:text-slate-100" id="kpiMedianAge">– gün</td>
+              <td class="py-2 hint text-xs">SKU'ların son satıştan bugüne medyan gün sayısı</td>
+            </tr>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">DIO (Days of Inventory)</td>
+              <td class="py-2 pr-4"><span class="font-semibold text-slate-800 dark:text-slate-100" id="kpiDIO60">– gün</span> <span class="hint text-[10px]" id="kpiDIOx">(30g: – • 90g: –)</span></td>
+              <td class="py-2 hint text-xs">Mevcut stokun kaç günlük satışa yeteceği</td>
+            </tr>
+            <tr>
+              <td class="py-2 pr-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">Toplam Ürün Adedi</td>
+              <td class="py-2 pr-4"><span class="font-semibold text-slate-800 dark:text-slate-100" id="kpiTotalUnits">– adet</span></td>
+              <td class="py-2 hint text-xs" id="kpiTotalUnitsNote">Thrones: – • Caddebostan: –</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Stok Yaşlandırma Bar Chart -->
