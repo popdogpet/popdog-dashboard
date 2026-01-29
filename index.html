@@ -811,7 +811,7 @@ th, td { white-space: nowrap; }
           📈 Kanal Bazlı Karlılık (tıkla: aç/kapat)
         </summary>
         <div class="mt-3">
-          <div class="hint text-[10px] mb-2">* Komisyon oranları tahminidir. Gerçek değerler için kanalların raporlarına bakınız.</div>
+          <div class="hint text-[10px] mb-2">Toptan: %40 indirimli satış • CKM/Online: KK %2.5 • Trendyol/HB: %20 komisyon • Kuaför: Hizmet geliri</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
@@ -819,14 +819,15 @@ th, td { white-space: nowrap; }
                   <th class="text-left py-2 pr-3">Kanal</th>
                   <th class="text-right py-2 pr-3">Ciro (YTD)</th>
                   <th class="text-right py-2 pr-3">Pay</th>
-                  <th class="text-right py-2 pr-3">Komisyon %</th>
-                  <th class="text-right py-2 pr-3">Tah. Komisyon</th>
-                  <th class="text-right py-2 pr-3">Net Ciro</th>
-                  <th class="text-right py-2">Tah. Brüt Kar</th>
+                  <th class="text-right py-2 pr-3">Kesinti</th>
+                  <th class="text-right py-2 pr-3">Kom./KK</th>
+                  <th class="text-right py-2 pr-3">COGS</th>
+                  <th class="text-right py-2 pr-3">Brüt Kar</th>
+                  <th class="text-right py-2">Marj</th>
                 </tr>
               </thead>
               <tbody id="tblChannelProfitability" class="text-slate-800 dark:text-slate-100">
-                <tr><td class="hint py-2" colspan="7">Yükleniyor...</td></tr>
+                <tr><td class="hint py-2" colspan="8">Yükleniyor...</td></tr>
               </tbody>
             </table>
           </div>
@@ -7684,14 +7685,50 @@ function renderUpcomingPayments(){
   }
 }
 
-// Kanal komisyon oranları (tahmini)
-const CHANNEL_COMMISSIONS = {
-  'Toptan': 0,          // Toptan - komisyon yok, ama indirimli fiyat
-  'Online': 0,          // Pop Dog Online - kendi sitemiz
-  'CKM': 0,             // Caddebostan mağaza
-  'Trendyol': 0.20,     // Trendyol %20 komisyon
-  'Hepsiburada': 0.18,  // Hepsiburada %18 komisyon
-  'Kuaför': 0           // Kuaför hizmeti
+// Kanal maliyet yapıları
+// Toptan: %40 indirimle satış yapılıyor, yani liste fiyatının %60'ına
+// CKM/Online: Kredi kartı komisyonu ~%2.5
+// Trendyol/HB: %20 komisyon
+// Kuaför: Hizmet geliri (COGS yok varsayalım veya düşük)
+
+const CHANNEL_CONFIG = {
+  'Toptan': {
+    commission: 0,           // Komisyon yok
+    discountFromList: 0.40,  // Liste fiyatından %40 indirim
+    ccFee: 0,                // Genelde nakit/havale
+    note: '%40 indirimli satış'
+  },
+  'Online': {
+    commission: 0,
+    discountFromList: 0,
+    ccFee: 0.025,            // Kredi kartı ~%2.5
+    note: 'KK kom. %2.5'
+  },
+  'CKM': {
+    commission: 0,
+    discountFromList: 0,
+    ccFee: 0.025,            // Kredi kartı ~%2.5
+    note: 'KK kom. %2.5'
+  },
+  'Trendyol': {
+    commission: 0.20,        // %20 komisyon
+    discountFromList: 0,
+    ccFee: 0,                // Komisyona dahil
+    note: '%20 komisyon'
+  },
+  'Hepsiburada': {
+    commission: 0.20,        // %20 komisyon
+    discountFromList: 0,
+    ccFee: 0,
+    note: '%20 komisyon'
+  },
+  'Kuaför': {
+    commission: 0,
+    discountFromList: 0,
+    ccFee: 0.025,
+    isService: true,         // Hizmet geliri
+    note: 'Hizmet geliri'
+  }
 };
 
 function renderChannelProfitability(){
@@ -7699,24 +7736,24 @@ function renderChannelProfitability(){
     const tbody = document.getElementById('tblChannelProfitability');
     if (!tbody) return;
 
-    // Monthly cache'den YTD verilerini al
     if (!Array.isArray(monthlyCache) || monthlyCache.length === 0) {
-      tbody.innerHTML = '<tr><td class="hint py-2" colspan="7">Veri yükleniyor...</td></tr>';
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="8">Veri yükleniyor...</td></tr>';
       return;
     }
 
     const currentYear = new Date().getFullYear();
-    // m.month formatı: "2025-01" şeklinde veya m.year sayısal
-    const ytdMonths = monthlyCache.filter(m => {
-      return m.year === currentYear;
-    });
+    const ytdMonths = monthlyCache.filter(m => m.year === currentYear);
+
+    if (ytdMonths.length === 0) {
+      tbody.innerHTML = '<tr><td class="hint py-2" colspan="8">Bu yıla ait veri yok.</td></tr>';
+      return;
+    }
 
     // Kanal bazlı toplamları hesapla
     const channelTotals = {};
     let grandTotal = 0;
 
     ytdMonths.forEach(m => {
-      // Her kanal için topla
       ['Toptan', 'Online', 'CKM', 'Trendyol', 'Hepsiburada', 'Kuaför'].forEach(ch => {
         const val = Number(m[ch] || 0);
         if (!channelTotals[ch]) channelTotals[ch] = 0;
@@ -7725,55 +7762,86 @@ function renderChannelProfitability(){
       });
     });
 
-    // Stok maliyet oranını al (COGS hesabı için)
-    let cogsRatio = 0.45;
+    // Stok maliyet oranını al (liste fiyatına göre maliyet)
+    let baseCostRatio = 0.40; // Varsayılan: liste fiyatının %40'ı maliyet
     try {
       const stockCostEl = document.getElementById('kpiInvCost');
       const stockSaleEl = document.getElementById('kpiInvPrice');
       if (stockCostEl && stockSaleEl) {
         const cost = parseFloat(stockCostEl.textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
         const sale = parseFloat(stockSaleEl.textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-        if (cost > 0 && sale > 0) cogsRatio = cost / sale;
+        if (cost > 0 && sale > 0) baseCostRatio = cost / sale;
       }
     } catch(e){}
 
-    // Tablo satırlarını oluştur
     const rows = [];
     const sortedChannels = Object.entries(channelTotals)
       .filter(([ch, val]) => val > 0)
       .sort((a, b) => b[1] - a[1]);
 
+    let totalGrossProfit = 0;
+    let totalCommissions = 0;
+
     sortedChannels.forEach(([channel, revenue]) => {
+      const config = CHANNEL_CONFIG[channel] || {};
       const share = grandTotal > 0 ? (revenue / grandTotal) * 100 : 0;
-      const commissionRate = CHANNEL_COMMISSIONS[channel] || 0;
-      const commission = revenue * commissionRate;
-      const netRevenue = revenue - commission;
-      const estimatedCOGS = netRevenue * cogsRatio;
-      const grossProfit = netRevenue - estimatedCOGS;
-      const grossMargin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
+
+      // Komisyon ve kesintiler
+      const commission = revenue * (config.commission || 0);
+      const ccFee = revenue * (config.ccFee || 0);
+      const totalDeductions = commission + ccFee;
+      const netRevenue = revenue - totalDeductions;
+
+      // COGS hesabı - kanal bazlı
+      let cogs = 0;
+      if (config.isService) {
+        // Kuaför hizmet geliri - düşük maliyet varsayalım (%20)
+        cogs = revenue * 0.20;
+      } else if (config.discountFromList > 0) {
+        // Toptan: %40 indirimle satış yapılıyor
+        // Satış fiyatı = Liste × 0.60
+        // Maliyet = Liste × baseCostRatio
+        // Yani maliyet/satış = baseCostRatio / 0.60
+        const effectiveCostRatio = baseCostRatio / (1 - config.discountFromList);
+        cogs = revenue * Math.min(effectiveCostRatio, 0.95); // Max %95 COGS
+      } else {
+        // Normal satış
+        cogs = revenue * baseCostRatio;
+      }
+
+      const grossProfit = netRevenue - cogs;
+      const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+
+      totalGrossProfit += grossProfit;
+      totalCommissions += totalDeductions;
 
       // Renk kodlaması
-      const marginClass = grossMargin >= 40 ? 'text-green-600 dark:text-green-400' :
-                          grossMargin >= 25 ? 'text-yellow-600 dark:text-yellow-400' :
+      const marginClass = grossMargin >= 30 ? 'text-green-600 dark:text-green-400' :
+                          grossMargin >= 15 ? 'text-yellow-600 dark:text-yellow-400' :
+                          grossMargin >= 0 ? 'text-orange-600 dark:text-orange-400' :
                           'text-red-600 dark:text-red-400';
+
+      const deductionNote = config.note || '–';
 
       rows.push(`
         <tr class="border-b border-slate-200 dark:border-slate-700">
           <td class="py-2 pr-3 font-medium">${channel}</td>
           <td class="py-2 pr-3 text-right">${numberTL(revenue)}</td>
           <td class="py-2 pr-3 text-right">${share.toFixed(1)}%</td>
-          <td class="py-2 pr-3 text-right ${commissionRate > 0 ? 'text-orange-600 dark:text-orange-400' : 'hint'}">${commissionRate > 0 ? `%${(commissionRate * 100).toFixed(0)}` : '–'}</td>
-          <td class="py-2 pr-3 text-right ${commissionRate > 0 ? 'text-orange-600 dark:text-orange-400' : 'hint'}">${commission > 0 ? numberTL(commission) : '–'}</td>
-          <td class="py-2 pr-3 text-right">${numberTL(netRevenue)}</td>
-          <td class="py-2 text-right font-semibold ${marginClass}">${numberTL(grossProfit)}</td>
+          <td class="py-2 pr-3 text-right hint text-[10px]">${deductionNote}</td>
+          <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${totalDeductions > 0 ? numberTL(totalDeductions) : '–'}</td>
+          <td class="py-2 pr-3 text-right hint">${numberTL(cogs)}</td>
+          <td class="py-2 pr-3 text-right">${numberTL(netRevenue - cogs)}</td>
+          <td class="py-2 text-right font-semibold ${marginClass}">%${grossMargin.toFixed(1)}</td>
         </tr>
       `);
     });
 
     // Toplam satırı
-    const totalCommission = sortedChannels.reduce((sum, [ch, rev]) => sum + (rev * (CHANNEL_COMMISSIONS[ch] || 0)), 0);
-    const totalNetRevenue = grandTotal - totalCommission;
-    const totalGrossProfit = totalNetRevenue - (totalNetRevenue * cogsRatio);
+    const overallMargin = grandTotal > 0 ? (totalGrossProfit / grandTotal) * 100 : 0;
+    const overallMarginClass = overallMargin >= 30 ? 'text-green-600 dark:text-green-400' :
+                               overallMargin >= 15 ? 'text-yellow-600 dark:text-yellow-400' :
+                               'text-orange-600 dark:text-orange-400';
 
     rows.push(`
       <tr class="bg-slate-100 dark:bg-slate-800 font-semibold">
@@ -7781,9 +7849,10 @@ function renderChannelProfitability(){
         <td class="py-2 pr-3 text-right">${numberTL(grandTotal)}</td>
         <td class="py-2 pr-3 text-right">100%</td>
         <td class="py-2 pr-3 text-right">–</td>
-        <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${numberTL(totalCommission)}</td>
-        <td class="py-2 pr-3 text-right">${numberTL(totalNetRevenue)}</td>
-        <td class="py-2 text-right text-green-600 dark:text-green-400">${numberTL(totalGrossProfit)}</td>
+        <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${numberTL(totalCommissions)}</td>
+        <td class="py-2 pr-3 text-right hint">–</td>
+        <td class="py-2 pr-3 text-right text-green-600 dark:text-green-400">${numberTL(totalGrossProfit)}</td>
+        <td class="py-2 text-right ${overallMarginClass}">%${overallMargin.toFixed(1)}</td>
       </tr>
     `);
 
@@ -7811,11 +7880,14 @@ function renderYoYComparison(){
     let lastYearTotal = 0;
 
     monthlyCache.forEach(m => {
-      const [y, mo] = (m.Month || '').split('-').map(Number);
-      if (y === currentYear && mo <= currentMonth) {
+      // m.month formatı: "2025-01" veya m.year sayısal
+      const [y, mo] = (m.month || '').split('-').map(Number);
+      const year = m.year || y;
+      const month = mo || 0;
+      if (year === currentYear && month <= currentMonth) {
         thisYearTotal += Number(m.Total || 0);
       }
-      if (y === lastYear && mo <= currentMonth) {
+      if (year === lastYear && month <= currentMonth) {
         lastYearTotal += Number(m.Total || 0);
       }
     });
