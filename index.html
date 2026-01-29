@@ -4524,21 +4524,157 @@ function topStockSKUs(rows, n=10){
 
 /* Shopify orders + orders_clean (buildAll) uyumlu mapper */
 function mapOrderRow(r){
-  // SKU alias’ları: Shopify (Lineitem sku / SKU / Variant SKU) + orders_clean (sku)
+  // SKU alias'ları: Shopify (Lineitem sku / SKU / Variant SKU) + orders_clean (sku)
   const sku = (r['Lineitem sku'] || r['SKU'] || r['Variant SKU'] || r['sku'] || '').toString().trim();
 
-  // Qty alias’ları: Shopify (Lineitem quantity / Quantity / Qty) + orders_clean (qty)
+  // Qty alias'ları: Shopify (Lineitem quantity / Quantity / Qty) + orders_clean (qty)
   const qty = parseInt(r['Lineitem quantity'] || r['Quantity'] || r['Qty'] || r['qty'] || 0, 10) || 0;
 
-  // Price (opsiyonel) – gerekirse; orders_clean’de 'price'
+  // Price (opsiyonel) – gerekirse; orders_clean'de 'price'
   const price = parseTL(r['Lineitem price'] || r['Price'] || r['price'] || 0);
 
   // Tarih: Shopify (Created at / …) + orders_clean (date)
   const rawDate = r['Created at'] || r['Created At'] || r['Created at (UTC)'] || r['Processed at'] || r['Paid at'] || r['Fulfilled at'] || r['date'] || '';
   const date = parseShopifyDate(rawDate);
 
-  return { sku, qty, price, date };
+  // Kanal tespiti: Tag ve Delivery Method'a göre
+  const tags = (r['Tags'] || r['tags'] || r['Tag'] || r['tag'] || '').toString().toLowerCase();
+  const deliveryMethod = (r['Delivery Method'] || r['delivery_method'] || r['Shipping Method'] || '').toString().toLowerCase();
+
+  let channel = 'Online'; // varsayılan
+  if (tags.includes('hepsiburada')) {
+    channel = 'Hepsiburada';
+  } else if (tags.includes('trendyol')) {
+    channel = 'Trendyol';
+  } else if (deliveryMethod.includes('in store') || deliveryMethod.includes('instore') || deliveryMethod.includes('pickup')) {
+    channel = 'CKM';
+  } else if (deliveryMethod.includes('kargo') || deliveryMethod.includes('shipping') || deliveryMethod.includes('delivery')) {
+    channel = 'Online';
+  }
+  // Eğer önceden channel kaydedilmişse (cache'den) onu kullan
+  if (r.channel) {
+    channel = r.channel;
+  }
+
+  return { sku, qty, price, date, channel };
 }
+
+/**
+ * Gerçek COGS Hesaplama
+ * Satılan ürünlerin SKU bazlı maliyetlerini envanter verisinden alır
+ * @param {Array} orderRows - Sipariş verileri [{sku, qty, price, date, channel}]
+ * @param {Array} inventoryRows - Envanter verileri [{SKU, Cost, ...}]
+ * @param {Object} options - {startDate, endDate, channel} filtreleme
+ * @returns {Object} {totalCOGS, totalRevenue, byChannel: {channel: {cogs, revenue, qty}}, bySKU: {...}}
+ */
+function calculateRealCOGS(orderRows, inventoryRows, options = {}) {
+  const { startDate, endDate, channel: filterChannel } = options;
+
+  // Envanter'den SKU → birim maliyet map'i oluştur
+  const skuCostMap = {};
+  const skuPriceMap = {};
+  (inventoryRows || []).forEach(inv => {
+    const sku = (inv['SKU'] || inv['sku'] || inv['Variant SKU'] || '').toString().trim();
+    if (!sku) return;
+
+    // Birim maliyet (Cost / Units veya doğrudan Unit Cost)
+    const unitCost = parseTL(inv['Unit Cost'] || inv['unit_cost'] || inv['UnitCost'] || 0);
+    const totalCost = parseTL(inv['Value@Cost'] || inv['Value @Cost'] || inv['CostValue'] || 0);
+    const units = parseInt(inv['Units'] || inv['units'] || inv['Qty'] || inv['qty'] || 1, 10) || 1;
+
+    // Birim maliyet hesapla
+    if (unitCost > 0) {
+      skuCostMap[sku] = unitCost;
+    } else if (totalCost > 0 && units > 0) {
+      skuCostMap[sku] = totalCost / units;
+    }
+
+    // Birim satış fiyatı
+    const unitPrice = parseTL(inv['Unit Price'] || inv['unit_price'] || inv['Price'] || 0);
+    const totalPrice = parseTL(inv['Value@Price'] || inv['Value @Price'] || inv['SalesValue'] || 0);
+    if (unitPrice > 0) {
+      skuPriceMap[sku] = unitPrice;
+    } else if (totalPrice > 0 && units > 0) {
+      skuPriceMap[sku] = totalPrice / units;
+    }
+  });
+
+  // Sonuç objesi
+  const result = {
+    totalCOGS: 0,
+    totalRevenue: 0,
+    totalQty: 0,
+    byChannel: {},
+    bySKU: {},
+    unmatchedSKUs: [], // Envanter'de bulunamayan SKU'lar
+    matchRate: 0
+  };
+
+  let matchedOrders = 0;
+  let totalOrders = 0;
+
+  // Siparişleri işle
+  (orderRows || []).forEach(order => {
+    if (!order || !order.sku || !order.qty) return;
+
+    // Tarih filtresi
+    const orderDate = order.date instanceof Date ? order.date : new Date(order.date);
+    if (startDate && orderDate < startDate) return;
+    if (endDate && orderDate > endDate) return;
+
+    // Kanal filtresi
+    const orderChannel = order.channel || 'Online';
+    if (filterChannel && orderChannel !== filterChannel) return;
+
+    totalOrders++;
+
+    const sku = order.sku;
+    const qty = order.qty;
+    const salePrice = order.price || 0;
+
+    // SKU'nun maliyetini bul
+    const unitCost = skuCostMap[sku] || 0;
+    const lineCOGS = unitCost * qty;
+    const lineRevenue = salePrice * qty;
+
+    if (unitCost > 0) {
+      matchedOrders++;
+    } else {
+      if (!result.unmatchedSKUs.includes(sku)) {
+        result.unmatchedSKUs.push(sku);
+      }
+    }
+
+    // Toplam
+    result.totalCOGS += lineCOGS;
+    result.totalRevenue += lineRevenue;
+    result.totalQty += qty;
+
+    // Kanal bazlı
+    if (!result.byChannel[orderChannel]) {
+      result.byChannel[orderChannel] = { cogs: 0, revenue: 0, qty: 0 };
+    }
+    result.byChannel[orderChannel].cogs += lineCOGS;
+    result.byChannel[orderChannel].revenue += lineRevenue;
+    result.byChannel[orderChannel].qty += qty;
+
+    // SKU bazlı
+    if (!result.bySKU[sku]) {
+      result.bySKU[sku] = { cogs: 0, revenue: 0, qty: 0, unitCost };
+    }
+    result.bySKU[sku].cogs += lineCOGS;
+    result.bySKU[sku].revenue += lineRevenue;
+    result.bySKU[sku].qty += qty;
+  });
+
+  // Eşleşme oranı
+  result.matchRate = totalOrders > 0 ? (matchedOrders / totalOrders) * 100 : 0;
+
+  return result;
+}
+
+// Global erişim için
+window.calculateRealCOGS = calculateRealCOGS;
 
 /* stok yaşlandırma (son satışa göre gün farkı) */
 function stockAging(inventoryRows, orderRows){
@@ -6734,7 +6870,7 @@ try {
           if(!ordUrl) return;
           const ordRaw = await loadCSV(ordUrl);
           const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
-          const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString() }));
+          const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString(), channel:o.channel }));
           try { localStorage.setItem('popdog_orders_cache', JSON.stringify(persist)); } catch(e){}
           renderStockBlock();
         } catch(e){ console.warn('Orders load/render error', e); }
@@ -7336,15 +7472,56 @@ function renderFinancialHealth(){
       }
     } catch(e){}
 
-    // COGS tahmini: Stok maliyet/satış oranı üzerinden hesapla
+    // GERÇEK COGS: Sipariş ve envanter verilerinden hesapla
+    let realCOGS = 0;
+    let cogsMatchRate = 0;
+    let useRealCOGS = false;
+
+    try {
+      // Envanter ve sipariş verilerini al
+      const invCache = JSON.parse(localStorage.getItem('popdog_inv_cache') || '[]');
+      const ordCache = JSON.parse(localStorage.getItem('popdog_orders_cache') || '[]');
+
+      // Tarihleri düzelt (string → Date)
+      const ordersWithDates = ordCache.map(o => ({
+        ...o,
+        date: o.date ? new Date(o.date) : null
+      })).filter(o => o.date);
+
+      if (invCache.length > 0 && ordersWithDates.length > 0) {
+        // YTD filtresi
+        const ytdStart = new Date(currentYear, 0, 1);
+        const ytdEnd = new Date();
+
+        const cogsResult = calculateRealCOGS(ordersWithDates, invCache, {
+          startDate: ytdStart,
+          endDate: ytdEnd
+        });
+
+        if (cogsResult.totalCOGS > 0 && cogsResult.matchRate > 50) {
+          realCOGS = cogsResult.totalCOGS;
+          cogsMatchRate = cogsResult.matchRate;
+          useRealCOGS = true;
+          // Global'de sakla (kanal karlılığı için)
+          window.__ytdCOGSResult = cogsResult;
+        }
+      }
+    } catch(e) {
+      console.warn('Real COGS calculation error:', e);
+    }
+
+    // Fallback: Stok maliyet/satış oranı üzerinden tahmini COGS
     let cogsRatio = 0.45; // varsayılan %45
     if (stockCost > 0 && stockSaleValue > 0) {
       cogsRatio = stockCost / stockSaleValue;
     }
     const estimatedCOGS = ytdRevenue * cogsRatio;
 
+    // Kullanılacak COGS
+    const finalCOGS = useRealCOGS ? realCOGS : estimatedCOGS;
+
     // Brüt Kar
-    const grossProfit = ytdRevenue - estimatedCOGS;
+    const grossProfit = ytdRevenue - finalCOGS;
     const grossMargin = ytdRevenue > 0 ? (grossProfit / ytdRevenue) * 100 : 0;
 
     // Net Kar (Ciro - COGS - Giderler)
@@ -7377,6 +7554,16 @@ function renderFinancialHealth(){
       elGrossMargin.className = grossMargin >= 40 ? 'text-xl font-bold text-green-600 dark:text-green-400' :
                                  grossMargin >= 25 ? 'text-xl font-bold text-yellow-600 dark:text-yellow-400' :
                                  'text-xl font-bold text-red-600 dark:text-red-400';
+    }
+
+    // Brüt Kar Marjı notu güncelle (gerçek vs tahmini)
+    const elGrossMarginNote = document.getElementById('kpiGrossMarginNote');
+    if (elGrossMarginNote) {
+      if (useRealCOGS) {
+        elGrossMarginNote.innerHTML = `<span class="text-green-600 dark:text-green-400">✓ Gerçek COGS</span> (eşleşme: %${cogsMatchRate.toFixed(0)})`;
+      } else {
+        elGrossMarginNote.innerHTML = `<span class="text-orange-500">Tahmini</span> (stok oranı: %${(cogsRatio * 100).toFixed(0)})`;
+      }
     }
 
     const elNetMargin = document.getElementById('kpiNetMargin');
@@ -7763,7 +7950,7 @@ function renderChannelProfitability(){
       });
     });
 
-    // Stok maliyet oranını al (liste fiyatına göre maliyet)
+    // Stok maliyet oranını al (liste fiyatına göre maliyet) - fallback için
     let baseCostRatio = 0.40; // Varsayılan: liste fiyatının %40'ı maliyet
     try {
       const stockCostEl = document.getElementById('kpiInvCost');
@@ -7774,6 +7961,10 @@ function renderChannelProfitability(){
         if (cost > 0 && sale > 0) baseCostRatio = cost / sale;
       }
     } catch(e){}
+
+    // Gerçek COGS verisi varsa al (renderFinancialHealth'ten)
+    const realCOGSData = window.__ytdCOGSResult || null;
+    const useRealCOGS = realCOGSData && realCOGSData.byChannel && Object.keys(realCOGSData.byChannel).length > 0;
 
     const rows = [];
     const sortedChannels = Object.entries(channelTotals)
@@ -7797,9 +7988,15 @@ function renderChannelProfitability(){
       const totalDeductions = commission + ccFee;
       const netRevenue = revenueExVAT - totalDeductions;
 
-      // 3) COGS hesabı - kanal bazlı (KDV hariç tutar üzerinden)
+      // 3) COGS hesabı - kanal bazlı
       let cogs = 0;
-      if (config.isService) {
+      let cogsSource = 'tahmini';
+
+      // Önce gerçek COGS verisini dene
+      if (useRealCOGS && realCOGSData.byChannel[channel]) {
+        cogs = realCOGSData.byChannel[channel].cogs || 0;
+        cogsSource = 'gerçek';
+      } else if (config.isService) {
         // Kuaför hizmet geliri - %30 maliyet
         cogs = revenueExVAT * (config.serviceCostRatio || 0.30);
       } else if (config.discountFromList > 0) {
@@ -7810,7 +8007,7 @@ function renderChannelProfitability(){
         const effectiveCostRatio = baseCostRatio / (1 - config.discountFromList);
         cogs = revenueExVAT * Math.min(effectiveCostRatio, 0.95); // Max %95 COGS
       } else {
-        // Normal satış
+        // Normal satış - tahmini
         cogs = revenueExVAT * baseCostRatio;
       }
 
@@ -7829,6 +8026,11 @@ function renderChannelProfitability(){
 
       const deductionNote = config.note || '–';
 
+      // COGS'un gerçek mi tahmini mi olduğunu göster
+      const cogsIndicator = cogsSource === 'gerçek' ?
+        '<span class="text-green-500 text-[9px]" title="Gerçek COGS">●</span>' :
+        '<span class="text-orange-400 text-[9px]" title="Tahmini COGS">○</span>';
+
       rows.push(`
         <tr class="border-b border-slate-200 dark:border-slate-700">
           <td class="py-2 pr-2 font-medium">${channel}</td>
@@ -7836,7 +8038,7 @@ function renderChannelProfitability(){
           <td class="py-2 pr-2 text-right text-[11px]">${numberTL(revenueExVAT)}</td>
           <td class="py-2 pr-2 text-right hint text-[11px]">%${share.toFixed(1)}</td>
           <td class="py-2 pr-2 text-right text-orange-600 dark:text-orange-400 text-[11px]">${totalDeductions > 0 ? numberTL(totalDeductions) : '–'}</td>
-          <td class="py-2 pr-2 text-right hint text-[11px]">${numberTL(cogs)}</td>
+          <td class="py-2 pr-2 text-right hint text-[11px]">${cogsIndicator} ${numberTL(cogs)}</td>
           <td class="py-2 pr-2 text-right text-[11px]">${numberTL(grossProfit)}</td>
           <td class="py-2 text-right font-semibold ${marginClass}">%${grossMargin.toFixed(1)}</td>
         </tr>
