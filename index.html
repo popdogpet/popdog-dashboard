@@ -811,15 +811,15 @@ th, td { white-space: nowrap; }
           📈 Kanal Bazlı Karlılık (tıkla: aç/kapat)
         </summary>
         <div class="mt-3">
-          <div class="hint text-[10px] mb-2">Toptan: %40 indirimli satış • CKM/Online: KK %2.5 • Trendyol/HB: %20 komisyon • Kuaför: Hizmet geliri</div>
+          <div class="hint text-[10px] mb-2">Tüm tutarlar %20 KDV hariç • Toptan: %40 indirimli satış • CKM/Online: KK %2.5 • Trendyol/HB: %20 komisyon • Kuaför: Hizmet %30</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
                 <tr>
                   <th class="text-left py-2 pr-3">Kanal</th>
-                  <th class="text-right py-2 pr-3">Ciro (YTD)</th>
+                  <th class="text-right py-2 pr-3">Brüt Ciro</th>
+                  <th class="text-right py-2 pr-3">KDV Hariç</th>
                   <th class="text-right py-2 pr-3">Pay</th>
-                  <th class="text-right py-2 pr-3">Kesinti</th>
                   <th class="text-right py-2 pr-3">Kom./KK</th>
                   <th class="text-right py-2 pr-3">COGS</th>
                   <th class="text-right py-2 pr-3">Brüt Kar</th>
@@ -7727,7 +7727,8 @@ const CHANNEL_CONFIG = {
     discountFromList: 0,
     ccFee: 0.025,
     isService: true,         // Hizmet geliri
-    note: 'Hizmet geliri'
+    serviceCostRatio: 0.30,  // %30 hizmet maliyeti
+    note: 'Hizmet %30 maliyet'
   }
 };
 
@@ -7786,31 +7787,36 @@ function renderChannelProfitability(){
       const config = CHANNEL_CONFIG[channel] || {};
       const share = grandTotal > 0 ? (revenue / grandTotal) * 100 : 0;
 
-      // Komisyon ve kesintiler
-      const commission = revenue * (config.commission || 0);
-      const ccFee = revenue * (config.ccFee || 0);
-      const totalDeductions = commission + ccFee;
-      const netRevenue = revenue - totalDeductions;
+      // 1) KDV'yi çıkar (%20 KDV dahil fiyattan → KDV hariç = fiyat / 1.20)
+      const revenueExVAT = revenue / 1.20;
+      const vatAmount = revenue - revenueExVAT;
 
-      // COGS hesabı - kanal bazlı
+      // 2) Komisyon ve kesintiler (KDV hariç tutar üzerinden)
+      const commission = revenueExVAT * (config.commission || 0);
+      const ccFee = revenueExVAT * (config.ccFee || 0);
+      const totalDeductions = commission + ccFee;
+      const netRevenue = revenueExVAT - totalDeductions;
+
+      // 3) COGS hesabı - kanal bazlı (KDV hariç tutar üzerinden)
       let cogs = 0;
       if (config.isService) {
-        // Kuaför hizmet geliri - düşük maliyet varsayalım (%20)
-        cogs = revenue * 0.20;
+        // Kuaför hizmet geliri - %30 maliyet
+        cogs = revenueExVAT * (config.serviceCostRatio || 0.30);
       } else if (config.discountFromList > 0) {
         // Toptan: %40 indirimle satış yapılıyor
         // Satış fiyatı = Liste × 0.60
         // Maliyet = Liste × baseCostRatio
         // Yani maliyet/satış = baseCostRatio / 0.60
         const effectiveCostRatio = baseCostRatio / (1 - config.discountFromList);
-        cogs = revenue * Math.min(effectiveCostRatio, 0.95); // Max %95 COGS
+        cogs = revenueExVAT * Math.min(effectiveCostRatio, 0.95); // Max %95 COGS
       } else {
         // Normal satış
-        cogs = revenue * baseCostRatio;
+        cogs = revenueExVAT * baseCostRatio;
       }
 
       const grossProfit = netRevenue - cogs;
-      const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+      // Marj hesabı KDV hariç ciro üzerinden
+      const grossMargin = revenueExVAT > 0 ? (grossProfit / revenueExVAT) * 100 : 0;
 
       totalGrossProfit += grossProfit;
       totalCommissions += totalDeductions;
@@ -7825,33 +7831,34 @@ function renderChannelProfitability(){
 
       rows.push(`
         <tr class="border-b border-slate-200 dark:border-slate-700">
-          <td class="py-2 pr-3 font-medium">${channel}</td>
-          <td class="py-2 pr-3 text-right">${numberTL(revenue)}</td>
-          <td class="py-2 pr-3 text-right">${share.toFixed(1)}%</td>
-          <td class="py-2 pr-3 text-right hint text-[10px]">${deductionNote}</td>
-          <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${totalDeductions > 0 ? numberTL(totalDeductions) : '–'}</td>
-          <td class="py-2 pr-3 text-right hint">${numberTL(cogs)}</td>
-          <td class="py-2 pr-3 text-right">${numberTL(netRevenue - cogs)}</td>
+          <td class="py-2 pr-2 font-medium">${channel}</td>
+          <td class="py-2 pr-2 text-right text-[11px]">${numberTL(revenue)}</td>
+          <td class="py-2 pr-2 text-right text-[11px]">${numberTL(revenueExVAT)}</td>
+          <td class="py-2 pr-2 text-right hint text-[11px]">%${share.toFixed(1)}</td>
+          <td class="py-2 pr-2 text-right text-orange-600 dark:text-orange-400 text-[11px]">${totalDeductions > 0 ? numberTL(totalDeductions) : '–'}</td>
+          <td class="py-2 pr-2 text-right hint text-[11px]">${numberTL(cogs)}</td>
+          <td class="py-2 pr-2 text-right text-[11px]">${numberTL(grossProfit)}</td>
           <td class="py-2 text-right font-semibold ${marginClass}">%${grossMargin.toFixed(1)}</td>
         </tr>
       `);
     });
 
     // Toplam satırı
-    const overallMargin = grandTotal > 0 ? (totalGrossProfit / grandTotal) * 100 : 0;
+    const grandTotalExVAT = grandTotal / 1.20;
+    const overallMargin = grandTotalExVAT > 0 ? (totalGrossProfit / grandTotalExVAT) * 100 : 0;
     const overallMarginClass = overallMargin >= 30 ? 'text-green-600 dark:text-green-400' :
                                overallMargin >= 15 ? 'text-yellow-600 dark:text-yellow-400' :
                                'text-orange-600 dark:text-orange-400';
 
     rows.push(`
       <tr class="bg-slate-100 dark:bg-slate-800 font-semibold">
-        <td class="py-2 pr-3">TOPLAM</td>
-        <td class="py-2 pr-3 text-right">${numberTL(grandTotal)}</td>
-        <td class="py-2 pr-3 text-right">100%</td>
-        <td class="py-2 pr-3 text-right">–</td>
-        <td class="py-2 pr-3 text-right text-orange-600 dark:text-orange-400">${numberTL(totalCommissions)}</td>
-        <td class="py-2 pr-3 text-right hint">–</td>
-        <td class="py-2 pr-3 text-right text-green-600 dark:text-green-400">${numberTL(totalGrossProfit)}</td>
+        <td class="py-2 pr-2">TOPLAM</td>
+        <td class="py-2 pr-2 text-right text-[11px]">${numberTL(grandTotal)}</td>
+        <td class="py-2 pr-2 text-right text-[11px]">${numberTL(grandTotalExVAT)}</td>
+        <td class="py-2 pr-2 text-right hint">%100</td>
+        <td class="py-2 pr-2 text-right text-orange-600 dark:text-orange-400 text-[11px]">${numberTL(totalCommissions)}</td>
+        <td class="py-2 pr-2 text-right hint">–</td>
+        <td class="py-2 pr-2 text-right text-green-600 dark:text-green-400 text-[11px]">${numberTL(totalGrossProfit)}</td>
         <td class="py-2 text-right ${overallMarginClass}">%${overallMargin.toFixed(1)}</td>
       </tr>
     `);
