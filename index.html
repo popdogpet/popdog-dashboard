@@ -858,14 +858,18 @@ th, td { white-space: nowrap; }
 
     <!-- Aylık Görünüm -->
     <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
-      <details open>
-        <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+      <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
           Aylık Görünüm
-          <span id="monthYearLabel" class="badge text-xs"></span>
-        </summary>
-        <div id="monthCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mt-3"></div>
-        <div id="monthMoM" class="hint text-xs mt-2"></div>
-      </details>
+          <span id="monthLabel" class="badge text-xs"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="monthPrev" class="glass card-3d px-3 py-2 rounded-xl text-sm">◀︎</button>
+          <button id="monthNext" class="glass card-3d px-3 py-2 rounded-xl text-sm">▶︎</button>
+        </div>
+      </div>
+      <div id="monthCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mt-3"></div>
+      <div id="monthMoM" class="hint text-xs mt-2"></div>
     </section>
 
     <!-- === Krediler & Bekleyen Ödemeler === -->
@@ -6501,10 +6505,21 @@ document.getElementById('weekNext').onclick = ()=>{
 };
 
 /* ================== Monthly View UI ================== */
+let selectedMonthKey = null; // Seçili ay (ör: "2025-01")
+
+function getMonthName(monthKey) {
+  // "2025-01" → "Ocak 2025"
+  const [year, month] = monthKey.split('-');
+  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const monthIdx = parseInt(month, 10) - 1;
+  return `${monthNames[monthIdx] || month} ${year}`;
+}
+
 function renderMonthlyView(){
   const mc = monthlyCache || [];
   const wrap = document.getElementById('monthCards');
-  const labelEl = document.getElementById('monthYearLabel');
+  const labelEl = document.getElementById('monthLabel');
   const momEl = document.getElementById('monthMoM');
   if(!wrap) return;
 
@@ -6515,26 +6530,27 @@ function renderMonthlyView(){
     return;
   }
 
-  // Son yılın aylarını göster
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const thisYearMonths = mc.filter(m => m.year === currentYear);
-  const dataMonths = thisYearMonths.length ? thisYearMonths : mc.slice(-12);
+  // Varsayılan: son ay seçili
+  if(!selectedMonthKey){ selectedMonthKey = mc[mc.length - 1].month; }
 
-  if(labelEl) labelEl.textContent = dataMonths.length ? `${dataMonths[0].year}` : '';
+  const idx = mc.findIndex(m => m.month === selectedMonthKey);
+  const curMonth = mc[idx];
+  const prevMonth = mc[idx - 1] || null;
 
-  const keys = ['Toptan','Online','CKM','Trendyol','Hepsiburada','Kuaför','Total'];
-  const labels = {Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Kuaför', Total:'Toplam'};
+  if(!curMonth){
+    wrap.innerHTML = '<div class="hint text-sm">Seçili ay bulunamadı.</div>';
+    return;
+  }
 
-  // Her kanal için bu yılın toplamını ve geçen aya göre değişimi göster
-  const sumThisYear = k => dataMonths.reduce((a, m) => a + (m[k] || 0), 0);
-  const lastMonth = dataMonths.length ? dataMonths[dataMonths.length - 1] : null;
-  const prevMonth = dataMonths.length >= 2 ? dataMonths[dataMonths.length - 2] : null;
+  // Ay label'ı
+  if(labelEl) labelEl.textContent = getMonthName(curMonth.month);
+
+  const keys = ['Total', 'Toptan', 'Online', 'CKM', 'Trendyol', 'Hepsiburada', 'Kuaför'];
+  const labels = {Total: 'Toplam', Toptan: 'Toptan', Online: 'Online', CKM: 'CKM', Trendyol: 'Trendyol', Hepsiburada: 'Hepsiburada', Kuaför: 'Kuaför'};
 
   wrap.innerHTML = '';
   keys.forEach(k => {
-    const ytdVal = sumThisYear(k);
-    const curVal = lastMonth ? (lastMonth[k] || 0) : 0;
+    const curVal = curMonth[k] || 0;
     const prvVal = prevMonth ? (prevMonth[k] || 0) : 0;
     const mom = prvVal ? (curVal - prvVal) / prvVal : 0;
 
@@ -6542,22 +6558,40 @@ function renderMonthlyView(){
     card.className = 'glass card-3d rounded-2xl p-3';
     card.innerHTML = `
       <div class="hint text-xs">${labels[k]}</div>
-      <div class="text-slate-800 dark:text-slate-100 font-semibold text-sm">${numberTL(ytdVal)}</div>
-      <div class="hint text-xs mt-1">Son ay: ${numberTL(curVal)}</div>
+      <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(curVal)}</div>
       <div class="${mom >= 0 ? 'kpi-up' : 'kpi-down'} text-xs">MoM: ${(mom * 100).toFixed(1)}%</div>`;
     wrap.appendChild(card);
   });
 
-  // Genel MoM
-  if(momEl && lastMonth && prevMonth){
-    const totalMom = prevMonth.Total ? (lastMonth.Total - prevMonth.Total) / prevMonth.Total : 0;
-    const lastMonthName = lastMonth.month.slice(5);
-    const prevMonthName = prevMonth.month.slice(5);
-    momEl.textContent = `MoM (${prevMonthName} → ${lastMonthName}): ${(totalMom * 100).toFixed(1)}%`;
+  // MoM özet
+  if(momEl && prevMonth){
+    const totalMom = prevMonth.Total ? (curMonth.Total - prevMonth.Total) / prevMonth.Total : 0;
+    momEl.textContent = `Önceki ay (${getMonthName(prevMonth.month)}): ${numberTL(prevMonth.Total)} | MoM: ${(totalMom * 100).toFixed(1)}%`;
   } else if(momEl){
-    momEl.textContent = '';
+    momEl.textContent = 'Önceki ay verisi yok';
   }
 }
+
+// Ay gezinme butonları
+document.getElementById('monthPrev')?.addEventListener('click', () => {
+  const mc = monthlyCache || [];
+  if(!mc.length || !selectedMonthKey) return;
+  const idx = mc.findIndex(m => m.month === selectedMonthKey);
+  if(idx > 0){
+    selectedMonthKey = mc[idx - 1].month;
+    renderMonthlyView();
+  }
+});
+
+document.getElementById('monthNext')?.addEventListener('click', () => {
+  const mc = monthlyCache || [];
+  if(!mc.length || !selectedMonthKey) return;
+  const idx = mc.findIndex(m => m.month === selectedMonthKey);
+  if(idx < mc.length - 1){
+    selectedMonthKey = mc[idx + 1].month;
+    renderMonthlyView();
+  }
+});
 
 /* ================== WhatsApp Paste → stage table ================== */
 function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
