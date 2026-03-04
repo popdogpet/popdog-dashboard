@@ -872,6 +872,26 @@ th, td { white-space: nowrap; }
       <div id="monthMoM" class="hint text-xs mt-2"></div>
     </section>
 
+    <!-- === Kanal Satışları (Shopify Orders) === -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
+      <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+          🛒 Kanal Satışları
+          <span id="channelSalesPeriod" class="badge text-xs">YTD</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="channelSalesPeriodSelect" class="glass card-3d px-3 py-2 rounded-xl text-sm bg-transparent">
+            <option value="ytd">Yıl Başından</option>
+            <option value="month">Bu Ay</option>
+            <option value="week">Bu Hafta</option>
+            <option value="all">Tümü</option>
+          </select>
+        </div>
+      </div>
+      <div id="channelSalesCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-3"></div>
+      <div id="channelSalesTotal" class="hint text-xs mt-2"></div>
+    </section>
+
     <!-- === Krediler & Bekleyen Ödemeler === -->
     <section id="loansBlock" class="glass card-3d rounded-3xl p-5 mt-6" data-page="expenses">
       <div class="flex items-center justify-between mb-3">
@@ -4579,8 +4599,72 @@ function getOrdersCache(){
     sku: (o.sku||'').trim(),
     qty: Number(o.qty)||0,
     price: parseTL(o.price||0),
-    date: o.date ? new Date(o.date) : null  // <- rehydrate
+    date: o.date ? new Date(o.date) : null,  // <- rehydrate
+    channel: o.channel || 'Online'           // <- kanal bilgisi
   })).filter(o => o.sku && o.qty>0 && o.date && !isNaN(+o.date));
+}
+
+/**
+ * Kanal Bazlı Satış Hesaplama
+ * Orders verisinden kanal bazlı satış toplamlarını hesaplar
+ * @param {Object} options - {startDate, endDate, period: 'all'|'month'|'week'}
+ * @returns {Object} {channels: {CKM: {try, usd, qty}, ...}, total: {try, usd, qty}}
+ */
+function buildChannelSalesFromOrders(options = {}){
+  const orders = getOrdersCache();
+  const now = new Date();
+  let startDate = options.startDate;
+  let endDate = options.endDate || now;
+
+  // Dönem hesaplama
+  if (options.period === 'month') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (options.period === 'week') {
+    const dayOfWeek = now.getDay() || 7; // Pazar=0 -> 7
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - dayOfWeek + 1); // Pazartesi
+    startDate.setHours(0,0,0,0);
+  } else if (options.period === 'ytd') {
+    startDate = new Date(now.getFullYear(), 0, 1);
+  }
+
+  // Kanal bazlı toplam
+  const channels = {};
+  let totalTRY = 0;
+  let totalQty = 0;
+
+  orders.forEach(o => {
+    if (!o.date) return;
+    if (startDate && o.date < startDate) return;
+    if (endDate && o.date > endDate) return;
+
+    const ch = o.channel || 'Online';
+    if (!channels[ch]) {
+      channels[ch] = { try: 0, qty: 0 };
+    }
+
+    const revenue = (o.price || 0) * (o.qty || 0);
+    channels[ch].try += revenue;
+    channels[ch].qty += o.qty || 0;
+    totalTRY += revenue;
+    totalQty += o.qty || 0;
+  });
+
+  // USD çevirimi (kur varsa)
+  const rate = fxRateUSDPerTRY || 0;
+  Object.values(channels).forEach(ch => {
+    ch.usd = rate ? ch.try * rate : 0;
+  });
+
+  return {
+    channels,
+    total: {
+      try: totalTRY,
+      usd: rate ? totalTRY * rate : 0,
+      qty: totalQty
+    },
+    period: options.period || 'all'
+  };
 }
 
 /* stok listesi içinden (₺ satış değeri bazlı) top N */
@@ -6661,6 +6745,72 @@ document.getElementById('monthNext')?.addEventListener('click', () => {
   }
 });
 
+/* ================== Kanal Satışları (Orders) ================== */
+let selectedChannelPeriod = 'ytd';
+
+function renderChannelSales(){
+  const wrap = document.getElementById('channelSalesCards');
+  const periodEl = document.getElementById('channelSalesPeriod');
+  const totalEl = document.getElementById('channelSalesTotal');
+  if(!wrap) return;
+
+  const data = buildChannelSalesFromOrders({ period: selectedChannelPeriod });
+  const channels = data.channels || {};
+  const total = data.total || { try: 0, usd: 0, qty: 0 };
+
+  // Period label
+  const periodLabels = { ytd: 'YTD', month: 'Bu Ay', week: 'Bu Hafta', all: 'Tümü' };
+  if(periodEl) periodEl.textContent = periodLabels[selectedChannelPeriod] || 'YTD';
+
+  // Kanalları sırala (toplam TRY'ye göre)
+  const sortedChannels = Object.entries(channels).sort((a, b) => b[1].try - a[1].try);
+
+  if(!sortedChannels.length){
+    wrap.innerHTML = '<div class="hint text-sm">Sipariş verisi bulunamadı. Orders CSV yükleyin.</div>';
+    if(totalEl) totalEl.textContent = '';
+    return;
+  }
+
+  wrap.innerHTML = '';
+
+  // Kanal ikonları
+  const icons = {
+    'CKM': '🏪',
+    'Online': '🌐',
+    'Trendyol': '🟠',
+    'Hepsiburada': '🟡',
+    'Kuaför': '💇',
+    'Toptan': '📦'
+  };
+
+  sortedChannels.forEach(([ch, val]) => {
+    const card = document.createElement('div');
+    card.className = 'glass card-3d rounded-2xl p-3';
+    const icon = icons[ch] || '📊';
+    const tryFormatted = numberTL(val.try);
+    const usdFormatted = val.usd ? `$${numberUSD(val.usd)}` : '–';
+    card.innerHTML = `
+      <div class="hint text-xs flex items-center gap-1">${icon} ${ch}</div>
+      <div class="text-slate-800 dark:text-slate-100 font-semibold">${tryFormatted}</div>
+      <div class="hint text-xs">${usdFormatted}</div>
+      <div class="hint text-xs mt-1">${val.qty.toLocaleString('tr-TR')} adet</div>`;
+    wrap.appendChild(card);
+  });
+
+  // Toplam
+  if(totalEl){
+    const totalTRY = numberTL(total.try);
+    const totalUSD = total.usd ? `$${numberUSD(total.usd)}` : '–';
+    totalEl.textContent = `Toplam: ${totalTRY} • ${totalUSD} • ${total.qty.toLocaleString('tr-TR')} adet`;
+  }
+}
+
+// Period seçici event listener
+document.getElementById('channelSalesPeriodSelect')?.addEventListener('change', (e) => {
+  selectedChannelPeriod = e.target.value;
+  renderChannelSales();
+});
+
 /* ================== WhatsApp Paste → stage table ================== */
 function grab(line, keys){ const s=line.toLowerCase(); return keys.some(k=>s.startsWith(k)); }
 function extractValue(line){
@@ -6896,6 +7046,7 @@ function refreshAll(){
   renderStaged();
   renderWeek();
   renderMonthlyView();
+  renderChannelSales();
   renderLast7();
 
   // 6) Stok bloğu
