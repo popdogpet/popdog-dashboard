@@ -1166,41 +1166,46 @@ th, td { white-space: nowrap; }
           </div>
         </div>
       </div>
-      <!-- Bu Ayın Giderleri (Kategori + Alt Kategori) - Kompakt -->
+      <!-- Aylık Giderler Detayı (Kategori + Alt Kategori) - Ay Seçimli -->
       <div class="glass card-3d rounded-2xl p-3 mt-4">
-        <details class="expenses-compact">
-          <summary class="cursor-pointer flex items-center justify-between mb-2">
-            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Bu Ayın Giderleri <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
-            <div class="text-right">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div class="text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-2">
+            Aylık Giderler
+            <span id="expMonthLabel" class="badge text-xs"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="expMonthPrev" class="glass card-3d px-2 py-1 rounded-lg text-xs">◀︎</button>
+            <button id="expMonthNext" class="glass card-3d px-2 py-1 rounded-lg text-xs">▶︎</button>
+            <div class="text-right ml-2">
               <div id="expThisMonthTotal" class="text-xs font-medium text-slate-700 dark:text-slate-200">–</div>
               <div id="expThisMonthMoM" class="hint text-[10px]">MoM: –</div>
             </div>
-          </summary>
-          <div class="overflow-auto max-h-48">
-            <table class="min-w-full text-xs">
-              <thead class="text-slate-600 dark:text-slate-300">
-                <tr>
-                  <th class="text-left py-1 pr-2">Tarih</th>
-                  <th class="text-left py-1 pr-2">Kategori</th>
-                  <th class="text-left py-1 pr-2">Alt Kat.</th>
-                  <th class="text-right py-1 pr-0">Tutar</th>
-                </tr>
-              </thead>
-              <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
-                <tr><td class="hint py-2" colspan="4">Yükleniyor…</td></tr>
-              </tbody>
-            </table>
           </div>
-        </details>
+        </div>
+        <div class="overflow-auto max-h-64">
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-600 dark:text-slate-300">
+              <tr>
+                <th class="text-left py-1 pr-2">Tarih</th>
+                <th class="text-left py-1 pr-2">Kategori</th>
+                <th class="text-left py-1 pr-2">Alt Kat.</th>
+                <th class="text-right py-1 pr-0">Tutar</th>
+              </tr>
+            </thead>
+            <tbody id="tblExpThisMonth" class="text-slate-800 dark:text-slate-100">
+              <tr><td class="hint py-2" colspan="4">Yükleniyor…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <!-- Bu Ay — Kategori Altında Ödemeler - Kompakt -->
+      <!-- Seçili Ay — Kategori Kırılımı - Kompakt -->
       <div class="glass card-3d rounded-2xl p-3 mt-4">
-        <details class="expenses-compact">
+        <details class="expenses-compact" open>
           <summary class="cursor-pointer flex items-center justify-between mb-2">
-            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Bu Ay — Kategori Kırılımı <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
+            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Kategori Kırılımı <span class="hint text-xs">(yukarıdaki ay seçimine göre)</span></div>
             <div id="expByCatTotal" class="text-xs font-medium text-slate-700 dark:text-slate-200">–</div>
           </summary>
-          <div id="expThisMonthByCat" class="text-xs max-h-48 overflow-auto"></div>
+          <div id="expThisMonthByCat" class="text-xs max-h-64 overflow-auto"></div>
         </details>
       </div>
     </section>
@@ -2916,21 +2921,41 @@ function readExpenseSubcat(row){
   return v !== '' ? String(v).trim() : '';
 }
 
-/* === Bu Ayın Giderleri: Kategori + Alt Kategori listesi === */
+/* === Aylık Giderler: Kategori + Alt Kategori listesi (Ay Seçimli) === */
+let selectedExpenseMonth = null; // Seçili ay {year, month} (0-indexed month)
+let expenseRowsCache = null; // CSV verisi cache
+
+function getExpenseMonthLabel(year, month) {
+  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  return `${monthNames[month]} ${year}`;
+}
+
 async function renderThisMonthExpenses(){
   try{
     const tbody = document.getElementById('tblExpThisMonth');
+    const labelEl = document.getElementById('expMonthLabel');
     if (!tbody) return;
 
-    // CSV'yi yükle
-    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+    // CSV'yi yükle (cache varsa kullan)
+    if (!expenseRowsCache) {
+      expenseRowsCache = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+    }
+    const rows = expenseRowsCache;
 
-    // Bu ayın başlangıç/bitişi
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth(); // 0-index
+    // Varsayılan: bu ay
+    if (!selectedExpenseMonth) {
+      const now = new Date();
+      selectedExpenseMonth = { year: now.getFullYear(), month: now.getMonth() };
+    }
 
-    // Bu aya ait satırları filtrele
+    const y = selectedExpenseMonth.year;
+    const m = selectedExpenseMonth.month;
+
+    // Ay label'ı güncelle
+    if (labelEl) labelEl.textContent = getExpenseMonthLabel(y, m);
+
+    // Seçili aya ait satırları filtrele
     const inMonth = (rows||[]).filter(r=>{
       const ds = String(r.Date || r.date || '').slice(0,10);
       const d  = new Date(ds);
@@ -2976,11 +3001,11 @@ async function renderThisMonthExpenses(){
       return;
     }
 
-    // Satırları tarihe göre artan sırada göster
+    // Satırları tarihe göre azalan sırada göster (en yeni en üstte)
     inMonth.sort((a,b)=>{
       const ad = new Date(String(a.Date||a.date||'').slice(0,10));
       const bd = new Date(String(b.Date||b.date||'').slice(0,10));
-      return ad - bd;
+      return bd - ad;
     });
 
     // Yardımcılar
@@ -3011,21 +3036,64 @@ async function renderThisMonthExpenses(){
   }
 }
 
+// Gider ayı gezinme butonları
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('expMonthPrev')?.addEventListener('click', () => {
+    if (!selectedExpenseMonth) {
+      const now = new Date();
+      selectedExpenseMonth = { year: now.getFullYear(), month: now.getMonth() };
+    }
+    // Önceki aya git
+    selectedExpenseMonth.month--;
+    if (selectedExpenseMonth.month < 0) {
+      selectedExpenseMonth.month = 11;
+      selectedExpenseMonth.year--;
+    }
+    renderThisMonthExpenses();
+    renderThisMonthExpensesByCategory();
+  });
+
+  document.getElementById('expMonthNext')?.addEventListener('click', () => {
+    if (!selectedExpenseMonth) {
+      const now = new Date();
+      selectedExpenseMonth = { year: now.getFullYear(), month: now.getMonth() };
+    }
+    // Sonraki aya git (bugünden ileriye gitme)
+    const now = new Date();
+    const nextMonth = selectedExpenseMonth.month + 1;
+    const nextYear = nextMonth > 11 ? selectedExpenseMonth.year + 1 : selectedExpenseMonth.year;
+    const normalizedMonth = nextMonth > 11 ? 0 : nextMonth;
+
+    if (nextYear < now.getFullYear() || (nextYear === now.getFullYear() && normalizedMonth <= now.getMonth())) {
+      selectedExpenseMonth.month = normalizedMonth;
+      selectedExpenseMonth.year = nextYear;
+      renderThisMonthExpenses();
+      renderThisMonthExpensesByCategory();
+    }
+  });
+});
+
 /* === Bu Ayın Giderleri: Kategori altında (FinalSubcategory – Subcategory) kırılımı === */
 async function renderThisMonthExpensesByCategory(){
   try{
     const wrap = document.getElementById('expThisMonthByCat');
     if (!wrap) return;
 
-    // CSV'yi yükle
-    const rows = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+    // CSV'yi yükle (cache varsa kullan)
+    if (!expenseRowsCache) {
+      expenseRowsCache = await loadExpensesCsv(DEFAULT_EXPENSES_CSV);
+    }
+    const rows = expenseRowsCache;
 
-    // Bu ayın başlangıç/bitişi
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth(); // 0-index
+    // Seçili ay (veya bu ay)
+    if (!selectedExpenseMonth) {
+      const now = new Date();
+      selectedExpenseMonth = { year: now.getFullYear(), month: now.getMonth() };
+    }
+    const y = selectedExpenseMonth.year;
+    const m = selectedExpenseMonth.month;
 
-    // Bu aya ait satırları filtrele
+    // Seçili aya ait satırları filtrele
     const inMonth = (rows||[]).filter(r=>{
       const ds = String(r.Date || r.date || '').slice(0,10);
       const d  = new Date(ds);
