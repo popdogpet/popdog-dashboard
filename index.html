@@ -4605,28 +4605,29 @@ function getOrdersCache(){
 }
 
 /**
- * Kanal Bazlı Satış Hesaplama
- * Orders verisinden kanal bazlı satış toplamlarını hesaplar
- * @param {Object} options - {startDate, endDate, period: 'all'|'month'|'week'}
- * @returns {Object} {channels: {CKM: {try, usd, qty}, ...}, total: {try, usd, qty}}
+ * Kanal Bazlı Satış Hesaplama (Shopify Orders)
+ * Orders CSV verisinden kanal bazlı satış toplamlarını hesaplar
+ * Kanal tespiti: Tags (Hepsiburada/Trendyol) + Delivery Method (CKM/Online)
+ * @param {Object} options - {period: 'all'|'month'|'week'|'ytd'}
+ * @returns {Object} {channels: {CKM: {amountTRY, usd, qty}, ...}, total: {amountTRY, usd, qty}}
  */
 function buildChannelSalesFromOrders(options = {}){
   const orders = getOrdersCache();
   const now = new Date();
-  let startDate = options.startDate;
-  let endDate = options.endDate || now;
+  let startDate = null;
 
   // Dönem hesaplama
   if (options.period === 'month') {
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
   } else if (options.period === 'week') {
-    const dayOfWeek = now.getDay() || 7; // Pazar=0 -> 7
+    const dayOfWeek = now.getDay() || 7;
     startDate = new Date(now);
-    startDate.setDate(now.getDate() - dayOfWeek + 1); // Pazartesi
+    startDate.setDate(now.getDate() - dayOfWeek + 1);
     startDate.setHours(0,0,0,0);
   } else if (options.period === 'ytd') {
     startDate = new Date(now.getFullYear(), 0, 1);
   }
+  // 'all' için startDate = null (tüm veriler)
 
   // Kanal bazlı toplam
   const channels = {};
@@ -4636,7 +4637,6 @@ function buildChannelSalesFromOrders(options = {}){
   orders.forEach(o => {
     if (!o.date) return;
     if (startDate && o.date < startDate) return;
-    if (endDate && o.date > endDate) return;
 
     const ch = o.channel || 'Online';
     if (!channels[ch]) {
@@ -4663,7 +4663,7 @@ function buildChannelSalesFromOrders(options = {}){
       usd: rate ? totalTRY * rate : 0,
       qty: totalQty
     },
-    period: options.period || 'all'
+    period: options.period || 'ytd'
   };
 }
 
@@ -4698,20 +4698,32 @@ function mapOrderRow(r){
   const rawDate = r['Created at'] || r['Created At'] || r['Created at (UTC)'] || r['Processed at'] || r['Paid at'] || r['Fulfilled at'] || r['date'] || '';
   const date = parseShopifyDate(rawDate);
 
-  // Kanal tespiti: Tag ve Delivery Method'a göre
+  // Kanal tespiti: Tags, Source (POS vs Web), Delivery Method
   const tags = (r['Tags'] || r['tags'] || r['Tag'] || r['tag'] || '').toString().toLowerCase();
+  const source = (r['Source'] || r['source'] || r['source_name'] || '').toString().toLowerCase();
   const deliveryMethod = (r['Delivery Method'] || r['delivery_method'] || r['Shipping Method'] || '').toString().toLowerCase();
 
   let channel = 'Online'; // varsayılan
+
+  // 1) Tags'ten marketplace tespiti
   if (tags.includes('hepsiburada')) {
     channel = 'Hepsiburada';
   } else if (tags.includes('trendyol')) {
     channel = 'Trendyol';
-  } else if (deliveryMethod.includes('in store') || deliveryMethod.includes('instore') || deliveryMethod.includes('pickup')) {
+  }
+  // 2) Source'dan POS (mağaza) tespiti
+  else if (source === 'pos' || source.includes('pos')) {
     channel = 'CKM';
-  } else if (deliveryMethod.includes('kargo') || deliveryMethod.includes('shipping') || deliveryMethod.includes('delivery')) {
+  }
+  // 3) Delivery Method'dan tespit
+  else if (deliveryMethod.includes('in store') || deliveryMethod.includes('instore') || deliveryMethod.includes('pickup') || deliveryMethod.includes('gel al')) {
+    channel = 'CKM';
+  }
+  // 4) Diğer = Online
+  else {
     channel = 'Online';
   }
+
   // Eğer önceden channel kaydedilmişse (cache'den) onu kullan
   if (r.channel) {
     channel = r.channel;
@@ -6766,7 +6778,7 @@ function renderChannelSales(){
   const sortedChannels = Object.entries(channels).sort((a, b) => b[1].amountTRY - a[1].amountTRY);
 
   if(!sortedChannels.length){
-    wrap.innerHTML = '<div class="hint text-sm">Sipariş verisi bulunamadı. Orders CSV yükleyin.</div>';
+    wrap.innerHTML = '<div class="hint text-sm">Shopify sipariş verisi bulunamadı. Orders CSV yükleniyor...</div>';
     if(totalEl) totalEl.textContent = '';
     return;
   }
@@ -6789,19 +6801,22 @@ function renderChannelSales(){
     const icon = icons[ch] || '📊';
     const tryFormatted = numberTL(val.amountTRY);
     const usdFormatted = val.usd ? `$${numberUSD(val.usd)}` : '–';
+    // Yüzde hesapla
+    const pct = total.amountTRY > 0 ? ((val.amountTRY / total.amountTRY) * 100).toFixed(1) : 0;
     card.innerHTML = `
       <div class="hint text-xs flex items-center gap-1">${icon} ${ch}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${tryFormatted}</div>
       <div class="hint text-xs">${usdFormatted}</div>
-      <div class="hint text-xs mt-1">${val.qty.toLocaleString('tr-TR')} adet</div>`;
+      <div class="hint text-xs mt-1">${pct}% • ${(val.qty||0).toLocaleString('tr-TR')} adet</div>`;
     wrap.appendChild(card);
   });
 
   // Toplam
   if(totalEl){
-    const totalTRY = numberTL(total.amountTRY);
+    const totalTRYFormatted = numberTL(total.amountTRY);
     const totalUSD = total.usd ? `$${numberUSD(total.usd)}` : '–';
-    totalEl.textContent = `Toplam: ${totalTRY} • ${totalUSD} • ${total.qty.toLocaleString('tr-TR')} adet`;
+    const totalQty = (total.qty||0).toLocaleString('tr-TR');
+    totalEl.textContent = `Toplam: ${totalTRYFormatted} • ${totalUSD} • ${totalQty} adet`;
   }
 }
 

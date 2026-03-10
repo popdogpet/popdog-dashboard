@@ -954,7 +954,8 @@ function syncInventoryRaw(){
 function syncOrdersRaw(){
   validateShopifyCredentials_();
 
-  var head = ['Created at','Lineitem sku','Lineitem quantity','Lineitem price','Order ID'];
+  // Kanal tespiti için Tags ve source_name eklendi
+  var head = ['Created at','Lineitem sku','Lineitem quantity','Lineitem price','Order ID','Tags','Source','Fulfillment Status'];
   var out  = [head];
 
   var since = new Date();
@@ -964,20 +965,27 @@ function syncOrdersRaw(){
     status:'any',
     limit:250,
     created_at_min: since.toISOString(),
-    fields:'id,created_at,line_items'
+    fields:'id,created_at,line_items,tags,source_name,fulfillment_status'
   });
 
   while (url){
     var resp = fetchShopify_(url);
     var body = resp.body;
     (body.orders || []).forEach(function(o){
+      var tags = o.tags || '';
+      var source = o.source_name || '';  // 'pos', 'web', 'shopify_draft_order', etc.
+      var fulfillment = o.fulfillment_status || '';
+
       (o.line_items || []).forEach(function(li){
         out.push([
           o.created_at,
           li.sku || '',
           li.quantity || 0,
           li.price || 0,
-          o.id || ''
+          o.id || '',
+          tags,
+          source,
+          fulfillment
         ]);
       });
     });
