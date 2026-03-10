@@ -4705,11 +4705,13 @@ function mapOrderRow(r){
 
   let channel = 'Online'; // varsayılan
 
-  // 1) Tags'ten marketplace tespiti
+  // 1) Tags'ten marketplace/B2B tespiti
   if (tags.includes('hepsiburada')) {
     channel = 'Hepsiburada';
   } else if (tags.includes('trendyol')) {
     channel = 'Trendyol';
+  } else if (tags.includes('b2b') || tags.includes('toptan')) {
+    channel = 'Toptan';
   }
   // 2) Source'dan POS (mağaza) tespiti
   else if (source === 'pos' || source.includes('pos')) {
