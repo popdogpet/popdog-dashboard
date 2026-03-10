@@ -18,7 +18,7 @@ const CFG = {
   costsSheet:     'Costs',
   locationFilter: '',
   salesYear: 2025,
-  ordersLookbackDays: 365
+  ordersLookbackDays: 90
 };
 
 /* ============================================================
@@ -954,8 +954,8 @@ function syncInventoryRaw(){
 function syncOrdersRaw(){
   validateShopifyCredentials_();
 
-  // Kanal tespiti için Tags ve source_name eklendi
-  var head = ['Created at','Lineitem sku','Lineitem quantity','Lineitem price','Order ID','Tags','Source','Fulfillment Status'];
+  // Kanal tespiti için Tags, source_name ve financial_status eklendi
+  var head = ['Created at','Lineitem sku','Lineitem quantity','Lineitem price','Order ID','Tags','Source','Financial Status'];
   var out  = [head];
 
   var since = new Date();
@@ -963,9 +963,10 @@ function syncOrdersRaw(){
 
   var url = shopUrl_('/orders.json',{
     status:'any',
+    financial_status: 'paid',  // Sadece ödenen siparişler
     limit:250,
     created_at_min: since.toISOString(),
-    fields:'id,created_at,line_items,tags,source_name,fulfillment_status'
+    fields:'id,created_at,line_items,tags,source_name,financial_status'
   });
 
   while (url){
@@ -974,7 +975,7 @@ function syncOrdersRaw(){
     (body.orders || []).forEach(function(o){
       var tags = o.tags || '';
       var source = o.source_name || '';  // 'pos', 'web', 'shopify_draft_order', etc.
-      var fulfillment = o.fulfillment_status || '';
+      var financial = o.financial_status || '';
 
       (o.line_items || []).forEach(function(li){
         out.push([
@@ -985,14 +986,14 @@ function syncOrdersRaw(){
           o.id || '',
           tags,
           source,
-          fulfillment
+          financial
         ]);
       });
     });
     url = parseLinkNext_(resp.link);
   }
   write_(CFG.ordersSheet, out);
-  Logger.log('Orders synced: ' + (out.length - 1) + ' line items');
+  Logger.log('Orders synced: ' + (out.length - 1) + ' line items (paid only)');
 }
 
 /* ============================================================
