@@ -4024,6 +4024,13 @@ const defaultLoansState = {
       instTRY: 96875.20,
       principalTRY: 1500000,
       monthlyRate: 0.03666666
+    },
+    biz2: {                   // Taksitli Ticari 2
+      remainTRY: 1714868.61,
+      paid: 0, total: 24,
+      instTRY: 71452.86,
+      principalTRY: 1714868.61,
+      monthlyRate: 0.04000000
     }
   },
   zeeAwaitUSD: [
@@ -4126,8 +4133,8 @@ function renderLoansBlock(){
 
       const rateEl = id('Rate');
       if (rateEl) {
-        if (rate != null && rate !== '' && !isNaN(Number(rate))) {
-          rateEl.textContent = `${Number(rate).toFixed(2)}%`;
+        if (rate != null && rate !== '' && !isNaN(Number(rate)) && Number(rate) > 0) {
+          rateEl.textContent = `${Number(rate).toFixed(3)}%`;
         } else {
           rateEl.textContent = '–';
         }

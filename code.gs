@@ -18,7 +18,7 @@ const CFG = {
   costsSheet:     'Costs',
   locationFilter: '',
   salesYear: 2025,
-  ordersLookbackDays: 90
+  ordersLookbackDays: 365
 };
 
 /* ============================================================
