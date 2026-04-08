@@ -88,7 +88,8 @@
     /* === Pre-compiled Tailwind CSS (only used classes) === */
     *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
     html { line-height: 1.5; -webkit-text-size-adjust: 100%; font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
-    body { margin: 0; line-height: inherit; }
+    body { margin: 0; line-height: inherit; overflow-x: hidden; }
+    html { overflow-x: hidden; }
     h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
     p { margin: 0; }
     button, input, select, textarea { font-family: inherit; font-size: 100%; font-weight: inherit; line-height: inherit; color: inherit; margin: 0; padding: 0; }
@@ -6726,8 +6727,10 @@ function renderWeek(){
     const wow = p ? (v-p)/p : 0;
     const card = document.createElement('div');
     card.className='glass card-3d rounded-2xl p-3';
+    const usdV = fxRateUSDPerTRY ? numberUSD(v * fxRateUSDPerTRY) : '–';
     card.innerHTML = `<div class="hint text-xs">${labels[k]}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(v)}</div>
+      <div class="hint text-[10px]">≈ ${usdV}</div>
       <div class="${wow>=0?'kpi-up':'kpi-down'} text-xs">${(wow*100).toFixed(1)}%</div>`;
     wrap.appendChild(card);
   });
@@ -6798,9 +6801,11 @@ function renderMonthlyView(){
 
     const card = document.createElement('div');
     card.className = 'glass card-3d rounded-2xl p-3';
+    const usdCurVal = fxRateUSDPerTRY ? numberUSD(curVal * fxRateUSDPerTRY) : '–';
     card.innerHTML = `
       <div class="hint text-xs">${labels[k]}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(curVal)}</div>
+      <div class="hint text-[10px]">≈ ${usdCurVal}</div>
       <div class="${mom >= 0 ? 'kpi-up' : 'kpi-down'} text-xs">MoM: ${(mom * 100).toFixed(1)}%</div>`;
     wrap.appendChild(card);
   });
@@ -7345,9 +7350,11 @@ function renderLast7(){
     const card = document.createElement('div');
     card.className = 'glass card-3d rounded-2xl p-3';
     const lbl = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    const usdTotal = fxRateUSDPerTRY ? numberUSD(acc.Total * fxRateUSDPerTRY) : '–';
     card.innerHTML = `
       <div class="hint text-xs">${lbl}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${numberTL(acc.Total)}</div>
+      <div class="hint text-[10px]">≈ ${usdTotal}</div>
       <div class="hint text-[11px]">T:${numberTL(acc.Toptan)} • O:${numberTL(acc.Online)} • C:${numberTL(acc.CKM)} • K:${numberTL(acc.Kuafor)} • Tr:${numberTL(acc.Trendyol)} • H:${numberTL(acc.Hepsiburada)}</div>
     `;
     wrap.appendChild(card);
@@ -8620,6 +8627,30 @@ window.renderYoYComparison = renderYoYComparison;
     'En az satan 5 ürün':                    'Bottom 5 Sellers',
     'Stoğu en hızlı giden 5 ürün':           'Top 5 Fastest Moving',
     'Stokta en uzun süredir kalan 5 ürün':   'Top 5 Slowest Moving',
+    /* Stock page labels */
+    'Pencere:':                              'Window:',
+    '📦 Diğer':                             '📦 Other',
+    'Yüksek öncelik':                        'High priority',
+    'Orta öncelik':                          'Medium priority',
+    'Düşük öncelik':                         'Low priority',
+    'ABC Analizi (Satış Değerine Göre)':     'ABC Analysis (By Sales Value)',
+    'A: %80 satış, B: %15, C: %5':          'A: 80% sales, B: 15%, C: 5%',
+    'Stok Yaşlandırma Dağılımı (adet bazında)': 'Inventory Aging Distribution (by units)',
+    '₺ maliyet bazında en yüksek 10 SKU':   'Top 10 SKUs by ₺ cost',
+    '90+ gün elde (₺ bazında ilk 10)':      '90+ days on hand (top 10 by ₺)',
+    '💀 Dead Stock (180+ gün satış yok)':   '💀 Dead Stock (180+ days no sales)',
+    '🔥 Stokout Riski (≤14 gün) — Pencere:': '🔥 Stockout Risk (≤14 days) — Window:',
+    '📦 Stoğu En Fazla Olan (Top 25)':      '📦 Largest Inventory (Top 25)',
+    /* Table headers */
+    'Son Satış':    'Last Sale',
+    'Günlük hız':   'Daily rate',
+    'Kalan gün':    'Days left',
+    /* KPI table description column */
+    'Yıllık satış değeri / ortalama stok maliyeti': 'Annual sales value / avg. inventory cost',
+    'Son satışı 90+ gün önce olan stok toplamı':    'Items with last sale 90+ days ago',
+    '6 aydan fazla satış görmeyen \u201cölü\u201d stok': '"Dead" stock with no sales in 6+ months',
+    'SKU\'ların son satıştan bugüne medyan gün sayısı': 'Median days since last sale across SKUs',
+    'Mevcut stokun kaç günlük satışa yeteceği':     'How many days current inventory will last',
     /* Loading / empty states */
     'Henüz veri yok.':  'No data yet.',
     'Yükleniyor...':    'Loading...',
