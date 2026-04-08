@@ -586,6 +586,23 @@ th, td { white-space: nowrap; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
+  <!-- Giderler Page Lock Overlay -->
+  <div id="expensesLock" style="display:none; position:fixed; inset:0; z-index:9998; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+    <div style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:1.5rem; padding:2.5rem 2rem; text-align:center; min-width:260px; max-width:320px;">
+      <div style="font-size:2rem; margin-bottom:.5rem;">🔒</div>
+      <h2 style="color:#e2e8f0; font-size:1.1rem; font-weight:600; margin:0 0 .25rem;">Giderler</h2>
+      <p style="color:#94a3b8; font-size:.85rem; margin:0 0 1.5rem;">Devam etmek için şifreyi girin</p>
+      <div style="display:flex; justify-content:center; gap:.5rem; margin-bottom:1rem;" id="expPinInputs">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
+        <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
+      </div>
+      <div id="expPinError" style="color:#f87171; font-size:.8rem; min-height:1.2rem; margin-bottom:.75rem;"></div>
+      <button onclick="document.getElementById('expensesLock').style.display='none';" style="color:#64748b; font-size:.75rem; background:none; border:none; cursor:pointer;">← Geri dön</button>
+    </div>
+  </div>
+
   <!-- PIN Lock Overlay -->
   <div id="pinOverlay">
     <div class="pin-box">
@@ -623,9 +640,6 @@ th, td { white-space: nowrap; }
   <button id="langBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm text-slate-700 dark:text-slate-200">🌐 EN</button>
   <button id="refreshBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm">Yenile</button>
   <input id="fileInput" type="file" accept=".csv" class="hidden">
-  <button id="uploadBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">CSV Yükle</button>
-  <button id="downloadBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">CSV İndir</button>
-  <button id="writeSheetBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">Sheet'e Kaydet</button>
 </div>
     </header>
 
@@ -640,6 +654,7 @@ th, td { white-space: nowrap; }
           <div id="kpiYTD_USD" class="text-xs sm:text-sm hint">≈ – USD</div>
           <div id="kpiYTD_YoY" class="text-xs hint mt-1"></div>
           <div id="fxNote" class="text-xs hint mt-1"></div>
+          <div id="fxNoteYoY" class="text-xs hint mt-0.5" style="opacity:0.7;"></div>
         </div>
         <div class="glass card-3d rounded-3xl p-4 sm:p-5">
           <div class="hint text-xs sm:text-sm">En Büyük Kanal</div>
@@ -812,7 +827,7 @@ th, td { white-space: nowrap; }
           📈 Kanal Bazlı Karlılık (tıkla: aç/kapat)
         </summary>
         <div class="mt-3">
-          <div class="hint text-[10px] mb-2">Tüm tutarlar %20 KDV hariç • Toptan: %40 indirimli satış • CKM/Online: KK %2.5 • Trendyol/HB: %20 komisyon • Kuaför: Hizmet %30</div>
+          <div class="hint text-[10px] mb-2">Tüm tutarlar %20 KDV hariç • B2B: %40 indirimli satış • Shop/Online: KK %2.5 • Trendyol/HB: %20 komisyon • Grooming: Hizmet %30</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
@@ -1062,7 +1077,7 @@ th, td { white-space: nowrap; }
 
   <div class="glass card-3d rounded-3xl p-5">
     <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
-      <div class="text-slate-700 dark:text-slate-200" data-i18n="sec_rev_groomer">Kuaför Aylık Toplam</div>
+      <div class="text-slate-700 dark:text-slate-200" data-i18n="sec_rev_groomer">Grooming Aylık Toplam</div>
       <div class="hint text-xs">(Ciro sheet’teki “Kuaför” sütunundan)</div>
     </div>
     <div id="groomMonthlyTblWrap"></div>
@@ -1564,11 +1579,11 @@ th, td { white-space: nowrap; }
           <thead class="text-slate-600 dark:text-slate-300">
             <tr>
               <th class="text-left py-2 pr-4">Date</th>
-              <th class="text-right py-2 pr-4">Toptan</th>
+              <th class="text-right py-2 pr-4">B2B</th>
               <th class="text-right py-2 pr-4">Online</th>
-              <th class="text-right py-2 pr-4">CKM</th>
+              <th class="text-right py-2 pr-4">Shop</th>
               <th class="text-right py-2 pr-4">Kuaför</th>
-              <th class="text-right py-2 pr-4">CKM Nakit</th>
+              <th class="text-right py-2 pr-4">Shop (Nakit)</th>
               <th class="text-right py-2 pr-4">Kasa Nakit (EoD)</th>
               <th class="text-right py-2 pr-4">Trendyol</th>
               <th class="text-right py-2 pr-4">Hepsiburada</th>
@@ -1697,6 +1712,54 @@ th, td { white-space: nowrap; }
         });
       }
       window.showPage = showPage;
+
+      // Giderler sayfası PIN koruması
+      const EXPENSES_PIN = '1615';
+      const EXPENSES_SESSION_KEY = 'popdog_expenses_unlocked';
+      function tryShowExpenses(){
+        if(sessionStorage.getItem(EXPENSES_SESSION_KEY) === 'true'){
+          showPage('expenses'); return;
+        }
+        const overlay = document.getElementById('expensesLock');
+        if(!overlay) { showPage('expenses'); return; }
+        overlay.style.display = 'flex';
+        const inputs = document.querySelectorAll('#expPinInputs input');
+        const errEl  = document.getElementById('expPinError');
+        inputs.forEach(i=>{ i.value=''; });
+        errEl.textContent = '';
+        inputs[0].focus();
+        inputs.forEach((inp, idx)=>{
+          // Clone to remove old listeners
+          const clone = inp.cloneNode(true);
+          inp.parentNode.replaceChild(clone, inp);
+        });
+        const fresh = document.querySelectorAll('#expPinInputs input');
+        fresh.forEach((inp, idx)=>{
+          inp.addEventListener('input', e=>{
+            const v = e.target.value.replace(/[^0-9]/g,'');
+            e.target.value = v;
+            errEl.textContent = '';
+            if(v && idx < fresh.length-1) fresh[idx+1].focus();
+            const pin = Array.from(fresh).map(i=>i.value).join('');
+            if(pin.length === 4){
+              if(pin === EXPENSES_PIN){
+                sessionStorage.setItem(EXPENSES_SESSION_KEY,'true');
+                overlay.style.display = 'none';
+                showPage('expenses');
+              } else {
+                errEl.textContent = 'Yanlış şifre';
+                fresh.forEach(i=>{ i.value=''; });
+                fresh[0].focus();
+              }
+            }
+          });
+          inp.addEventListener('keydown', e=>{
+            if(e.key==='Backspace' && !e.target.value && idx>0) fresh[idx-1].focus();
+          });
+        });
+      }
+      window.tryShowExpenses = tryShowExpenses;
+
       // Bind buttons
       const btnMap = [
         ['navSummary','summary'],
@@ -1706,16 +1769,20 @@ th, td { white-space: nowrap; }
       ];
       btnMap.forEach(([id,key])=>{
         const b = document.getElementById(id);
-        if(b) b.onclick = ()=> showPage(key);
+        if(b) b.onclick = ()=> key === 'expenses' ? tryShowExpenses() : showPage(key);
       });
       // Initial
       const start = (function(){ try{ return localStorage.getItem(KEY) || 'summary'; }catch(e){ return 'summary'; } })();
-      showPage(start);
+      if(start === 'expenses') tryShowExpenses(); else showPage(start);
     })();
   </script>
   </div>
 
 <script>
+
+/* ================== CHANNEL DISPLAY NAMES ================== */
+const CHANNEL_DISPLAY = { 'CKM':'Shop', 'CKM Nakit':'Shop (Nakit)', 'Toptan':'B2B', 'Kuaför':'Grooming' };
+function chLabel(k){ return CHANNEL_DISPLAY[k] || k; }
 
 /* ================== CONFIG ================== */
 /* Apps Script Web App URL’in (write-to-sheet için) */
@@ -2126,10 +2193,10 @@ async function renderRevenueTables(){
   const getTotal = (r)=> parseTL(getFieldCI(r, ['Total','Toplam','TOTAL','Sum'])) || 0;
 
   const CHANNELS = [
-    { key:'toptan', label:'Toptan', cols:['Toptan','Wholesale','Pop Dog Toptan'] },
+    { key:'toptan', label:'B2B', cols:['Toptan','Wholesale','Pop Dog Toptan'] },
     { key:'online', label:'Online', cols:['Online','Pop Dog Online','E-Commerce','Ecom'] },
-    { key:'ckm', label:'CKM', cols:['CKM','Caddebostan','Mağaza','Store'] },
-    { key:'kuafor', label:'Kuaför', cols:['Kuaför','Kuafor','Grooming'] },
+    { key:'ckm', label:'Shop', cols:['CKM','Caddebostan','Mağaza','Store'] },
+    { key:'kuafor', label:'Grooming', cols:['Kuaför','Kuafor','Grooming'] },
     { key:'trendyol', label:'Trendyol', cols:['Trendyol'] },
     { key:'hepsiburada', label:'Hepsiburada', cols:['Hepsiburada','HB'] },
   ];
@@ -5676,7 +5743,7 @@ function setKPIs(monthly){
   const kpiTopEl = document.getElementById('kpiTop');
   if (kpiTopEl) {
     kpiTopEl.textContent =
-      `${top.k}: ${numberTL(top.v)}  •  ${fxRateUSDPerTRY ? numberUSD(top.v * fxRateUSDPerTRY) : '– USD'}`;
+      `${chLabel(top.k)}: ${numberTL(top.v)}  •  ${fxRateUSDPerTRY ? numberUSD(top.v * fxRateUSDPerTRY) : '– USD'}`;
   }
 
   const ul = document.getElementById('kpiOthers');
@@ -5684,7 +5751,7 @@ function setKPIs(monthly){
     ul.innerHTML = '';
     channels.slice(1).forEach(c => {
       const li = document.createElement('li');
-      li.textContent = `${c.k}: ${numberTL(c.v)}  •  ${fxRateUSDPerTRY ? numberUSD(c.v * fxRateUSDPerTRY) : '– USD'}`;
+      li.textContent = `${chLabel(c.k)}: ${numberTL(c.v)}  •  ${fxRateUSDPerTRY ? numberUSD(c.v * fxRateUSDPerTRY) : '– USD'}`;
       ul.appendChild(li);
     });
   }
@@ -5694,7 +5761,7 @@ function setKPIs(monthly){
     shareTbl.innerHTML = channels
       .map(c => {
         const pct = (c.v / totalCh) * 100;
-        return `<tr><td>${c.k}</td><td class="text-right">${pct.toFixed(1)}%</td></tr>`;
+        return `<tr><td>${chLabel(c.k)}</td><td class="text-right">${pct.toFixed(1)}%</td></tr>`;
       })
       .join('');
   }
@@ -6651,7 +6718,7 @@ function renderWeek(){
   document.getElementById('weekLabel').textContent = weekRangeLabel(new Date(cur.monday + "T00:00:00"));
 
   const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada','Kuaför'];
-  const labels = {Total:'Toplam', Toptan:'Toptan', Online:'Online', CKM:'CKM', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Kuaför'};
+  const labels = {Total:'Toplam', Toptan:'B2B', Online:'Online', CKM:'Shop', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Grooming'};
   const wrap = document.getElementById('weekCards'); wrap.innerHTML='';
   keys.forEach(k=>{
     const v = cur[k]||0;
@@ -6721,7 +6788,7 @@ function renderMonthlyView(){
   if(labelEl) labelEl.textContent = getMonthName(curMonth.month);
 
   const keys = ['Total', 'Toptan', 'Online', 'CKM', 'Trendyol', 'Hepsiburada', 'Kuaför'];
-  const labels = {Total: 'Toplam', Toptan: 'Toptan', Online: 'Online', CKM: 'CKM', Trendyol: 'Trendyol', Hepsiburada: 'Hepsiburada', Kuaför: 'Kuaför'};
+  const labels = {Total: 'Toplam', Toptan: 'B2B', Online: 'Online', CKM: 'Shop', Trendyol: 'Trendyol', Hepsiburada: 'Hepsiburada', Kuaför: 'Grooming'};
 
   wrap.innerHTML = '';
   keys.forEach(k => {
@@ -6815,7 +6882,7 @@ function renderChannelSales(){
     // Yüzde hesapla
     const pct = total.amountTRY > 0 ? ((val.amountTRY / total.amountTRY) * 100).toFixed(1) : 0;
     card.innerHTML = `
-      <div class="hint text-xs flex items-center gap-1">${icon} ${ch}</div>
+      <div class="hint text-xs flex items-center gap-1">${icon} ${chLabel(ch)}</div>
       <div class="text-slate-800 dark:text-slate-100 font-semibold">${tryFormatted}</div>
       <div class="hint text-xs">${usdFormatted}</div>
       <div class="hint text-xs mt-1">${pct}% • ${(val.qty||0).toLocaleString('tr-TR')} adet</div>`;
@@ -6987,6 +7054,27 @@ async function fetchFX(){
     }
   };
 
+  // Geçen yılın aynı günü için tarih hesapla
+  async function fetchYoYRate(){
+    try{
+      const now = new Date();
+      const lyDate = new Date(now);
+      lyDate.setFullYear(lyDate.getFullYear() - 1);
+      const yyyy = lyDate.getFullYear();
+      const mm = String(lyDate.getMonth()+1).padStart(2,'0');
+      const dd = String(lyDate.getDate()).padStart(2,'0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      const url = `https://api.frankfurter.app/${dateStr}?from=USD&to=TRY`;
+      const r = await fetchWithTimeout(url, 8000);
+      const j = await r.json();
+      if(j && j.rates && j.rates.TRY){
+        const tryPerUsd = j.rates.TRY;
+        const el = document.getElementById('fxNoteYoY');
+        if(el) el.textContent = `Geçen yıl bugün (${dateStr}): 1 $ = ${tryPerUsd.toFixed(2)} ₺`;
+      }
+    }catch(e){}
+  }
+
   try{
     const r = await fetchWithTimeout('https://open.er-api.com/v6/latest/TRY');
     const j = await r.json();
@@ -6996,6 +7084,7 @@ async function fetchFX(){
       const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
       document.getElementById('fxNote').textContent =
   tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+      fetchYoYRate();
 try { refreshExpenses(); } catch(e) {}
 try { renderMainExpensesTable(); } catch(e) {}
 return;
@@ -7010,6 +7099,7 @@ return;
       const tryPerUsd = fxRateUSDPerTRY ? (1 / fxRateUSDPerTRY) : null;
       document.getElementById('fxNote').textContent =
   tryPerUsd ? `Kur: ${fxDate.toLocaleDateString('tr-TR')} • 1 $ = ${tryPerUsd.toFixed(4)} ₺` : `Kur alınamadı`;
+      fetchYoYRate();
 try { refreshExpenses(); } catch(e) {}
 try { renderMainExpensesTable(); } catch(e) {}
 return;
@@ -8317,7 +8407,7 @@ function renderChannelProfitability(){
 
       rows.push(`
         <tr class="border-b border-slate-200 dark:border-slate-700">
-          <td class="py-2 pr-2 font-medium">${channel}</td>
+          <td class="py-2 pr-2 font-medium">${chLabel(channel)}</td>
           <td class="py-2 pr-2 text-right text-[11px]">${numberTL(revenue)}</td>
           <td class="py-2 pr-2 text-right text-[11px]">${numberTL(revenueExVAT)}</td>
           <td class="py-2 pr-2 text-right hint text-[11px]">%${share.toFixed(1)}</td>
@@ -8443,13 +8533,17 @@ window.renderYoYComparison = renderYoYComparison;
     sec_cat_breakdown:['Kategori Kırılımı',                   'Category Breakdown'],
     sec_rev_monthly:  ['Aylık Toplam Ciro',                   'Monthly Total Revenue'],
     sec_rev_channel:  ['Kanal Bazlı Aylık Ciro',              'Monthly Revenue by Channel'],
-    sec_rev_groomer:  ['Kuaför Aylık Toplam',                 'Groomer Monthly Total'],
+    sec_rev_groomer:  ['Grooming Aylık Toplam',               'Grooming Monthly Total'],
     sec_cat_detail:   ['Ana Kategoriler (YTD) — Detay',       'Main Categories (YTD) — Detail'],
     sec_cat_grouped:  ['Ana Kategoriler (YTD) — Gruplanmış',  'Main Categories (YTD) — Grouped'],
   };
 
   /* ── TR → EN exact-match map (auto-scanned elements) ─────── */
   var TR_EN = {
+    /* Channel labels (permanent renames, shown in both TR+EN) */
+    'B2B':        'B2B',
+    'Shop':       'Shop',
+    'Grooming':   'Grooming',
     /* Section headers (auto-scanned via .font-medium) */
     '💰 Nakit Akış & Finansal Sağlık':       '💰 Cash Flow & Financial Health',
     'Son 7 Gün Özeti':                        'Last 7 Days Summary',
