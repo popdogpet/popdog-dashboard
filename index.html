@@ -620,6 +620,7 @@ th, td { white-space: nowrap; }
       </div>
       <div class="flex items-center gap-2 flex-wrap">
   <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm text-slate-700 dark:text-slate-200">🌗 Tema</button>
+  <button id="langBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm text-slate-700 dark:text-slate-200">🌐 EN</button>
   <button id="refreshBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm">Yenile</button>
   <input id="fileInput" type="file" accept=".csv" class="hidden">
   <button id="uploadBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm hidden sm:inline-flex">CSV Yükle</button>
@@ -838,7 +839,7 @@ th, td { white-space: nowrap; }
     <!-- Haftalık Mini Kartlar -->
     <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="summary">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_weekly">
           Haftalık Görünüm
           <span id="weekLabel" class="badge text-xs"></span>
         </div>
@@ -859,7 +860,7 @@ th, td { white-space: nowrap; }
     <!-- Aylık Görünüm -->
     <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_monthly">
           Aylık Görünüm
           <span id="monthLabel" class="badge text-xs"></span>
         </div>
@@ -875,7 +876,7 @@ th, td { white-space: nowrap; }
     <!-- === Kanal Satışları (Shopify Orders) === -->
     <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3">
+        <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_channel_sales">
           🛒 Kanal Satışları
           <span id="channelSalesPeriod" class="badge text-xs">YTD</span>
         </div>
@@ -1041,7 +1042,7 @@ th, td { white-space: nowrap; }
 <div class="grid grid-cols-1 gap-6" data-page="revenue">
   <div class="glass card-3d rounded-3xl p-5">
     <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
-      <div class="text-slate-700 dark:text-slate-200">Aylık Toplam Ciro</div>
+      <div class="text-slate-700 dark:text-slate-200" data-i18n="sec_rev_monthly">Aylık Toplam Ciro</div>
       <div class="flex items-center gap-2">
         <span class="hint text-xs">Yıl:</span>
         <select id="revYearSel" class="glass rounded-xl px-2 py-1 text-sm">
@@ -1054,14 +1055,14 @@ th, td { white-space: nowrap; }
 
   <div class="glass card-3d rounded-3xl p-5">
     <div class="flex items-center justify-between mb-2">
-      <div class="text-slate-700 dark:text-slate-200">Kanal Bazlı Aylık Ciro</div>
+      <div class="text-slate-700 dark:text-slate-200" data-i18n="sec_rev_channel">Kanal Bazlı Aylık Ciro</div>
     </div>
     <div id="barStackTblWrap"></div>
   </div>
 
   <div class="glass card-3d rounded-3xl p-5">
     <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
-      <div class="text-slate-700 dark:text-slate-200">Kuaför Aylık Toplam</div>
+      <div class="text-slate-700 dark:text-slate-200" data-i18n="sec_rev_groomer">Kuaför Aylık Toplam</div>
       <div class="hint text-xs">(Ciro sheet’teki “Kuaför” sütunundan)</div>
     </div>
     <div id="groomMonthlyTblWrap"></div>
@@ -1104,7 +1105,7 @@ th, td { white-space: nowrap; }
         <div class="glass card-3d rounded-2xl p-3">
           <details class="expenses-compact">
             <summary class="cursor-pointer flex items-center justify-between mb-2">
-              <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Aylık Giderler <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
+              <div class="text-slate-700 dark:text-slate-200 text-sm font-medium" data-i18n="sec_monthly_exp">Aylık Giderler <span class="hint text-xs">(tıkla: aç/kapat)</span></div>
             </summary>
             <div id="expensesMonthlyTblWrap" class="max-h-64 overflow-auto"></div>
           </details>
@@ -1113,7 +1114,7 @@ th, td { white-space: nowrap; }
       <!-- Gider Ekle — Hızlı Form -->
       <div class="glass card-3d card-glass-pro rounded-2xl p-3 sm:p-4 mt-4" data-page="expenses">
         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2">
+          <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2" data-i18n="sec_exp_add">
             <span aria-hidden="true">🧾</span>
             Aylık Gider Ekle
           </div>
@@ -1156,7 +1157,7 @@ th, td { white-space: nowrap; }
       </div>
       <div class="grid lg:grid-cols-2 gap-4 mt-4">
         <div class="glass card-3d rounded-2xl p-4">
-          <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD) — Detay</div>
+          <div class="text-slate-700 dark:text-slate-200 mb-2" data-i18n="sec_cat_detail">Ana Kategoriler (YTD) — Detay</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
@@ -1171,7 +1172,7 @@ th, td { white-space: nowrap; }
           </div>
         </div>
         <div class="glass card-3d rounded-2xl p-4">
-          <div class="text-slate-700 dark:text-slate-200 mb-2">Ana Kategoriler (YTD) — Gruplanmış</div>
+          <div class="text-slate-700 dark:text-slate-200 mb-2" data-i18n="sec_cat_grouped">Ana Kategoriler (YTD) — Gruplanmış</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
@@ -1189,7 +1190,7 @@ th, td { white-space: nowrap; }
       <!-- Aylık Giderler Detayı (Kategori + Alt Kategori) - Ay Seçimli -->
       <div class="glass card-3d rounded-2xl p-3 mt-4">
         <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <div class="text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-2">
+          <div class="text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-2" data-i18n="sec_monthly_exp">
             Aylık Giderler
             <span id="expMonthLabel" class="badge text-xs"></span>
           </div>
@@ -1222,7 +1223,7 @@ th, td { white-space: nowrap; }
       <div class="glass card-3d rounded-2xl p-3 mt-4">
         <details class="expenses-compact" open>
           <summary class="cursor-pointer flex items-center justify-between mb-2">
-            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Kategori Kırılımı <span class="hint text-xs">(yukarıdaki ay seçimine göre)</span></div>
+            <div class="text-slate-700 dark:text-slate-200 text-sm font-medium" data-i18n="sec_cat_breakdown">Kategori Kırılımı <span class="hint text-xs">(yukarıdaki ay seçimine göre)</span></div>
             <div id="expByCatTotal" class="text-xs font-medium text-slate-700 dark:text-slate-200">–</div>
           </summary>
           <div id="expThisMonthByCat" class="text-xs max-h-64 overflow-auto"></div>
@@ -3511,11 +3512,12 @@ function weekRangeLabel(monday){
   return `${f(monday)} – ${f(sun)}`;
 }
 
-/* Cache-bust */
+/* Cache-bust — 5-dakikalık bucket, tarayıcı/CDN cache'i korur */
 function withCacheBust(url){
   if(!url) return '';
+  const bucket = Math.floor(Date.now() / (5 * 60 * 1000));
   const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}t=${Date.now()}`;
+  return `${url}${sep}t=${bucket}`;
 }
 
 // === Missing helpers (used by CSV loaders) ===
@@ -8405,6 +8407,243 @@ document.addEventListener('DOMContentLoaded', function(){
 window.renderFinancialHealth = renderFinancialHealth;
 window.renderChannelProfitability = renderChannelProfitability;
 window.renderYoYComparison = renderYoYComparison;
+</script>
+
+<script>
+/* ============================================================
+   i18n Language Switcher — Pop Dog CFO Dashboard
+   TR / EN toggle — v1.0
+   ============================================================ */
+(function(){
+  'use strict';
+  var LANG_KEY = 'popdog_lang';
+
+  /* ── Elements accessed directly by ID ─────────────────────── */
+  var ID_MAP = {
+    navSummary:    ['Özet',           'Summary'],
+    navRevenue:    ['Ciro',           'Revenue'],
+    navExpenses:   ['Giderler',       'Expenses'],
+    navStock:      ['Stok',           'Stock'],
+    themeBtn:      ['🌗 Tema',        '🌗 Theme'],
+    refreshBtn:    ['Yenile',         'Refresh'],
+    uploadBtn:     ['CSV Yükle',      'Upload CSV'],
+    downloadBtn:   ['CSV İndir',      'Download CSV'],
+    writeSheetBtn: ["Sheet'e Kaydet", 'Save to Sheet'],
+    expAddBtn:     ['Gideri Ekle',    'Add Expense'],
+    autoTargetBtn: ['🔄 Otomatik',    '🔄 Auto'],
+  };
+
+  /* ── data-i18n key → [trText, enText] ─────────────────────── */
+  var I18N = {
+    sec_weekly:       ['Haftalık Görünüm',                    'Weekly View'],
+    sec_monthly:      ['Aylık Görünüm',                       'Monthly View'],
+    sec_channel_sales:['🛒 Kanal Satışları',                  '🛒 Channel Sales'],
+    sec_exp_add:      ['Aylık Gider Ekle',                    'Add Monthly Expense'],
+    sec_monthly_exp:  ['Aylık Giderler',                      'Monthly Expenses'],
+    sec_cat_breakdown:['Kategori Kırılımı',                   'Category Breakdown'],
+    sec_rev_monthly:  ['Aylık Toplam Ciro',                   'Monthly Total Revenue'],
+    sec_rev_channel:  ['Kanal Bazlı Aylık Ciro',              'Monthly Revenue by Channel'],
+    sec_rev_groomer:  ['Kuaför Aylık Toplam',                 'Groomer Monthly Total'],
+    sec_cat_detail:   ['Ana Kategoriler (YTD) — Detay',       'Main Categories (YTD) — Detail'],
+    sec_cat_grouped:  ['Ana Kategoriler (YTD) — Gruplanmış',  'Main Categories (YTD) — Grouped'],
+  };
+
+  /* ── TR → EN exact-match map (auto-scanned elements) ─────── */
+  var TR_EN = {
+    /* Section headers (auto-scanned via .font-medium) */
+    '💰 Nakit Akış & Finansal Sağlık':       '💰 Cash Flow & Financial Health',
+    'Son 7 Gün Özeti':                        'Last 7 Days Summary',
+    '💳 Krediler & Bekleyen Ödemeler':        '💳 Loans & Pending Payments',
+    'Giderler (YTD) & Net Kâr':              'Expenses (YTD) & Net Profit',
+    'Stok Özeti':                            'Stock Summary',
+    'Satış & Devir Listeleri':               'Sales & Turnover Lists',
+    /* Loan card titles */
+    'Taksitli Ticari Kredi':                 'Commercial Installment Loan',
+    'Taksitli Araç Kredisi':                 'Vehicle Installment Loan',
+    'Taksitli Ticari Kredi 2':               'Commercial Installment Loan 2',
+    'Zee.Dog Bekleyen Ödemeler':             'Zee.Dog Pending Payments',
+    'Demoş Bank — Altın Borç':              'Demoş Bank — Gold Debt',
+    'QNB Portföy Para Piyasası (FI5)':       'QNB Portfolio Money Market (FI5)',
+    /* KPI labels (.hint divs) */
+    'Toplam Ciro (YTD)':                     'Total Revenue (YTD)',
+    'En Büyük Kanal':                        'Top Channel',
+    'Stok Değeri (Maliyet)':                 'Inventory Value (Cost)',
+    'Stok Değeri (Satış)':                   'Inventory Value (Retail)',
+    'Brüt Kar Marjı (YTD)':                  'Gross Margin (YTD)',
+    'Net Kar Marjı (YTD)':                   'Net Profit Margin (YTD)',
+    'Gider / Ciro Oranı':                    'Expense / Revenue Ratio',
+    'Tahmini Runway':                        'Estimated Runway',
+    'MoM Değişim':                           'MoM Change',
+    'Uyarılar':                              'Alerts',
+    '🎯 Yıllık Hedef İlerlemesi':            '🎯 Annual Target Progress',
+    '📅 Bu Ay Yaklaşan Ödemeler':            '📅 Upcoming Payments This Month',
+    '📊 Karlılık Detayı (tıkla: aç/kapat)': '📊 Profitability Details (click to expand)',
+    '📈 Kanal Bazlı Karlılık (tıkla: aç/kapat)': '📈 Channel-Based Profitability (click to expand)',
+    'Toplam Gider (YTD)':                    'Total Expenses (YTD)',
+    'Net Kâr (YTD)':                         'Net Profit (YTD)',
+    'Gider MoM':                             'Expense MoM',
+    'Toplam Stok Değeri (Maliyet)':          'Total Inventory Value (Cost)',
+    'Toplam Stok Değeri (Satış)':            'Total Inventory Value (Retail)',
+    'Maliyet +%65 (Vergi+Navlun)':           'Cost +65% (Tax+Freight)',
+    'Satış KDV Hariç (−%20)':               'Retail Ex-VAT (−20%)',
+    /* Table headers */
+    'Metrik':         'Metric',
+    'Değer':          'Value',
+    'Açıklama':       'Description',
+    'Kanal':          'Channel',
+    'Brüt Ciro':      'Gross Revenue',
+    'KDV Hariç':      'Ex-VAT',
+    'Pay':            'Share',
+    'Kom./KK':        'Comm./CC',
+    'Brüt Kar':       'Gross Profit',
+    'Marj':           'Margin',
+    'Kategori':       'Category',
+    'Tutar':          'Amount',
+    'Tarih':          'Date',
+    'Alt Kat.':       'Sub Cat.',
+    'Durum':          'Status',
+    'Satılan (adet)': 'Qty Sold',
+    'Yaş (gün)':      'Age (days)',
+    'Adet/gün':       'Units/day',
+    /* Stock KPI table labels */
+    'Stok Devir Hızı':                       'Inventory Turnover',
+    '90+ gün elde':                          '90+ days on hand',
+    'Median Stok Yaşı':                      'Median Stock Age',
+    'Toplam Ürün Adedi':                     'Total Unit Count',
+    /* Form labels */
+    'Alt Kategori':    'Subcategory',
+    'Tutar (₺)':      'Amount (₺)',
+    'Not (opsiyonel)': 'Note (optional)',
+    /* Hint texts */
+    'Vergi + Navlun dahil (+%65)':           'Incl. Tax + Freight (+65%)',
+    'KDV Hariç (−%20)':                     'Ex-VAT (−20%)',
+    '(tıkla: aç/kapat)':                     '(click to expand)',
+    '(yukarıdaki ay seçimine göre)':         '(based on selected month)',
+    /* Sales/stock lists */
+    'En çok satan 5 ürün':                   'Top 5 Best Sellers',
+    'En az satan 5 ürün':                    'Bottom 5 Sellers',
+    'Stoğu en hızlı giden 5 ürün':           'Top 5 Fastest Moving',
+    'Stokta en uzun süredir kalan 5 ürün':   'Top 5 Slowest Moving',
+    /* Loading / empty states */
+    'Henüz veri yok.':  'No data yet.',
+    'Yükleniyor...':    'Loading...',
+    'Yükleniyor…':      'Loading…',
+    /* Select options */
+    'Yıl Başından':  'Year to Date',
+    'Bu Ay':         'This Month',
+    'Bu Hafta':      'This Week',
+    'Tümü':          'All',
+    '30 gün':        '30 days',
+    '90 gün':        '90 days',
+    '120 gün':       '120 days',
+    '180 gün':       '180 days',
+    /* PIN overlay */
+    'Devam etmek için PIN kodunu girin': 'Enter PIN to continue',
+  };
+
+  /* Build EN→TR reverse map lazily */
+  var EN_TR = null;
+  function getEnTr() {
+    if (EN_TR) return EN_TR;
+    EN_TR = {};
+    Object.keys(TR_EN).forEach(function(tr) { EN_TR[TR_EN[tr]] = tr; });
+    Object.keys(I18N).forEach(function(k) { EN_TR[I18N[k][1]] = I18N[k][0]; });
+    Object.keys(ID_MAP).forEach(function(id) { EN_TR[ID_MAP[id][1]] = ID_MAP[id][0]; });
+    return EN_TR;
+  }
+
+  /* CSS selectors for auto-scanned leaf elements */
+  var SCAN = [
+    'th', 'option', 'label', 'summary',
+    '.hint',
+    '#pinOverlay p',
+    '.font-medium',
+  ].join(',');
+
+  /* Replace text content of an element safely */
+  function replaceEl(el, srcMap) {
+    var id = el.id;
+    if (id && ID_MAP[id]) return;    /* handled by ID_MAP */
+    if (id === 'langBtn') return;
+
+    var txt = el.textContent.trim();
+    var newText = srcMap[txt];
+    if (!newText) return;
+
+    if (el.children.length === 0) {
+      /* Leaf element: safe to replace all textContent */
+      el.textContent = newText;
+    } else {
+      /* Has children: replace first non-whitespace text node only */
+      for (var i = 0; i < el.childNodes.length; i++) {
+        var node = el.childNodes[i];
+        if (node.nodeType === 3 && node.textContent.trim()) {
+          node.textContent = node.textContent.replace(txt, newText);
+          break;
+        }
+      }
+    }
+  }
+
+  function applyLang(lang) {
+    var isEN = lang === 'en';
+    var srcMap = isEN ? TR_EN : getEnTr();
+
+    /* 1 ── ID-based elements */
+    Object.keys(ID_MAP).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = isEN ? ID_MAP[id][1] : ID_MAP[id][0];
+    });
+
+    /* 2 ── [data-i18n] elements (section headers with children) */
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      var pair = I18N[key];
+      if (!pair) return;
+      var text = isEN ? pair[1] : pair[0];
+      var search = isEN ? pair[0] : pair[1];
+      if (el.children.length === 0) {
+        el.textContent = text;
+      } else {
+        /* Replace first non-whitespace text node */
+        for (var i = 0; i < el.childNodes.length; i++) {
+          var node = el.childNodes[i];
+          if (node.nodeType === 3 && node.textContent.trim()) {
+            node.textContent = node.textContent.replace(search, text);
+            break;
+          }
+        }
+      }
+    });
+
+    /* 3 ── Auto-scanned elements (exact text-content match) */
+    document.querySelectorAll(SCAN).forEach(function(el) {
+      replaceEl(el, srcMap);
+    });
+
+    /* 4 ── Lang button + <html lang="…"> */
+    var btn = document.getElementById('langBtn');
+    if (btn) btn.textContent = isEN ? '🌐 TR' : '🌐 EN';
+    document.documentElement.lang = lang;
+    try { localStorage.setItem(LANG_KEY, lang); } catch(e) {}
+  }
+
+  /* Public API */
+  window.setLanguage = applyLang;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('langBtn');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        var cur = localStorage.getItem(LANG_KEY) || 'tr';
+        applyLang(cur === 'tr' ? 'en' : 'tr');
+      });
+    }
+    /* Restore saved language (skip if TR — default) */
+    var saved = localStorage.getItem(LANG_KEY) || 'tr';
+    if (saved !== 'tr') applyLang(saved);
+  }, { once: true });
+})();
 </script>
 </body>
 </html>
