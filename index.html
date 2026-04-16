@@ -635,6 +635,7 @@ th, td { white-space: nowrap; }
         <button id="navRevenue" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Ciro</button>
         <button id="navExpenses" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Giderler</button>
         <button id="navStock" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">Stok</button>
+        <button id="navAI" class="glass card-3d px-3 py-2 rounded-xl text-sm font-medium">🤖 AI</button>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
   <button id="themeBtn" class="glass card-3d px-3 py-2 rounded-2xl text-sm text-slate-700 dark:text-slate-200">🌗 Tema</button>
@@ -1605,6 +1606,39 @@ th, td { white-space: nowrap; }
       <div class="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1 mt-2" id="targetsWrap"></div>
     </section>
 
+
+    <!-- === Executive AI === -->
+    <section id="execAI" class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="ai">
+      <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium mb-4 flex items-center gap-2">
+        🤖 Executive AI
+        <span id="aiLastUpdate" class="hint text-xs font-normal ml-2"></span>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+        <!-- Focus card -->
+        <div class="glass rounded-2xl p-3 sm:p-4">
+          <div class="hint text-xs sm:text-sm mb-1">🎯 Bugünün Odağı</div>
+          <div id="aiFocus" class="text-sm text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+        </div>
+        <!-- Action card -->
+        <div class="glass rounded-2xl p-3 sm:p-4">
+          <div class="hint text-xs sm:text-sm mb-1">⚡ En İyi Aksiyon</div>
+          <div id="aiAction" class="text-sm text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+        </div>
+      </div>
+      <!-- Alerts list -->
+      <div class="glass rounded-2xl p-3 sm:p-4 mt-3">
+        <div class="hint text-xs sm:text-sm mb-1">🚨 Kritik Uyarılar</div>
+        <ul id="aiAlerts" class="text-sm text-slate-700 dark:text-slate-200 space-y-1">
+          <li class="hint">Veri henüz gelmedi</li>
+        </ul>
+      </div>
+      <!-- Daily summary strip -->
+      <div class="glass rounded-2xl p-3 sm:p-4 mt-3">
+        <div class="hint text-xs sm:text-sm mb-1">📊 Günlük Özet</div>
+        <div id="aiSummary" class="text-sm text-slate-700 dark:text-slate-200">Veri henüz gelmedi</div>
+      </div>
+    </section>
+
   </div><!-- /mainContent -->
 
   <!-- PIN Lock Script -->
@@ -1701,11 +1735,11 @@ th, td { white-space: nowrap; }
         });
         try{ localStorage.setItem(KEY, key); }catch(e){}
         // set active button look (optional subtle bold)
-        ['navSummary','navRevenue','navExpenses','navStock'].forEach(id=>{
+        ['navSummary','navRevenue','navExpenses','navStock','navAI'].forEach(id=>{
           const b = document.getElementById(id);
           if(!b) return;
           const k = id.replace('nav','').toLowerCase();
-          if((k==='summary' && key==='summary') || (k==='revenue' && key==='revenue') || (k==='expenses' && key==='expenses') || (k==='stock' && key==='stock')){
+          if((k==='summary' && key==='summary') || (k==='revenue' && key==='revenue') || (k==='expenses' && key==='expenses') || (k==='stock' && key==='stock') || (k==='ai' && key==='ai')){
             b.classList.add('ring-1','ring-indigo-400');
           } else {
             b.classList.remove('ring-1','ring-indigo-400');
@@ -1766,7 +1800,8 @@ th, td { white-space: nowrap; }
         ['navSummary','summary'],
         ['navRevenue','revenue'],
         ['navExpenses','expenses'],
-        ['navStock','stock']
+        ['navStock','stock'],
+        ['navAI','ai']
       ];
       btnMap.forEach(([id,key])=>{
         const b = document.getElementById(id);
@@ -1777,6 +1812,64 @@ th, td { white-space: nowrap; }
       if(start === 'expenses') tryShowExpenses(); else showPage(start);
     })();
   </script>
+
+  <!-- === Executive AI JSON loader === -->
+  <script>
+  (function(){
+    var FALLBACK = 'Veri henüz gelmedi';
+
+    function safeText(el, text){
+      if(el) el.textContent = text || FALLBACK;
+    }
+
+    function loadJSON(path, cb){
+      fetch(path + '?_=' + Date.now())
+        .then(function(r){ if(!r.ok) throw new Error('missing'); return r.json(); })
+        .then(cb)
+        .catch(function(){ cb(null); });
+    }
+
+    function init(){
+      // focus.json → { text: "..." }
+      loadJSON('./focus.json', function(d){
+        safeText(document.getElementById('aiFocus'), d && d.text ? d.text : null);
+      });
+
+      // action.json → { text: "..." }
+      loadJSON('./action.json', function(d){
+        safeText(document.getElementById('aiAction'), d && d.text ? d.text : null);
+      });
+
+      // alerts.json → { items: ["...", "..."] }
+      loadJSON('./alerts.json', function(d){
+        var el = document.getElementById('aiAlerts');
+        if(!el) return;
+        if(!d || !Array.isArray(d.items) || d.items.length === 0){
+          el.innerHTML = '<li class="hint">' + FALLBACK + '</li>';
+          return;
+        }
+        el.innerHTML = d.items.map(function(s){
+          return '<li>' + (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</li>';
+        }).join('');
+      });
+
+      // daily_summary.json → { text: "..." }
+      loadJSON('./daily_summary.json', function(d){
+        safeText(document.getElementById('aiSummary'), d && d.text ? d.text : null);
+        var ts = document.getElementById('aiLastUpdate');
+        if(ts && d && d.updated_at) ts.textContent = 'Son güncelleme: ' + d.updated_at;
+      });
+    }
+
+    // Run after DOM is ready
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
+
   </div>
 
 <script>
@@ -8523,6 +8616,7 @@ window.renderYoYComparison = renderYoYComparison;
     navRevenue:    ['Ciro',           'Revenue'],
     navExpenses:   ['Giderler',       'Expenses'],
     navStock:      ['Stok',           'Stock'],
+    navAI:         ['🤖 AI',          '🤖 AI'],
     themeBtn:      ['🌗 Tema',        '🌗 Theme'],
     refreshBtn:    ['Yenile',         'Refresh'],
     uploadBtn:     ['CSV Yükle',      'Upload CSV'],
