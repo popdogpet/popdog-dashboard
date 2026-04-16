@@ -1,13 +1,45 @@
 {
   "items": [
-    "Revenue Acceleration — Shopify gelir WoW: +32.2%",
-    "Winning Campaign Momentum — POPDOG -_- #Dpa — ROAS 16.32x, harcama 3343.0 TRY",
-    "Ad Spend Waste — POPDOG -_- #Reach — CTR %0.03",
-    "Ad Spend Waste — POPDOG -_- #Reach — CPC 25.93 TRY",
-    "Ad Spend Waste — POPDOG -_- #Engagement — CTR %0.67",
-    "Winning Campaign Momentum — POPDOG -_- #Sales Adv — ROAS 9.9x, harcama 1580.0 TRY",
-    "Winning Campaign Momentum — POPDOG -_- #Sales — ROAS 17.28x, harcama 12339.0 TRY",
-    "Channel Underperformance — En zayıf: Paid Shopping (81 oturum) vs. en güçlü: Paid Social (2564 oturum)"
+    {
+      "level": "positive",
+      "title": "Revenue Acceleration",
+      "detail": "Shopify gelir WoW: +33.3%"
+    },
+    {
+      "level": "positive",
+      "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
+      "detail": "ROAS 16.32x, harcama 3343.0 TRY"
+    },
+    {
+      "level": "warning",
+      "title": "Ad Spend Waste — POPDOG -_- #Reach",
+      "detail": "CTR %0.03"
+    },
+    {
+      "level": "warning",
+      "title": "Ad Spend Waste — POPDOG -_- #Reach",
+      "detail": "CPC 25.93 TRY"
+    },
+    {
+      "level": "warning",
+      "title": "Ad Spend Waste — POPDOG -_- #Engagement",
+      "detail": "CTR %0.67"
+    },
+    {
+      "level": "positive",
+      "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
+      "detail": "ROAS 9.9x, harcama 1580.0 TRY"
+    },
+    {
+      "level": "positive",
+      "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
+      "detail": "ROAS 17.28x, harcama 12339.0 TRY"
+    },
+    {
+      "level": "warning",
+      "title": "Channel Underperformance",
+      "detail": "En zayıf: Paid Shopping (83 oturum) vs. en güçlü: Paid Social (2595 oturum)"
+    }
   ],
-  "updated_at": "2026-04-16T12:24:10.843769+00:00"
+  "updated_at": "2026-04-16T14:12:10.186371+00:00"
 }
