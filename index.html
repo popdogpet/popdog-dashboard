@@ -1817,57 +1817,228 @@ th, td { white-space: nowrap; }
   <script>
   (function(){
     var FALLBACK = 'Veri henüz gelmedi';
+    var TR_MONTHS = ['Oca','\u015eub','Mar','Nis','May','Haz','Tem','\u0102u','Eyl','Eki','Kas','Ara'];
 
-    function safeText(el, text){
-      if(el) el.textContent = text || FALLBACK;
+    /* ── Helpers ─────────────────────────────────────────── */
+    function fmtTimestamp(raw){
+      if(!raw) return '';
+      try{
+        var d = new Date(raw);
+        if(isNaN(d.getTime())) return raw;
+        return d.getDate()+' '+TR_MONTHS[d.getMonth()]+' \u2022 '
+               +String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      }catch(e){ return raw; }
     }
 
+    function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function setOverflow(el){ el.style.wordBreak='break-word'; el.style.overflowWrap='anywhere'; }
+
+    // Header timestamp: keep the most recent across all four files
+    var _latestTs = null;
+    function setHeaderTs(raw){
+      if(!raw) return;
+      try{
+        var d = new Date(raw);
+        if(!isNaN(d.getTime()) && (!_latestTs || d > _latestTs)){
+          _latestTs = d;
+          var el = document.getElementById('aiLastUpdate');
+          if(el) el.textContent = 'Son g\u00fcncelleme: '+fmtTimestamp(raw);
+        }
+      }catch(e){}
+    }
+
+    // Compact sub-section label
+    function sLabel(txt){
+      return '<div style="font-size:.625rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;opacity:.45;margin:7px 0 3px">'+esc(txt)+'</div>';
+    }
+
+    // Bullet list from string array
+    function bList(arr, accentColor){
+      if(!Array.isArray(arr)||!arr.length) return '';
+      var wrap = accentColor
+        ? '<div style="border-left:2px solid '+accentColor+';padding-left:7px">{inner}</div>'
+        : '{inner}';
+      var inner = arr.map(function(s){
+        return '<div style="display:flex;gap:5px;margin-bottom:2px">'
+          +'<span style="opacity:.4;flex-shrink:0">\u203a</span>'
+          +'<span style="font-size:.75rem;line-height:1.4">'+esc(s)+'</span></div>';
+      }).join('');
+      return wrap.replace('{inner}',inner);
+    }
+
+    // Tiny freshness line
+    function freshLine(ts){
+      if(!ts) return '';
+      return '<div style="font-size:.625rem;opacity:.38;margin-top:6px">'+esc(fmtTimestamp(ts))+'</div>';
+    }
+
+    /* ── Legacy text-blob fallback (backward compat) ─────── */
+    function mdToHtml(raw){
+      if(!raw) return '<span class="hint">'+esc(FALLBACK)+'</span>';
+      function applyBold(s){
+        var parts = s.split(/\*\*(.+?)\*\*/g), r='';
+        for(var k=0;k<parts.length;k++){
+          var c=parts[k].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          r += (k%2===1)?'<strong>'+c+'</strong>':c;
+        }
+        return r;
+      }
+      var lines = raw
+        .replace(/\r\n/g,'\n').replace(/\r/g,'\n')
+        .replace(/^[-*_]{3,}\s*$/gm,'').replace(/^\|+\s*$/gm,'')
+        .replace(/^#{1,4}\s*/gm,'').replace(/\n{3,}/g,'\n\n')
+        .trim().split('\n');
+      var html='';
+      for(var i=0;i<lines.length;i++){
+        var line=lines[i].trim(); if(!line) continue;
+        if(/^[-*\u2022]\s+/.test(line)){
+          html+='<div style="display:flex;gap:6px;margin-bottom:3px"><span style="opacity:.45;flex-shrink:0">\u203a</span><span>'+applyBold(line.replace(/^[-*\u2022]\s+/,''))+'</span></div>';
+        } else {
+          html+='<div style="margin-bottom:3px">'+applyBold(line)+'</div>';
+        }
+      }
+      return html||'<span class="hint">'+esc(FALLBACK)+'</span>';
+    }
+
+    /* ── Focus card ──────────────────────────────────────── */
+    function renderFocus(el, d){
+      if(!el) return;
+      setOverflow(el);
+      // Legacy fallback
+      if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
+      if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
+      var h='';
+      h+='<div style="font-size:.8125rem;font-weight:600;line-height:1.3;margin-bottom:4px">'+esc(d.title)+'</div>';
+      if(d.why)    h+='<div style="font-size:.75rem;opacity:.65;line-height:1.4;margin-bottom:5px">'+esc(d.why)+'</div>';
+      if(d.impact) h+='<div style="font-size:.75rem;border-left:2px solid rgba(96,165,250,.55);padding-left:7px;line-height:1.4;margin-bottom:4px">'+esc(d.impact)+'</div>';
+      if(Array.isArray(d.next_steps)&&d.next_steps.length){
+        h+=sLabel('Sonraki Ad\u0131mlar');
+        h+=bList(d.next_steps);
+      }
+      h+=freshLine(d.updated_at);
+      el.innerHTML=h;
+      setHeaderTs(d.updated_at);
+    }
+
+    /* ── Action card ─────────────────────────────────────── */
+    var URGENCY_STYLE={
+      'y\u00fcksek':'background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)',
+      'orta':'background:rgba(251,191,36,.13);color:#fbbf24;border:1px solid rgba(251,191,36,.28)',
+      'd\u00fc\u015f\u00fck':'background:rgba(52,211,153,.13);color:#34d399;border:1px solid rgba(52,211,153,.28)',
+      'high':'background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)',
+      'medium':'background:rgba(251,191,36,.13);color:#fbbf24;border:1px solid rgba(251,191,36,.28)',
+      'low':'background:rgba(52,211,153,.13);color:#34d399;border:1px solid rgba(52,211,153,.28)'
+    };
+    function urgencyBadge(u){
+      if(!u) return '';
+      var style=URGENCY_STYLE[(u||'').toLowerCase()]||'background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.25)';
+      return '<span style="display:inline-block;font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;'+style+'">'+esc(u)+'</span>';
+    }
+    function renderAction(el, d){
+      if(!el) return;
+      setOverflow(el);
+      if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
+      if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
+      var h='';
+      h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">';
+      h+='<div style="font-size:.8125rem;font-weight:600;line-height:1.3">'+esc(d.title)+'</div>';
+      if(d.urgency) h+=urgencyBadge(d.urgency);
+      h+='</div>';
+      if(d.why)    h+='<div style="font-size:.75rem;opacity:.65;line-height:1.4;margin-bottom:5px">'+esc(d.why)+'</div>';
+      if(d.impact) h+='<div style="font-size:.75rem;border-left:2px solid rgba(52,211,153,.55);padding-left:7px;line-height:1.4">'+esc(d.impact)+'</div>';
+      h+=freshLine(d.updated_at);
+      el.innerHTML=h;
+      setHeaderTs(d.updated_at);
+    }
+
+    /* ── Alerts ──────────────────────────────────────────── */
+    var ALERT_ACCENT={critical:'rgba(248,113,113,.7)',warning:'rgba(251,191,36,.7)',positive:'rgba(52,211,153,.65)'};
+    var ALERT_ICON  ={critical:'\ud83d\udd34',warning:'\u26a0\ufe0f',positive:'\u2705'};
+    function renderAlerts(el, d){
+      if(!el) return;
+      if(!d||!Array.isArray(d.items)||!d.items.length){
+        el.innerHTML='<li class="hint" style="font-size:.75rem">'+esc(FALLBACK)+'</li>';
+        return;
+      }
+      var structured = typeof d.items[0]==='object'&&d.items[0]!==null;
+      if(!structured){
+        // Legacy string array
+        el.innerHTML=d.items.map(function(s){
+          var parts=(s||'').split(/\*\*(.+?)\*\*/g), out='';
+          for(var j=0;j<parts.length;j++){
+            var c=parts[j].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            out+=(j%2===1)?'<strong>'+c+'</strong>':c;
+          }
+          return '<li style="font-size:.75rem;line-height:1.45;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.09);word-break:break-word;overflow-wrap:anywhere">'+out+'</li>';
+        }).join('');
+      } else {
+        el.innerHTML=d.items.map(function(item){
+          var lvl=(item.level||'warning').toLowerCase();
+          var accent=ALERT_ACCENT[lvl]||ALERT_ACCENT.warning;
+          var icon=ALERT_ICON[lvl]||'\u26a0\ufe0f';
+          return '<li style="padding:5px 0 5px 9px;border-left:2px solid '+accent
+            +';border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:3px;word-break:break-word;overflow-wrap:anywhere">'
+            +'<div style="display:flex;align-items:baseline;gap:5px">'
+            +'<span style="font-size:.65rem;flex-shrink:0">'+icon+'</span>'
+            +'<span style="font-size:.75rem;font-weight:600;line-height:1.3">'+esc(item.title||'')+'</span>'
+            +'</div>'
+            +(item.detail?'<div style="font-size:.7rem;opacity:.6;margin-top:2px;line-height:1.35;padding-left:16px">'+esc(item.detail)+'</div>':'')
+            +'</li>';
+        }).join('');
+      }
+      setHeaderTs(d.updated_at);
+    }
+
+    /* ── Daily summary ───────────────────────────────────── */
+    function renderSummary(el, d){
+      if(!el) return;
+      setOverflow(el);
+      // Legacy fallback
+      if(!d||(!d.highlights&&!d.risks&&!d.opportunities&&d.text)){
+        el.innerHTML=mdToHtml(d&&d.text?d.text:null);
+        if(d&&d.updated_at) setHeaderTs(d.updated_at);
+        return;
+      }
+      if(!d.highlights&&!d.risks&&!d.opportunities){
+        el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return;
+      }
+      var h='';
+      if(d.title) h+='<div style="font-size:.8125rem;font-weight:600;margin-bottom:5px">'+esc(d.title)+'</div>';
+      if(Array.isArray(d.highlights)&&d.highlights.length){
+        h+=sLabel('\u00d6ne \u00c7\u0131kanlar');
+        h+=bList(d.highlights);
+      }
+      if(Array.isArray(d.risks)&&d.risks.length){
+        h+=sLabel('Riskler');
+        h+=bList(d.risks,'rgba(248,113,113,.4)');
+      }
+      if(Array.isArray(d.opportunities)&&d.opportunities.length){
+        h+=sLabel('F\u0131rsatlar');
+        h+=bList(d.opportunities,'rgba(52,211,153,.4)');
+      }
+      h+=freshLine(d.updated_at);
+      el.innerHTML=h;
+      setHeaderTs(d.updated_at);
+    }
+
+    /* ── Fetch + wire ────────────────────────────────────── */
     function loadJSON(path, cb){
-      fetch(path + '?_=' + Date.now())
+      fetch(path+'?_='+Date.now())
         .then(function(r){ if(!r.ok) throw new Error('missing'); return r.json(); })
-        .then(cb)
-        .catch(function(){ cb(null); });
+        .then(cb).catch(function(){ cb(null); });
     }
 
     function init(){
-      // focus.json → { text: "..." }
-      loadJSON('./focus.json', function(d){
-        safeText(document.getElementById('aiFocus'), d && d.text ? d.text : null);
-      });
-
-      // action.json → { text: "..." }
-      loadJSON('./action.json', function(d){
-        safeText(document.getElementById('aiAction'), d && d.text ? d.text : null);
-      });
-
-      // alerts.json → { items: ["...", "..."] }
-      loadJSON('./alerts.json', function(d){
-        var el = document.getElementById('aiAlerts');
-        if(!el) return;
-        if(!d || !Array.isArray(d.items) || d.items.length === 0){
-          el.innerHTML = '<li class="hint">' + FALLBACK + '</li>';
-          return;
-        }
-        el.innerHTML = d.items.map(function(s){
-          var safe = (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          return '<li style="font-size:0.75rem;line-height:1.4;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.12);color:inherit" class="text-slate-700 dark:text-slate-200">' + safe + '</li>';
-        }).join('');
-      });
-
-      // daily_summary.json → { text: "..." }
-      loadJSON('./daily_summary.json', function(d){
-        safeText(document.getElementById('aiSummary'), d && d.text ? d.text : null);
-        var ts = document.getElementById('aiLastUpdate');
-        if(ts && d && d.updated_at) ts.textContent = 'Son güncelleme: ' + d.updated_at;
-      });
+      loadJSON('./focus.json',        function(d){ renderFocus  (document.getElementById('aiFocus'),   d); });
+      loadJSON('./action.json',       function(d){ renderAction (document.getElementById('aiAction'),  d); });
+      loadJSON('./alerts.json',       function(d){ renderAlerts (document.getElementById('aiAlerts'),  d); });
+      loadJSON('./daily_summary.json',function(d){ renderSummary(document.getElementById('aiSummary'), d); });
     }
 
-    // Run after DOM is ready
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded',init);
+    } else { init(); }
   })();
   </script>
 
