@@ -1,8 +1,16 @@
 {
   "title": "Günlük Özet",
-  "highlights": [],
-  "risks": [],
+  "highlights": [
+    "**#Sales** - 12.338,83 TRY | 37 satın alma | ROAS: 10,85 TRY",
+    "**#DPA** - 3.343,42 TRY | 13 satın alma | ROAS: 16,32 TRY",
+    "Toplam Harcama:** 20.434,68 TRY",
+    "Toplam İzlenim:** 278.795",
+    "Toplam Tıklamalar:** 2.804",
+    "Dönüşüm (Satın Alma):** 67"
+  ],
+  "risks": [
+    "Zaman Penceresi Farkı:** Shopify (16 Nisan), Google Analytics & Meta (9-15 Nisan tarihlerini kapsar)."
+  ],
   "opportunities": [],
-  "text": "# PopDog Günlük İş Özeti\n**16 Nisan 2026**\n\n---\n\n## 📊 Satış Performansı (Shopify - 16 Nisan)\n- **10 sipariş** tamamlandı\n- **Toplam Gelir:** 65.936,75 TRY\n- **Ort. Sipariş Değeri:** 6.593,68 TRY\n- **Ödeme Durumu:** %100 PAID ✓\n\n**En Yüksek Satışlar:**\n- #48218: 16.061,25 TRY\n- #48212: 18.702,00 TRY\n\n---\n\n## 📈 Web Analitikleri (Google Analytics - Haftalık)\n**⚠️ Not:** Meta verisi 9-15 Nisan aralığı, Shopify verileri 16 Nisan tarihi için\n\n- **Oturum:** 7.211 | **Kullanıcı:** 5.694\n- **Sayfa Görüntüleme:** 31.105\n- **Toplam Satış Geliri:** 483.700 TRY\n- **İşlem:** 100 | **Ort. Satış Değeri:** 4.837 TRY\n\n**Cihaz Dağılımı:**\n- Mobil: 6.599 oturum (%91) - 377.365 TRY\n- Masaüstü: 610 oturum (%8) - 106.335 TRY\n\n**En İyi Kanal:** Ücretli Arama (32 işlem, 130.563 TRY)\n\n---\n\n## 📢 Meta Ads Performansı (9-15 Nisan)\n**Toplam Harcama:** 20.434,68 TRY | **Toplam Satın Alma:** 74 işlem\n\n| Kampanya | Harcama | ROAS | Satın Alma |\n|----------|---------|------|-----------|\n| #Sales | 12.338 TRY | 13,4x | 37 |\n| #DPA | 3.343 TRY | 16,3x | 13 |\n| #Sales Adv | 1.580 TRY | 9,9x | 4 |\n| #Reach | 1.063 TRY | - | 0 |\n| #Traffic IG | 1.057 TRY | - | 0 |\n| #Engagement | 1.052 TRY | - | 0 |\n\n---\n\n## 📦 Stok Durumu\nTüm ürünler sağlıklı seviyelerde:\n- Glitch Error Boyun Tasması: 215 adet\n- Court Ruff Tasması: 203 adet\n- Court H Tipi Tasması: 165 adet\n\n---\n\n## 🎯 Önerilen Akiyonlar\n1. **Mobil trafiği hedef al** - Satışların %91'i mobil\n2. **#Sales kampanyasını scale et** - En iyi ROAS (13,4x)\n3. **#DPA performansını monitor et** - En yüksek ROAS (16,3x)\n4. **Ücretli Arama bütçesini artır** - En çok işlem yapan kanal",
-  "updated_at": "2026-04-16T16:41:59.202592+00:00"
+  "updated_at": "2026-04-16T16:52:41.254265+00:00"
 }
