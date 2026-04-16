@@ -1609,33 +1609,33 @@ th, td { white-space: nowrap; }
 
     <!-- === Executive AI === -->
     <section id="execAI" class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="ai">
-      <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium mb-4 flex items-center gap-2">
-        🤖 Executive AI
-        <span id="aiLastUpdate" class="hint text-xs font-normal ml-2"></span>
+      <div class="flex items-center justify-between border-b border-white/20 dark:border-white/10 pb-2 mb-3">
+        <span class="text-slate-700 dark:text-slate-200 text-xs font-semibold tracking-widest uppercase">🤖 Executive AI</span>
+        <span id="aiLastUpdate" class="hint text-xs tabular-nums"></span>
       </div>
-      <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+      <div class="grid sm:grid-cols-2 gap-2">
         <!-- Focus card -->
-        <div class="glass rounded-2xl p-3 sm:p-4">
-          <div class="hint text-xs sm:text-sm mb-1">🎯 Bugünün Odağı</div>
-          <div id="aiFocus" class="text-sm text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+        <div class="glass rounded-xl p-3" style="border-left:2px solid rgba(96,165,250,.6)">
+          <div class="hint text-xs font-medium uppercase tracking-wide mb-1">🎯 Bugünün Odağı</div>
+          <div id="aiFocus" class="text-sm leading-snug text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
         </div>
         <!-- Action card -->
-        <div class="glass rounded-2xl p-3 sm:p-4">
-          <div class="hint text-xs sm:text-sm mb-1">⚡ En İyi Aksiyon</div>
-          <div id="aiAction" class="text-sm text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+        <div class="glass rounded-xl p-3" style="border-left:2px solid rgba(52,211,153,.6)">
+          <div class="hint text-xs font-medium uppercase tracking-wide mb-1">⚡ En İyi Aksiyon</div>
+          <div id="aiAction" class="text-sm leading-snug text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
         </div>
       </div>
       <!-- Alerts list -->
-      <div class="glass rounded-2xl p-3 sm:p-4 mt-3">
-        <div class="hint text-xs sm:text-sm mb-1">🚨 Kritik Uyarılar</div>
-        <ul id="aiAlerts" class="text-sm text-slate-700 dark:text-slate-200 space-y-1">
-          <li class="hint">Veri henüz gelmedi</li>
+      <div class="glass rounded-xl p-3 mt-2" style="border-left:2px solid rgba(248,113,113,.65)">
+        <div class="hint text-xs font-medium uppercase tracking-wide mb-2">🚨 Kritik Uyarılar</div>
+        <ul id="aiAlerts" class="space-y-0">
+          <li class="hint text-xs">Veri henüz gelmedi</li>
         </ul>
       </div>
       <!-- Daily summary strip -->
-      <div class="glass rounded-2xl p-3 sm:p-4 mt-3">
-        <div class="hint text-xs sm:text-sm mb-1">📊 Günlük Özet</div>
-        <div id="aiSummary" class="text-sm text-slate-700 dark:text-slate-200">Veri henüz gelmedi</div>
+      <div class="glass rounded-xl p-3 mt-2" style="border-left:2px solid rgba(168,85,247,.55)">
+        <div class="hint text-xs font-medium uppercase tracking-wide mb-1">📊 Günlük Özet</div>
+        <div id="aiSummary" class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">Veri henüz gelmedi</div>
       </div>
     </section>
 
@@ -1849,7 +1849,8 @@ th, td { white-space: nowrap; }
           return;
         }
         el.innerHTML = d.items.map(function(s){
-          return '<li>' + (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</li>';
+          var safe = (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          return '<li style="font-size:0.75rem;line-height:1.4;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.12);color:inherit" class="text-slate-700 dark:text-slate-200">' + safe + '</li>';
         }).join('');
       });
 
