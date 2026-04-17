@@ -1,16 +1,14 @@
 {
   "title": "Günlük Özet",
   "highlights": [
-    "**#Sales** - 12.338,83 TRY | 37 satın alma | ROAS: 10,85 TRY",
-    "**#DPA** - 3.343,42 TRY | 13 satın alma | ROAS: 16,32 TRY",
-    "Toplam Harcama:** 20.434,68 TRY",
-    "Toplam İzlenim:** 278.795",
-    "Toplam Tıklamalar:** 2.804",
-    "Dönüşüm (Satın Alma):** 67"
+    "| Kanal | Gelir | İşlem | ROAS |",
+    "|-------|-------|-------|------|",
+    "| **Paid Search** | ₺114,314 | 28 | 🔝 |",
+    "| **Direct** | ₺87,512 | 15 | - |",
+    "| **Paid Social** | ₺52,711 | 10 | 🔝 |",
+    "| **Organic Social** | ₺32,284 | 10 | - |"
   ],
-  "risks": [
-    "Zaman Penceresi Farkı:** Shopify (16 Nisan), Google Analytics & Meta (9-15 Nisan tarihlerini kapsar)."
-  ],
+  "risks": [],
   "opportunities": [],
-  "updated_at": "2026-04-16T16:52:41.254265+00:00"
+  "updated_at": "2026-04-17T02:25:11.690583+00:00"
 }

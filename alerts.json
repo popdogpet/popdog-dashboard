@@ -2,13 +2,8 @@
   "items": [
     {
       "level": "positive",
-      "title": "Revenue Acceleration",
-      "detail": "Shopify gelir WoW: +33.3%"
-    },
-    {
-      "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
-      "detail": "ROAS 16.32x, harcama 3343.0 TRY"
+      "detail": "ROAS 19.06x, harcama 3324.0 TRY"
     },
     {
       "level": "warning",
@@ -18,28 +13,33 @@
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CPC 25.93 TRY"
+      "detail": "CPC 22.71 TRY"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CTR %0.67"
+      "detail": "CTR %0.74"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
-      "detail": "ROAS 9.9x, harcama 1580.0 TRY"
+      "detail": "ROAS 14.18x, harcama 1911.0 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
-      "detail": "ROAS 17.28x, harcama 12339.0 TRY"
+      "detail": "ROAS 17.08x, harcama 12180.0 TRY"
     },
     {
       "level": "warning",
       "title": "Channel Underperformance",
-      "detail": "En zayıf: Paid Shopping (83 oturum) vs. en güçlü: Paid Social (2595 oturum)"
+      "detail": "En zayıf: Paid Shopping (70 oturum) vs. en güçlü: Paid Social (2457 oturum)"
+    },
+    {
+      "level": "positive",
+      "title": "Top Product Acceleration — Zee.Dog AIRTAG Kılıfı",
+      "detail": "30g satış: 0 adet, gelir: 0 TRY"
     }
   ],
-  "updated_at": "2026-04-16T14:12:10.186371+00:00"
+  "updated_at": "2026-04-17T02:26:28.956486+00:00"
 }

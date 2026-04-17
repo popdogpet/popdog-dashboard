@@ -2035,10 +2035,10 @@ th, td { white-space: nowrap; }
     function init(){
       // Reset so header timestamp always reflects the current cycle's freshest file
       _latestTs = null;
-      loadJSON('./focus.json',        function(d){ renderFocus  (document.getElementById('aiFocus'),   d); });
-      loadJSON('./action.json',       function(d){ renderAction (document.getElementById('aiAction'),  d); });
-      loadJSON('./alerts.json',       function(d){ renderAlerts (document.getElementById('aiAlerts'),  d); });
-      loadJSON('./daily_summary.json',function(d){ renderSummary(document.getElementById('aiSummary'), d); });
+      loadJSON('/api/focus',  function(d){ renderFocus  (document.getElementById('aiFocus'),   d); });
+      loadJSON('/api/action', function(d){ renderAction (document.getElementById('aiAction'),  d); });
+      loadJSON('/api/alerts', function(d){ renderAlerts (document.getElementById('aiAlerts'),  d); });
+      loadJSON('/api/daily',  function(d){ renderSummary(document.getElementById('aiSummary'), d); });
     }
 
     /* ── Auto-refresh: only while AI page is visible ─────── */
