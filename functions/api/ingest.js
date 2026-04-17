@@ -1,10 +1,12 @@
-const VALID_TYPES = new Set(['focus', 'action', 'alerts', 'daily_summary', 'caddebostan']);
+const VALID_TYPES = new Set(['focus', 'action', 'alerts', 'daily_summary', 'caddebostan', 'caddebostan_live', 'caddebostan_close']);
 const KV_KEY = {
-  focus:         'ai:focus',
-  action:        'ai:action',
-  alerts:        'ai:alerts',
-  daily_summary: 'ai:daily_summary',
-  caddebostan:   'ai:caddebostan',
+  focus:             'ai:focus',
+  action:            'ai:action',
+  alerts:            'ai:alerts',
+  daily_summary:     'ai:daily_summary',
+  caddebostan:       'ai:caddebostan',
+  caddebostan_live:  'ai:caddebostan_live',
+  caddebostan_close: 'ai:caddebostan_close',
 };
 
 function jsonResp(body, status) {
@@ -51,7 +53,7 @@ export async function onRequestPost({ request, env }) {
     const { type, payload } = (body && typeof body === 'object' && !Array.isArray(body)) ? body : {};
 
     if (!type || !VALID_TYPES.has(type)) {
-      return jsonResp({ ok: false, error: 'Invalid type. Must be: focus | action | alerts | daily_summary | caddebostan' }, 400);
+      return jsonResp({ ok: false, error: 'Invalid type. Must be: focus | action | alerts | daily_summary | caddebostan | caddebostan_live | caddebostan_close' }, 400);
     }
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return jsonResp({ ok: false, error: 'payload must be a non-array JSON object' }, 400);
