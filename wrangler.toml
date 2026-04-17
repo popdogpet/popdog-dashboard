@@ -4,3 +4,4 @@ pages_build_output_dir = "."
 [[kv_namespaces]]
 binding = "AI_KV"
 id = "4360a65bb51b457dbe7173aab377304c"
+ 
