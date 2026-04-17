@@ -6,34 +6,67 @@ const KV_KEY = {
   daily_summary: 'ai:daily_summary',
 };
 
-export async function onRequestPost({ request, env }) {
-  // Bearer token auth
-  const token = env.AI_INGEST_TOKEN;
-  if (!token) return new Response('Server misconfigured', { status: 500 });
-
-  const auth = request.headers.get('Authorization') || '';
-  if (auth !== `Bearer ${token}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  let body;
-  try { body = await request.json(); } catch {
-    return new Response('Invalid JSON body', { status: 400 });
-  }
-
-  const { type, payload } = body ?? {};
-  if (!type || !VALID_TYPES.has(type)) {
-    return new Response('Invalid type. Must be: focus | action | alerts | daily_summary', { status: 400 });
-  }
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return new Response('payload must be a JSON object', { status: 400 });
-  }
-
-  await env.AI_KV.put(KV_KEY[type], JSON.stringify(payload));
-  return Response.json({ ok: true, type, stored_at: new Date().toISOString() });
+function jsonResp(body, status) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
-// Block GET/other methods explicitly
+export async function onRequestPost({ request, env }) {
+  console.log('[ingest] reached ingest');
+  try {
+    // KV binding guard — catch missing binding before anything else
+    if (!env.AI_KV) {
+      console.log('[ingest] kv missing');
+      return jsonResp({ ok: false, error: 'KV binding not configured' }, 500);
+    }
+
+    // Auth
+    const token = env.AI_INGEST_TOKEN;
+    if (!token) {
+      console.log('[ingest] AI_INGEST_TOKEN env var missing');
+      return jsonResp({ ok: false, error: 'Server misconfigured' }, 500);
+    }
+
+    const auth = request.headers.get('Authorization') || '';
+    if (!auth) {
+      console.log('[ingest] auth failed: no Authorization header');
+      return jsonResp({ ok: false, error: 'Missing Authorization header' }, 401);
+    }
+    if (auth !== `Bearer ${token}`) {
+      console.log('[ingest] auth failed: bad token');
+      return jsonResp({ ok: false, error: 'Invalid token' }, 403);
+    }
+
+    // Body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return jsonResp({ ok: false, error: 'Invalid JSON body' }, 400);
+    }
+
+    const { type, payload } = (body && typeof body === 'object' && !Array.isArray(body)) ? body : {};
+
+    if (!type || !VALID_TYPES.has(type)) {
+      return jsonResp({ ok: false, error: 'Invalid type. Must be: focus | action | alerts | daily_summary' }, 400);
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return jsonResp({ ok: false, error: 'payload must be a non-array JSON object' }, 400);
+    }
+
+    // Write
+    await env.AI_KV.put(KV_KEY[type], JSON.stringify(payload));
+    console.log('[ingest] write success:', type);
+    return jsonResp({ ok: true, type, stored_at: new Date().toISOString() }, 200);
+
+  } catch (err) {
+    console.log('[ingest] unexpected error:', err && err.message);
+    return jsonResp({ ok: false, error: 'Internal server error' }, 500);
+  }
+}
+
 export async function onRequestGet() {
-  return new Response('Method Not Allowed', { status: 405 });
+  return jsonResp({ ok: false, error: 'Method Not Allowed' }, 405);
 }
