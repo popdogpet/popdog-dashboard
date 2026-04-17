@@ -1,0 +1,26 @@
+{
+  "title": "Pop Dog Caddebostan",
+  "date": "16/04/2026",
+  "card": 59495.4,
+  "cash": 0.0,
+  "store_revenue": 59495.4,
+  "grooming": 11300.0,
+  "cash_register": null,
+  "online": 63010.25,
+  "wholesale": 58152.0,
+  "trendyol": 12220.0,
+  "hepsiburada": 900.0,
+  "grand_total": 193777.65,
+  "zeedog_units": 114,
+  "summary_lines": [
+    "Toplam ciro: ₺59.495,40",
+    "Kuaför: ₺11.300",
+    "Online: ₺63.010,25",
+    "Toptan: ₺58.152",
+    "Trendyol: ₺12.220",
+    "Hepsiburada: ₺900",
+    "Toplam: ₺193.777,65",
+    "Zee.Dog: 114 adet"
+  ],
+  "updated_at": "2026-04-17T15:50:25.883221+00:00"
+}

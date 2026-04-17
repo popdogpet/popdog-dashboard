@@ -1617,12 +1617,15 @@ th, td { white-space: nowrap; }
         </div>
       </div>
       <!-- Caddebostan daily banner -->
-      <div id="caddeBanner" class="glass rounded-xl px-3 py-2 mb-3" style="border-left:3px solid rgba(251,191,36,.75)">
-        <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+      <div id="caddeBanner" class="glass rounded-xl px-3 pt-2.5 pb-3 mb-3" style="border-left:3px solid rgba(251,191,36,.8)">
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-b border-white/15 dark:border-white/10 pb-1.5 mb-2">
           <span class="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">🏪 Pop Dog Caddebostan</span>
-          <span id="caddeBannerDate" class="hint text-xs tabular-nums"></span>
+          <div class="flex items-center gap-2">
+            <span id="caddeBannerStale" class="hidden text-orange-500 dark:text-orange-400 tabular-nums" style="font-size:.65rem">⚠ Veri güncel olmayabilir</span>
+            <span id="caddeBannerDate" class="hint tabular-nums" style="font-size:.65rem"></span>
+          </div>
         </div>
-        <div id="caddeBannerBody" class="text-xs text-slate-700 dark:text-slate-200 mt-1">
+        <div id="caddeBannerBody" class="text-xs text-slate-700 dark:text-slate-200">
           <span class="hint">Caddebostan verisi henüz gelmedi</span>
         </div>
       </div>
@@ -2044,38 +2047,93 @@ th, td { white-space: nowrap; }
     }
 
     function renderCaddebostan(d) {
-      var dateEl = document.getElementById('caddeBannerDate');
-      var bodyEl = document.getElementById('caddeBannerBody');
+      var dateEl  = document.getElementById('caddeBannerDate');
+      var staleEl = document.getElementById('caddeBannerStale');
+      var bodyEl  = document.getElementById('caddeBannerBody');
       if (!bodyEl) return;
+
       if (!d || !d.grand_total) {
         bodyEl.innerHTML = '<span class="hint">Caddebostan verisi henüz gelmedi</span>';
-        if (dateEl) dateEl.textContent = '';
+        if (dateEl)  dateEl.textContent = '';
+        if (staleEl) staleEl.classList.add('hidden');
         return;
       }
-      if (dateEl) dateEl.textContent = d.date || '';
+
+      // Freshness
+      var freshLabel = '';
+      var isStale = false;
+      var tsRaw = d.source_generated_at || d.updated_at;
+      if (tsRaw) {
+        var ageMin = Math.round((Date.now() - new Date(tsRaw).getTime()) / 60000);
+        if (!isNaN(ageMin) && ageMin >= 0) {
+          freshLabel = ageMin < 60
+            ? ageMin + ' dk önce'
+            : Math.round(ageMin / 60) + ' sa önce';
+        }
+      }
+      if (d.is_today === false || (typeof d.stale_minutes === 'number' && d.stale_minutes > 120)) isStale = true;
+      if (dateEl)  dateEl.textContent = (d.date ? d.date + (freshLabel ? '  ·  ' + freshLabel : '') : freshLabel);
+      if (staleEl) staleEl.classList.toggle('hidden', !isStale);
+
+      // Delta helpers
+      var fmtPct = function(p) {
+        if (p == null) return '';
+        var n = parseFloat(p);
+        if (isNaN(n)) return '';
+        var sign = n > 0 ? '+' : '';
+        return sign + n.toFixed(1) + '%';
+      };
+      var deltaChip = function(pct) {
+        if (pct == null) return '';
+        var n = parseFloat(pct);
+        if (isNaN(n)) return '';
+        var col = n > 0
+          ? 'color:#34d399'
+          : n < 0 ? 'color:#f87171' : 'opacity:.55';
+        var arrow = n > 0 ? '▲' : n < 0 ? '▼' : '●';
+        return ' <span style="font-size:.68rem;' + col + '">' + arrow + fmtPct(pct) + '</span>';
+      };
+
       var fmt = function(v){ return v != null ? String(v) : '—'; };
-      var primary = '<div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">'
-        + '<span><span class="hint">Toplam</span> <strong class="text-slate-900 dark:text-white">' + fmt(d.grand_total) + '</strong></span>'
-        + (d.zee_dog_units != null ? '<span><span class="hint">Zee.Dog</span> <strong class="text-amber-600 dark:text-amber-400">' + fmt(d.zee_dog_units) + ' adet</strong></span>' : '')
-        + '</div>';
+
+      // Primary row: Toplam + Zee.Dog
+      var primary = '<div class="flex flex-wrap items-baseline gap-x-5 gap-y-1">';
+      primary += '<span style="line-height:1.4">'
+        + '<span class="hint" style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase">Toplam</span> '
+        + '<strong class="text-slate-900 dark:text-white" style="font-size:.95rem">' + fmt(d.grand_total) + '</strong>'
+        + deltaChip(d.delta_total_pct)
+        + (d.previous_total != null ? '<span class="hint" style="font-size:.63rem"> dün ' + fmt(d.previous_total) + '</span>' : '')
+        + '</span>';
+      if (d.zee_dog_units != null) {
+        primary += '<span style="line-height:1.4">'
+          + '<span class="hint" style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase">Zee.Dog</span> '
+          + '<strong class="text-amber-600 dark:text-amber-400" style="font-size:.9rem">' + fmt(d.zee_dog_units) + ' adet</strong>'
+          + deltaChip(d.delta_units_pct)
+          + (d.previous_zeedog_units != null ? '<span class="hint" style="font-size:.63rem"> dün ' + fmt(d.previous_zeedog_units) + '</span>' : '')
+          + '</span>';
+      }
+      primary += '</div>';
+
+      // Secondary stats grid
       var fields = [
         ['Kredi Kartı', d.credit_card],
-        ['Nakit', d.cash],
-        ['Toplam Ciro', d.total_ciro],
-        ['Kuaför', d.grooming],
-        ['Kasa', d.cash_register],
-        ['Online', d.online],
-        ['Toptan', d.wholesale],
-        ['Trendyol', d.trendyol],
+        ['Nakit',       d.cash],
+        ['Ciro',        d.total_ciro],
+        ['Kuaför',      d.grooming],
+        ['Kasa',        d.cash_register],
+        ['Online',      d.online],
+        ['Toptan',      d.wholesale],
+        ['Trendyol',    d.trendyol],
         ['Hepsiburada', d.hepsiburada],
       ];
-      var secondary = '<div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 hint" style="font-size:.68rem">';
+      var secondary = '<div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 pt-2 border-t border-white/10 dark:border-white/10" style="font-size:.68rem">';
       fields.forEach(function(f){
         if (f[1] != null && f[1] !== '' && f[1] !== 0) {
-          secondary += '<span>' + f[0] + ': <span class="text-slate-700 dark:text-slate-300">' + fmt(f[1]) + '</span></span>';
+          secondary += '<span class="hint">' + f[0] + '&thinsp;<span class="text-slate-700 dark:text-slate-300">' + fmt(f[1]) + '</span></span>';
         }
       });
       secondary += '</div>';
+
       bodyEl.innerHTML = primary + secondary;
     }
 
