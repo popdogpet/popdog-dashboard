@@ -432,6 +432,12 @@ th, td { white-space: nowrap; }
     min-width: 44px !important;
     font-size: 16px !important; /* Prevents iOS zoom on focus */
   }
+  /* AI refresh button exempt from touch target inflation */
+  #aiRefreshBtn {
+    min-height: unset !important;
+    min-width: unset !important;
+    font-size: .62rem !important;
+  }
 
   /* Input fields */
   input[type="text"],
@@ -584,6 +590,195 @@ th, td { white-space: nowrap; }
     color: #cbd5e1;
     border-color: rgba(255,255,255,0.08);
   }
+  </style>
+  <style>
+    /* ================================================================
+       PREMIUM DESIGN SYSTEM — AI Section + Global Polish
+       ================================================================ */
+
+    /* --- Global: refined glass morphism --- */
+    .glass {
+      background: linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.46) 100%);
+      backdrop-filter: blur(12px) saturate(150%);
+      -webkit-backdrop-filter: blur(12px) saturate(150%);
+      border: 1px solid rgba(255,255,255,0.54);
+    }
+    .dark .glass {
+      background: linear-gradient(160deg, rgba(2,6,23,0.6) 0%, rgba(2,6,23,0.4) 100%);
+      border-color: rgba(255,255,255,0.09) !important;
+    }
+
+    /* --- Global: refined card shadow --- */
+    .card-3d {
+      box-shadow:
+        0 1px 2px rgba(15,23,42,.04),
+        0 5px 18px rgba(15,23,42,.09),
+        inset 0 1px 0 rgba(255,255,255,.4);
+    }
+    .dark .card-3d {
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.18),
+        0 8px 22px rgba(0,0,0,.28),
+        inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
+    /* --- Global: body background refinement --- */
+    body, .pagebg {
+      background:
+        radial-gradient(ellipse 100% 55% at 12% -8%, rgba(224,231,255,0.65) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 45% at 88% 108%, rgba(240,249,255,0.55) 0%, transparent 50%),
+        #f8fafc;
+    }
+    .dark body, .dark .pagebg {
+      background:
+        radial-gradient(ellipse 100% 55% at 12% -8%, rgba(8,12,35,0.95) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 45% at 88% 108%, rgba(4,10,28,0.85) 0%, transparent 50%),
+        #020617 !important;
+    }
+
+    /* ----------------------------------------------------------------
+       AI Section — Premium padding (beats mobile !important rule)
+       ---------------------------------------------------------------- */
+    #execAI { padding: 1rem !important; }
+    @media (min-width: 640px) { #execAI { padding: 1.5rem !important; } }
+
+    /* Section header divider */
+    .ai-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 13px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(0,0,0,0.055);
+    }
+    .dark .ai-hd { border-bottom-color: rgba(255,255,255,0.07); }
+
+    /* AI premium card */
+    .ai-card {
+      background: linear-gradient(155deg, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.38) 100%);
+      backdrop-filter: blur(14px) saturate(155%);
+      -webkit-backdrop-filter: blur(14px) saturate(155%);
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: 13px;
+      padding: 14px 15px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.52),
+        0 2px 10px rgba(15,23,42,0.05);
+    }
+    .dark .ai-card {
+      background: linear-gradient(155deg, rgba(2,6,23,0.56) 0%, rgba(2,6,23,0.34) 100%);
+      border-color: rgba(255,255,255,0.09);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.045),
+        0 4px 16px rgba(0,0,0,0.26);
+    }
+
+    /* Card section label */
+    .ai-card-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .585rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: #94a3b8;
+      margin-bottom: 9px;
+    }
+    .dark .ai-card-label { color: #475569; }
+
+    /* Accent dot on label */
+    .ai-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* Responsive grid for AI cards */
+    .ai-grid { display: grid; gap: 10px; }
+    @media (min-width: 640px) {
+      .ai-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* ----------------------------------------------------------------
+       Caddebostan Banner — Premium Live Business Strip
+       ---------------------------------------------------------------- */
+    .cadde-banner {
+      background: linear-gradient(148deg,
+        rgba(255,251,235,0.85) 0%,
+        rgba(255,255,255,0.54) 100%);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-left: 3px solid rgba(245,158,11,0.7);
+      border-radius: 13px;
+      padding: 13px 15px 12px;
+      margin-bottom: 14px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.7),
+        0 2px 12px rgba(245,158,11,0.05);
+    }
+    .dark .cadde-banner {
+      background: linear-gradient(148deg,
+        rgba(22,13,2,0.65) 0%,
+        rgba(2,6,23,0.44) 100%);
+      border-color: rgba(245,158,11,0.13);
+      border-left-color: rgba(245,158,11,0.56);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.04),
+        0 4px 16px rgba(0,0,0,0.26);
+    }
+
+    .cadde-label {
+      font-size: .565rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+      color: #92400e;
+    }
+    .dark .cadde-label { color: #fbbf24; }
+
+    .cadde-num-primary {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .dark .cadde-num-primary { color: #f1f5f9; }
+
+    .cadde-num-secondary {
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: -.015em;
+      color: #d97706;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .dark .cadde-num-secondary { color: #fbbf24; }
+
+    .cadde-meta {
+      font-size: .67rem;
+      color: #94a3b8;
+    }
+    .dark .cadde-meta { color: #4b5563; }
+
+    .cadde-secondary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 14px;
+      margin-top: 10px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    .dark .cadde-secondary-row { border-top-color: rgba(255,255,255,0.06); }
+
+    .cadde-stat { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
+    .dark .cadde-stat { color: #374151; }
+    .cadde-stat-val { font-weight: 600; color: #334155; font-variant-numeric: tabular-nums; }
+    .dark .cadde-stat-val { color: #6b7280; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -1608,52 +1803,72 @@ th, td { white-space: nowrap; }
 
 
     <!-- === Executive AI === -->
-    <section id="execAI" class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="ai">
-      <div class="flex items-center justify-between border-b border-white/20 dark:border-white/10 pb-2 mb-3">
-        <span class="text-slate-700 dark:text-slate-200 text-xs font-semibold tracking-widest uppercase">🤖 Executive AI</span>
-        <div class="flex items-center gap-2">
-          <button id="aiRefreshBtn" class="glass hint rounded-lg px-2 py-0.5" style="font-size:.65rem;cursor:pointer;line-height:1.6">↻ Yenile</button>
-          <span id="aiLastUpdate" class="hint text-xs tabular-nums"></span>
+    <section id="execAI" class="glass card-3d rounded-3xl mt-4" data-page="ai">
+
+      <!-- Section header -->
+      <div class="ai-hd">
+        <div>
+          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:#94a3b8;margin-bottom:3px">Executive Intelligence</div>
+          <div class="text-slate-800 dark:text-slate-100" style="font-size:.9rem;font-weight:600;letter-spacing:-.01em">🤖 AI Özeti</div>
         </div>
-      </div>
-      <!-- Caddebostan daily banner -->
-      <div id="caddeBanner" class="glass rounded-xl px-3 pt-2.5 pb-3 mb-3" style="border-left:3px solid rgba(251,191,36,.8)">
-        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-b border-white/15 dark:border-white/10 pb-1.5 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">🏪 Pop Dog Caddebostan</span>
-          <div class="flex items-center gap-2">
-            <span id="caddeBannerStale" class="hidden text-orange-500 dark:text-orange-400 tabular-nums" style="font-size:.65rem">⚠ Veri güncel olmayabilir</span>
-            <span id="caddeBannerDate" class="hint tabular-nums" style="font-size:.65rem"></span>
-          </div>
-        </div>
-        <div id="caddeBannerBody" class="text-xs text-slate-700 dark:text-slate-200">
-          <span class="hint">Caddebostan verisi henüz gelmedi</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span id="aiLastUpdate" style="font-size:.62rem;color:#94a3b8;font-variant-numeric:tabular-nums"></span>
+          <button id="aiRefreshBtn" class="glass" style="font-size:.62rem;padding:3px 10px;border-radius:8px;cursor:pointer;line-height:1.7;color:#64748b;min-height:unset;min-width:unset">↻ Yenile</button>
         </div>
       </div>
 
-      <div class="grid sm:grid-cols-2 gap-2">
-        <!-- Focus card -->
-        <div class="glass rounded-xl p-3" style="border-left:2px solid rgba(96,165,250,.6)">
-          <div class="hint text-xs font-medium uppercase tracking-wide mb-1">🎯 Bugünün Odağı</div>
-          <div id="aiFocus" class="text-sm leading-snug text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+      <!-- Caddebostan live banner -->
+      <div id="caddeBanner" class="cadde-banner">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;margin-bottom:11px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span class="cadde-label">🏪 Pop Dog Caddebostan</span>
+            <span id="caddeBannerStale" class="hidden" style="font-size:.58rem;font-weight:700;color:#f97316;letter-spacing:.03em">· Eski veri</span>
+          </div>
+          <span id="caddeBannerDate" class="cadde-meta" style="font-variant-numeric:tabular-nums"></span>
         </div>
-        <!-- Action card -->
-        <div class="glass rounded-xl p-3" style="border-left:2px solid rgba(52,211,153,.6)">
-          <div class="hint text-xs font-medium uppercase tracking-wide mb-1">⚡ En İyi Aksiyon</div>
-          <div id="aiAction" class="text-sm leading-snug text-slate-800 dark:text-slate-100">Veri henüz gelmedi</div>
+        <div id="caddeBannerBody">
+          <span class="cadde-meta">Caddebostan verisi henüz gelmedi</span>
         </div>
       </div>
-      <!-- Alerts list -->
-      <div class="glass rounded-xl p-3 mt-2" style="border-left:2px solid rgba(248,113,113,.65)">
-        <div class="hint text-xs font-medium uppercase tracking-wide mb-2">🚨 Kritik Uyarılar</div>
-        <ul id="aiAlerts" class="space-y-0">
-          <li class="hint text-xs">Veri henüz gelmedi</li>
+
+      <!-- Focus + Action grid -->
+      <div class="ai-grid ai-grid-2">
+        <div class="ai-card" style="border-left:2.5px solid rgba(96,165,250,.62)">
+          <div class="ai-card-label">
+            <span class="ai-dot" style="background:rgba(96,165,250,.65)"></span>
+            🎯 Bugünün Odağı
+          </div>
+          <div id="aiFocus" class="text-slate-800 dark:text-slate-100" style="font-size:.8125rem;line-height:1.52;word-break:break-word;overflow-wrap:anywhere">Veri henüz gelmedi</div>
+        </div>
+        <div class="ai-card" style="border-left:2.5px solid rgba(52,211,153,.62)">
+          <div class="ai-card-label">
+            <span class="ai-dot" style="background:rgba(52,211,153,.65)"></span>
+            ⚡ En İyi Aksiyon
+          </div>
+          <div id="aiAction" class="text-slate-800 dark:text-slate-100" style="font-size:.8125rem;line-height:1.52;word-break:break-word;overflow-wrap:anywhere">Veri henüz gelmedi</div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="ai-card" style="border-left:2.5px solid rgba(248,113,113,.62);margin-top:10px">
+        <div class="ai-card-label">
+          <span class="ai-dot" style="background:rgba(248,113,113,.65)"></span>
+          🚨 Kritik Uyarılar
+        </div>
+        <ul id="aiAlerts" class="text-slate-700 dark:text-slate-200" style="margin:0;padding:0;list-style:none">
+          <li style="font-size:.75rem;color:#94a3b8">Veri henüz gelmedi</li>
         </ul>
       </div>
-      <!-- Daily summary strip -->
-      <div class="glass rounded-xl p-3 mt-2" style="border-left:2px solid rgba(168,85,247,.55)">
-        <div class="hint text-xs font-medium uppercase tracking-wide mb-1">📊 Günlük Özet</div>
-        <div id="aiSummary" class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">Veri henüz gelmedi</div>
+
+      <!-- Daily summary -->
+      <div class="ai-card" style="border-left:2.5px solid rgba(168,85,247,.56);margin-top:10px">
+        <div class="ai-card-label">
+          <span class="ai-dot" style="background:rgba(168,85,247,.62)"></span>
+          📊 Günlük Özet
+        </div>
+        <div id="aiSummary" class="text-slate-700 dark:text-slate-200" style="font-size:.8125rem;line-height:1.52;word-break:break-word;overflow-wrap:anywhere">Veri henüz gelmedi</div>
       </div>
+
     </section>
 
   </div><!-- /mainContent -->
@@ -1867,19 +2082,19 @@ th, td { white-space: nowrap; }
 
     // Compact sub-section label
     function sLabel(txt){
-      return '<div style="font-size:.625rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;opacity:.45;margin:7px 0 3px">'+esc(txt)+'</div>';
+      return '<div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.36;margin:11px 0 4px">'+esc(txt)+'</div>';
     }
 
     // Bullet list from string array
     function bList(arr, accentColor){
       if(!Array.isArray(arr)||!arr.length) return '';
       var wrap = accentColor
-        ? '<div style="border-left:2px solid '+accentColor+';padding-left:7px">{inner}</div>'
+        ? '<div style="border-left:2px solid '+accentColor+';padding-left:8px">{inner}</div>'
         : '{inner}';
       var inner = arr.map(function(s){
-        return '<div style="display:flex;gap:5px;margin-bottom:2px">'
-          +'<span style="opacity:.4;flex-shrink:0">\u203a</span>'
-          +'<span style="font-size:.75rem;line-height:1.4">'+esc(s)+'</span></div>';
+        return '<div style="display:flex;gap:6px;margin-bottom:3px">'
+          +'<span style="opacity:.32;flex-shrink:0;margin-top:2px;font-size:.7rem">\u203a</span>'
+          +'<span style="font-size:.78rem;line-height:1.52">'+esc(s)+'</span></div>';
       }).join('');
       return wrap.replace('{inner}',inner);
     }
@@ -1887,7 +2102,7 @@ th, td { white-space: nowrap; }
     // Tiny freshness line
     function freshLine(ts){
       if(!ts) return '';
-      return '<div style="font-size:.625rem;opacity:.38;margin-top:6px">'+esc(fmtTimestamp(ts))+'</div>';
+      return '<div style="font-size:.585rem;opacity:.3;margin-top:9px;letter-spacing:.01em">'+esc(fmtTimestamp(ts))+'</div>';
     }
 
     /* ── Legacy text-blob fallback (backward compat) ─────── */
@@ -1926,9 +2141,9 @@ th, td { white-space: nowrap; }
       if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
       if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
       var h='';
-      h+='<div style="font-size:.8125rem;font-weight:600;line-height:1.3;margin-bottom:4px">'+esc(d.title)+'</div>';
-      if(d.why)    h+='<div style="font-size:.75rem;opacity:.65;line-height:1.4;margin-bottom:5px">'+esc(d.why)+'</div>';
-      if(d.impact) h+='<div style="font-size:.75rem;border-left:2px solid rgba(96,165,250,.55);padding-left:7px;line-height:1.4;margin-bottom:4px">'+esc(d.impact)+'</div>';
+      h+='<div style="font-size:.875rem;font-weight:600;line-height:1.35;margin-bottom:6px;letter-spacing:-.01em">'+esc(d.title)+'</div>';
+      if(d.why)    h+='<div style="font-size:.775rem;opacity:.58;line-height:1.52;margin-bottom:6px">'+esc(d.why)+'</div>';
+      if(d.impact) h+='<div style="font-size:.775rem;border-left:2px solid rgba(96,165,250,.6);padding-left:8px;line-height:1.52;margin-bottom:5px">'+esc(d.impact)+'</div>';
       if(Array.isArray(d.next_steps)&&d.next_steps.length){
         h+=sLabel('Sonraki Ad\u0131mlar');
         h+=bList(d.next_steps);
@@ -1958,12 +2173,12 @@ th, td { white-space: nowrap; }
       if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
       if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
       var h='';
-      h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">';
-      h+='<div style="font-size:.8125rem;font-weight:600;line-height:1.3">'+esc(d.title)+'</div>';
+      h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">';
+      h+='<div style="font-size:.875rem;font-weight:600;line-height:1.35;letter-spacing:-.01em">'+esc(d.title)+'</div>';
       if(d.urgency) h+=urgencyBadge(d.urgency);
       h+='</div>';
-      if(d.why)    h+='<div style="font-size:.75rem;opacity:.65;line-height:1.4;margin-bottom:5px">'+esc(d.why)+'</div>';
-      if(d.impact) h+='<div style="font-size:.75rem;border-left:2px solid rgba(52,211,153,.55);padding-left:7px;line-height:1.4">'+esc(d.impact)+'</div>';
+      if(d.why)    h+='<div style="font-size:.775rem;opacity:.58;line-height:1.52;margin-bottom:6px">'+esc(d.why)+'</div>';
+      if(d.impact) h+='<div style="font-size:.775rem;border-left:2px solid rgba(52,211,153,.62);padding-left:8px;line-height:1.52">'+esc(d.impact)+'</div>';
       h+=freshLine(d.updated_at);
       el.innerHTML=h;
       setHeaderTs(d.updated_at);
@@ -1987,20 +2202,20 @@ th, td { white-space: nowrap; }
             var c=parts[j].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             out+=(j%2===1)?'<strong>'+c+'</strong>':c;
           }
-          return '<li style="font-size:.75rem;line-height:1.45;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.09);word-break:break-word;overflow-wrap:anywhere">'+out+'</li>';
+          return '<li style="font-size:.78rem;line-height:1.52;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.07);word-break:break-word;overflow-wrap:anywhere">'+out+'</li>';
         }).join('');
       } else {
         el.innerHTML=d.items.map(function(item){
           var lvl=(item.level||'warning').toLowerCase();
           var accent=ALERT_ACCENT[lvl]||ALERT_ACCENT.warning;
           var icon=ALERT_ICON[lvl]||'\u26a0\ufe0f';
-          return '<li style="padding:5px 0 5px 9px;border-left:2px solid '+accent
-            +';border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:3px;word-break:break-word;overflow-wrap:anywhere">'
-            +'<div style="display:flex;align-items:baseline;gap:5px">'
-            +'<span style="font-size:.65rem;flex-shrink:0">'+icon+'</span>'
-            +'<span style="font-size:.75rem;font-weight:600;line-height:1.3">'+esc(item.title||'')+'</span>'
+          return '<li style="padding:7px 0 7px 10px;border-left:2px solid '+accent
+            +';margin-bottom:4px;word-break:break-word;overflow-wrap:anywhere">'
+            +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+            +'<span style="font-size:.6rem;flex-shrink:0;line-height:1">'+icon+'</span>'
+            +'<span style="font-size:.78rem;font-weight:600;line-height:1.35">'+esc(item.title||'')+'</span>'
             +'</div>'
-            +(item.detail?'<div style="font-size:.7rem;opacity:.6;margin-top:2px;line-height:1.35;padding-left:16px">'+esc(item.detail)+'</div>':'')
+            +(item.detail?'<div style="font-size:.71rem;opacity:.52;margin-top:2px;line-height:1.48;padding-left:18px">'+esc(item.detail)+'</div>':'')
             +'</li>';
         }).join('');
       }
@@ -2021,7 +2236,7 @@ th, td { white-space: nowrap; }
         el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return;
       }
       var h='';
-      if(d.title) h+='<div style="font-size:.8125rem;font-weight:600;margin-bottom:5px">'+esc(d.title)+'</div>';
+      if(d.title) h+='<div style="font-size:.875rem;font-weight:600;margin-bottom:6px;letter-spacing:-.01em">'+esc(d.title)+'</div>';
       if(Array.isArray(d.highlights)&&d.highlights.length){
         h+=sLabel('\u00d6ne \u00c7\u0131kanlar');
         h+=bList(d.highlights);
@@ -2053,7 +2268,7 @@ th, td { white-space: nowrap; }
       if (!bodyEl) return;
 
       if (!d || !d.grand_total) {
-        bodyEl.innerHTML = '<span class="hint">Caddebostan verisi henüz gelmedi</span>';
+        bodyEl.innerHTML = '<span class="cadde-meta">Caddebostan verisi henüz gelmedi</span>';
         if (dateEl)  dateEl.textContent = '';
         if (staleEl) staleEl.classList.add('hidden');
         return;
@@ -2066,55 +2281,52 @@ th, td { white-space: nowrap; }
       if (tsRaw) {
         var ageMin = Math.round((Date.now() - new Date(tsRaw).getTime()) / 60000);
         if (!isNaN(ageMin) && ageMin >= 0) {
-          freshLabel = ageMin < 60
-            ? ageMin + ' dk önce'
-            : Math.round(ageMin / 60) + ' sa önce';
+          freshLabel = ageMin < 60 ? ageMin + ' dk önce' : Math.round(ageMin / 60) + ' sa önce';
         }
       }
       if (d.is_today === false || (typeof d.stale_minutes === 'number' && d.stale_minutes > 120)) isStale = true;
-      if (dateEl)  dateEl.textContent = (d.date ? d.date + (freshLabel ? '  ·  ' + freshLabel : '') : freshLabel);
+      if (dateEl)  dateEl.textContent = [d.date, freshLabel].filter(Boolean).join('  ·  ');
       if (staleEl) staleEl.classList.toggle('hidden', !isStale);
 
-      // Delta helpers
+      var fmt = function(v){ return v != null ? String(v) : '—'; };
       var fmtPct = function(p) {
         if (p == null) return '';
         var n = parseFloat(p);
         if (isNaN(n)) return '';
-        var sign = n > 0 ? '+' : '';
-        return sign + n.toFixed(1) + '%';
+        return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
       };
       var deltaChip = function(pct) {
         if (pct == null) return '';
         var n = parseFloat(pct);
         if (isNaN(n)) return '';
-        var col = n > 0
-          ? 'color:#34d399'
-          : n < 0 ? 'color:#f87171' : 'opacity:.55';
-        var arrow = n > 0 ? '▲' : n < 0 ? '▼' : '●';
-        return ' <span style="font-size:.68rem;' + col + '">' + arrow + fmtPct(pct) + '</span>';
+        var col = n > 0 ? '#34d399' : n < 0 ? '#f87171' : '#94a3b8';
+        var arrow = n > 0 ? '\u25b2' : n < 0 ? '\u25bc' : '\u25cf';
+        return '<span style="font-size:.62rem;color:'+col+';font-weight:700;margin-left:4px">'+arrow+fmtPct(pct)+'</span>';
       };
 
-      var fmt = function(v){ return v != null ? String(v) : '—'; };
+      // Primary metrics row
+      var primary = '<div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 20px">';
 
-      // Primary row: Toplam + Zee.Dog
-      var primary = '<div class="flex flex-wrap items-baseline gap-x-5 gap-y-1">';
-      primary += '<span style="line-height:1.4">'
-        + '<span class="hint" style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase">Toplam</span> '
-        + '<strong class="text-slate-900 dark:text-white" style="font-size:.95rem">' + fmt(d.grand_total) + '</strong>'
+      primary += '<div style="display:flex;flex-direction:column;gap:1px">'
+        + '<span class="cadde-meta" style="font-size:.565rem;text-transform:uppercase;letter-spacing:.08em">Toplam</span>'
+        + '<div style="display:flex;align-items:baseline;gap:3px">'
+        + '<span class="cadde-num-primary">' + fmt(d.grand_total) + '</span>'
         + deltaChip(d.delta_total_pct)
-        + (d.previous_total != null ? '<span class="hint" style="font-size:.63rem"> dün ' + fmt(d.previous_total) + '</span>' : '')
-        + '</span>';
+        + (d.previous_total != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün ' + fmt(d.previous_total) + '</span>' : '')
+        + '</div></div>';
+
       if (d.zee_dog_units != null) {
-        primary += '<span style="line-height:1.4">'
-          + '<span class="hint" style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase">Zee.Dog</span> '
-          + '<strong class="text-amber-600 dark:text-amber-400" style="font-size:.9rem">' + fmt(d.zee_dog_units) + ' adet</strong>'
+        primary += '<div style="display:flex;flex-direction:column;gap:1px">'
+          + '<span class="cadde-meta" style="font-size:.565rem;text-transform:uppercase;letter-spacing:.08em">Zee.Dog</span>'
+          + '<div style="display:flex;align-items:baseline;gap:3px">'
+          + '<span class="cadde-num-secondary">' + fmt(d.zee_dog_units) + ' adet</span>'
           + deltaChip(d.delta_units_pct)
-          + (d.previous_zeedog_units != null ? '<span class="hint" style="font-size:.63rem"> dün ' + fmt(d.previous_zeedog_units) + '</span>' : '')
-          + '</span>';
+          + (d.previous_zeedog_units != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün ' + fmt(d.previous_zeedog_units) + '</span>' : '')
+          + '</div></div>';
       }
       primary += '</div>';
 
-      // Secondary stats grid
+      // Secondary stats
       var fields = [
         ['Kredi Kartı', d.credit_card],
         ['Nakit',       d.cash],
@@ -2126,10 +2338,10 @@ th, td { white-space: nowrap; }
         ['Trendyol',    d.trendyol],
         ['Hepsiburada', d.hepsiburada],
       ];
-      var secondary = '<div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 pt-2 border-t border-white/10 dark:border-white/10" style="font-size:.68rem">';
+      var secondary = '<div class="cadde-secondary-row">';
       fields.forEach(function(f){
         if (f[1] != null && f[1] !== '' && f[1] !== 0) {
-          secondary += '<span class="hint">' + f[0] + '&thinsp;<span class="text-slate-700 dark:text-slate-300">' + fmt(f[1]) + '</span></span>';
+          secondary += '<span class="cadde-stat">' + f[0] + '&thinsp;<span class="cadde-stat-val">' + fmt(f[1]) + '</span></span>';
         }
       });
       secondary += '</div>';
