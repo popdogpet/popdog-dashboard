@@ -1,14 +1,13 @@
 {
   "title": "Günlük Özet",
   "highlights": [
-    "| Kanal | Oturum | Ciro | İşlem |",
-    "|-------|--------|------|-------|",
-    "| Ücretli Arama | 695 | 121,874 TRY | 30 |",
-    "| Direkt | 722 | 103,573 TRY | 16 |",
-    "| Ücretli Sosyal | 2,608 | 55,546 TRY | 11 |",
-    "| Mobil Cihaz | 6,230 | 343,746 TRY | 70 |"
+    "Toplam Harcama: 9.033,23 TRY",
+    "Toplam Satın Alma: 78 adet",
+    "En iyi kampanya: #Sales (ROAS: 2,97)",
+    "En kötü ROAS: #Sales Adv (1,18)",
+    "Eylem: #Reach kampanyası (ROAS yok) optimize edilmeli."
   ],
   "risks": [],
   "opportunities": [],
-  "updated_at": "2026-04-17T11:20:49.128019+00:00"
+  "updated_at": "2026-04-18T19:19:26.462908+00:00"
 }
