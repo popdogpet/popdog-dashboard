@@ -1,0 +1,59 @@
+{
+  "slots": [
+    {
+      "date": "2026-04-21",
+      "day_label": "Bugün",
+      "time": "20:00",
+      "content_type": "Reels",
+      "topic": "Yeni Zee.Dog Harness lansmanı",
+      "reasoning": "Pazar akşamı Reels etkileşimi hafta ortasına göre %34 yüksek.",
+      "confidence": 0.85
+    },
+    {
+      "date": "2026-04-22",
+      "day_label": "Pzt",
+      "time": "12:30",
+      "content_type": "Story",
+      "topic": "Ürün kutusu açılışı (unboxing)",
+      "reasoning": "Pazartesi öğlesi kullanıcı aktifliği yüksek, hikayeler daha uzun seyrediliyor.",
+      "confidence": 0.78
+    },
+    {
+      "date": "2026-04-22",
+      "day_label": "Pzt",
+      "time": "19:30",
+      "content_type": "Carousel",
+      "topic": "5 ipucu: köpek yürüyüşü hazırlığı",
+      "reasoning": "Eğitici carousel formatı kaydetme oranında öne çıkıyor. Hafta başı yüksek okuma oturumu.",
+      "confidence": 0.74
+    },
+    {
+      "date": "2026-04-23",
+      "day_label": "Salı",
+      "time": "18:00",
+      "content_type": "Reels",
+      "topic": "Müşteri köpek videosu (UGC)",
+      "reasoning": "Kullanıcı içeriği paylaşımları organik erişimi ortalama 2.1× artırıyor.",
+      "confidence": 0.81
+    },
+    {
+      "date": "2026-04-24",
+      "day_label": "Çrş",
+      "time": "11:00",
+      "content_type": "Story",
+      "topic": "Flash indirim duyurusu",
+      "reasoning": "Promosyon içerikleri öğleden önce daha yüksek tıklama oranı alıyor.",
+      "confidence": 0.69
+    },
+    {
+      "date": "2026-04-25",
+      "day_label": "Per",
+      "time": "20:30",
+      "content_type": "Reels",
+      "topic": "Köpek bakım rutini — behind the scenes",
+      "reasoning": "Perşembe akşamı yüksek bağ kurma içerikleri için uygun; hafta sonu öncesi en yüksek paylaşım oranı.",
+      "confidence": 0.83
+    }
+  ],
+  "updated_at": "2026-04-21T10:00:00.000Z"
+}

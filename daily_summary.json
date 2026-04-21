@@ -1,13 +1,19 @@
 {
   "title": "Günlük Özet",
   "highlights": [
-    "Toplam Harcama: 9.033,23 TRY",
-    "Toplam Satın Alma: 78 adet",
-    "En iyi kampanya: #Sales (ROAS: 2,97)",
-    "En kötü ROAS: #Sales Adv (1,18)",
-    "Eylem: #Reach kampanyası (ROAS yok) optimize edilmeli."
+    "Toplam erreşi: 198.236",
+    "Toplam klik: 4.114",
+    "Ortalama CTR: %2,08",
+    "🥇 #DPA: 25,57x ROAS | 15 satın alma | 3.171 TRY",
+    "🥈 #Sales: 12,23x ROAS | 44 satın alma | 12.790 TRY",
+    "🥉 #Sales Adv: 11,94x ROAS | 12 satın alma | 3.408 TRY"
   ],
   "risks": [],
-  "opportunities": [],
-  "updated_at": "2026-04-18T19:19:26.462908+00:00"
+  "opportunities": [
+    "✅ Prisma Kedi Tasması stoğunu tamamlayın (10 adet kritik)",
+    "📲 Meta #DPA kampanyasını ölçeklendir (En yüksek ROAS)",
+    "💻 Desktop trafiğini artırmak için stratejik plan yap",
+    "📊 Paid Search kanalı analiz et (en yüksek işlem değeri)"
+  ],
+  "updated_at": "2026-04-21T12:58:41.889066+00:00"
 }

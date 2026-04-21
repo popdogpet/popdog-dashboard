@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "priority": "urgent",
+      "action": "Story koy şimdi",
+      "reason": "Mevcut Reels hâlâ yükselişte — story ile destekle, ivmeyi kır.",
+      "recommended_time": "Şimdi",
+      "confidence": 0.88
+    },
+    {
+      "priority": "high",
+      "action": "Akşama Reels hazırla",
+      "reason": "Pazar akşamı 20:00–22:00 arasında etkileşim %34 daha yüksek.",
+      "recommended_time": "Bu akşam 20:00",
+      "confidence": 0.82
+    },
+    {
+      "priority": "high",
+      "action": "Bu carousel iyi gidiyor, follow-up paylaş",
+      "reason": "Son carousel 48 saatte 94 kayıt aldı — ilgili ürün veya konu devam ettirebilir.",
+      "recommended_time": "Yarın öğle 12:30",
+      "confidence": 0.76
+    },
+    {
+      "priority": "medium",
+      "action": "Şimdi paylaşma — mevcut içerik hâlâ yükseliyor",
+      "reason": "Aktif Reels henüz zirveye ulaşmadı. Yeni içerik dikkat dağıtabilir.",
+      "recommended_time": "En az 6 saat bekle",
+      "confidence": 0.71
+    }
+  ],
+  "updated_at": "2026-04-21T10:00:00.000Z"
+}

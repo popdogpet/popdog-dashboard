@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "priority": "high",
+      "type": "story_now",
+      "title": "Harness carousel'ı amplify et",
+      "reason": "Son harness carousel 7.0% ER, 59 share ile winning tier. Peaked momentum, story ile reach artır.",
+      "recommended_time": null,
+      "confidence": 0.95
+    },
+    {
+      "priority": "high",
+      "type": "carousel_today",
+      "title": "Lifestyle konu carousel yayınla",
+      "reason": "Lifestyle 7.2% ER ve 57 share ile en güçlü. Format ve tema copy et, farklı ürün kaydır.",
+      "recommended_time": "15:00",
+      "confidence": 0.92
+    },
+    {
+      "priority": "medium",
+      "type": "do_not_post",
+      "title": "Grooming reel duraklatılsın",
+      "reason": "Grooming reel 2.1% ER, neutral tier. 2385 reach elde etmesine rağmen engagement düşük. Konu sıkıcı.",
+      "recommended_time": null,
+      "confidence": 0.88
+    },
+    {
+      "priority": "medium",
+      "type": "reel_today",
+      "title": "Collar reel (6.0% ER) temaya benzer yeni reel",
+      "reason": "Collar reel winning tier ama reelleriniz ortalaması düşük. Carousel+collar kombinasyonla reel dene.",
+      "recommended_time": "19:30",
+      "confidence": 0.85
+    }
+  ],
+  "updated_at": "2026-04-21T21:02:26.074237+00:00"
+}

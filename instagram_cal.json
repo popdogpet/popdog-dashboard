@@ -1,0 +1,38 @@
+{
+  "days": [
+    {
+      "date": "2026-04-21",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "reason": "Standart akşam yayın penceresi",
+          "confidence": 0.5
+        }
+      ]
+    },
+    {
+      "date": "2026-04-22",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "reason": "Standart akşam yayın penceresi",
+          "confidence": 0.5
+        }
+      ]
+    },
+    {
+      "date": "2026-04-23",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "reason": "Standart akşam yayın penceresi",
+          "confidence": 0.5
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-04-21T21:02:26.284229+00:00"
+}
