@@ -1070,6 +1070,37 @@ th, td { white-space: nowrap; }
     .dark .insta-cal-action { background: rgba(96,165,250,.1); color: #60a5fa; }
     .insta-cal-objective { font-size: .63rem; color: #7c3aed; font-weight: 600; margin-top: 2px; }
     .dark .insta-cal-objective { color: #a78bfa; }
+
+    /* content_pattern badge */
+    .insta-rec-pattern {
+      display: inline-flex; align-items: center;
+      font-size: .54rem; font-weight: 600; letter-spacing: .03em;
+      padding: 2px 7px; border-radius: 5px;
+      background: rgba(148,163,184,.1); color: #64748b;
+      margin-top: 4px;
+    }
+    .dark .insta-rec-pattern { background: rgba(148,163,184,.08); color: #94a3b8; }
+
+    /* Objective color chips — rec cards + calendar */
+    .insta-obj-chip {
+      display: inline-flex; align-items: center;
+      font-size: .57rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px; margin-top: 3px;
+    }
+    .insta-obj-reach           { background: rgba(59,130,246,.1);  color: #1d4ed8; }
+    .insta-obj-saves           { background: rgba(139,92,246,.1);  color: #6d28d9; }
+    .insta-obj-shares          { background: rgba(34,197,94,.1);   color: #15803d; }
+    .insta-obj-follows         { background: rgba(245,158,11,.1);  color: #b45309; }
+    .insta-obj-profile_visits  { background: rgba(100,116,139,.1); color: #475569; }
+    .insta-obj-comments        { background: rgba(236,72,153,.1);  color: #be185d; }
+    .insta-obj-engagement_rate { background: rgba(20,184,166,.1);  color: #0f766e; }
+    .dark .insta-obj-reach           { background: rgba(59,130,246,.15);  color: #60a5fa; }
+    .dark .insta-obj-saves           { background: rgba(139,92,246,.15);  color: #a78bfa; }
+    .dark .insta-obj-shares          { background: rgba(34,197,94,.15);   color: #4ade80; }
+    .dark .insta-obj-follows         { background: rgba(245,158,11,.15);  color: #fbbf24; }
+    .dark .insta-obj-profile_visits  { background: rgba(100,116,139,.15); color: #94a3b8; }
+    .dark .insta-obj-comments        { background: rgba(236,72,153,.15);  color: #f472b6; }
+    .dark .insta-obj-engagement_rate { background: rgba(20,184,166,.15);  color: #2dd4bf; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -2434,6 +2465,18 @@ th, td { white-space: nowrap; }
 
     function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+    var _OBJ_KEYS = ['reach','saves','shares','follows','profile_visits','comments','engagement_rate'];
+    function objChipHtml(objective) {
+      if (!objective) return '';
+      var key = objective.toLowerCase().replace(/[\s-]+/g,'_');
+      var cls = 'insta-obj-chip' + (_OBJ_KEYS.indexOf(key) >= 0 ? ' insta-obj-'+key : '');
+      return '<span class="'+cls+'" style="'+(_OBJ_KEYS.indexOf(key)<0?'background:rgba(100,116,139,.1);color:#475569':'')+'">'+esc(objective)+'</span>';
+    }
+    function patternBadgeHtml(pattern) {
+      if (!pattern) return '';
+      return '<span class="insta-rec-pattern">'+esc(pattern.replace(/_/g,' '))+'</span>';
+    }
+
     function setOverflow(el){ el.style.wordBreak='break-word'; el.style.overflowWrap='anywhere'; }
 
     // Header timestamp: keep the most recent across all four files
@@ -2902,7 +2945,10 @@ th, td { white-space: nowrap; }
           + '<div class="insta-rec-title">'+esc(headline)+'</div>'
           + (subline ? '<div class="insta-rec-action" style="margin-top:-2px">'+esc(subline)+'</div>' : '')
           + '<div class="insta-rec-reason">'+esc(r.reason||'')+'</div>'
-          + (r.objective ? '<div class="insta-rec-objective">→ '+esc(r.objective)+'</div>' : '')
+          + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:2px">'
+          +   objChipHtml(r.objective)
+          +   patternBadgeHtml(r.content_pattern)
+          + '</div>'
           + '<div class="insta-rec-footer">'
           +   (r.recommended_time ? '<span class="insta-rec-time">⏰ '+esc(r.recommended_time)+'</span>' : '<span></span>')
           +   (conf !== null
@@ -2955,7 +3001,7 @@ th, td { white-space: nowrap; }
                 ? '<span class="insta-cal-type" style="margin-left:4px">'+esc(s.content_type)+'</span>' : '')
           +   '<div class="insta-cal-topic">'+esc(topicText)+'</div>'
           +   (whyText ? '<div class="insta-cal-why">'+esc(whyText)+'</div>' : '')
-          +   (s.objective ? '<div class="insta-cal-objective">→ '+esc(s.objective)+'</div>' : '')
+          +   objChipHtml(s.objective)
           + '</div>'
           + (conf !== null
               ? '<div class="insta-cal-conf">'
