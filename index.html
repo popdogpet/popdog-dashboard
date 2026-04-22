@@ -1102,6 +1102,347 @@ th, td { white-space: nowrap; }
     .dark .insta-obj-comments        { background: rgba(236,72,153,.15);  color: #f472b6; }
     .dark .insta-obj-engagement_rate { background: rgba(20,184,166,.15);  color: #2dd4bf; }
   </style>
+
+  <!-- Executive Design System — Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       EXECUTIVE DESIGN SYSTEM — Apple-Level Polish
+       Restrained elegance · Data readability first · Mobile-first
+       ================================================================ */
+
+    /* ── 1. Design tokens ────────────────────────────────────────── */
+    :root {
+      --font-body:    'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+      --bg-page:      #F2F4F8;
+      --border-card:  rgba(0,0,0,0.065);
+      --text-1:       #0D1117;
+      --text-2:       #556070;
+      --text-3:       #9AA3B0;
+      --accent:       #0060DF;
+      --accent-light: rgba(0,96,223,0.09);
+      --green:        #00875A;
+      --red:          #DC2626;
+      --shadow-sm:    0 1px 2px rgba(0,0,0,0.05), 0 3px 10px rgba(0,0,0,0.055);
+      --shadow-md:    0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
+      --radius-sm:    10px;
+      --radius-md:    14px;
+      --radius-lg:    20px;
+      --radius-xl:    26px;
+    }
+    .dark {
+      --bg-page:      #080D18;
+      --border-card:  rgba(255,255,255,0.065);
+      --text-1:       #EEF2FF;
+      --text-2:       #7A8999;
+      --text-3:       #3D4D5E;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.4);
+      --shadow-md:    0 2px 6px rgba(0,0,0,0.45), 0 10px 28px rgba(0,0,0,0.5);
+    }
+
+    /* ── 2. Base typography ──────────────────────────────────────── */
+    html, body {
+      font-family: var(--font-body) !important;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ── 3. Page background ──────────────────────────────────────── */
+    body, .pagebg {
+      background:
+        radial-gradient(ellipse 90% 50% at 15% -10%, rgba(210,225,255,0.52) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 45% at 95% 105%, rgba(200,232,255,0.38) 0%, transparent 50%),
+        var(--bg-page) !important;
+    }
+    .dark body, .dark .pagebg {
+      background:
+        radial-gradient(ellipse 90% 50% at 15% -10%, rgba(8,20,60,0.9) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 45% at 95% 105%, rgba(4,14,48,0.7) 0%, transparent 50%),
+        var(--bg-page) !important;
+    }
+
+    /* ── 4. Glass cards ──────────────────────────────────────────── */
+    .glass {
+      background: rgba(255,255,255,0.88) !important;
+      backdrop-filter: blur(18px) saturate(170%) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(170%) !important;
+      border: 1px solid rgba(255,255,255,0.90) !important;
+    }
+    .dark .glass {
+      background: rgba(13,20,38,0.82) !important;
+      border-color: rgba(255,255,255,0.072) !important;
+    }
+
+    /* ── 5. Card shadows ─────────────────────────────────────────── */
+    .card-3d {
+      box-shadow: var(--shadow-sm) !important;
+      transition: box-shadow 0.22s ease, transform 0.22s ease;
+    }
+    .card-3d:hover {
+      box-shadow: var(--shadow-md) !important;
+      transform: translateY(-1px);
+    }
+
+    /* ── 6. card-glass-pro — clean white surfaces ────────────────── */
+    .card-glass-pro {
+      background: rgba(255,255,255,0.92) !important;
+      border: 1px solid var(--border-card) !important;
+      box-shadow: var(--shadow-sm) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    .dark .card-glass-pro {
+      background: rgba(13,20,38,0.9) !important;
+      border-color: var(--border-card) !important;
+    }
+
+    /* ── 7. Border radii ─────────────────────────────────────────── */
+    .rounded-3xl { border-radius: var(--radius-xl) !important; }
+    .rounded-2xl { border-radius: var(--radius-lg) !important; }
+    .rounded-xl  { border-radius: var(--radius-md) !important; }
+
+    /* ── 8. Header ───────────────────────────────────────────────── */
+    header h1 {
+      font-weight: 800 !important;
+      letter-spacing: -0.035em !important;
+      font-size: clamp(1.3rem, 4vw, 1.9rem) !important;
+      color: var(--text-1) !important;
+      line-height: 1.15 !important;
+    }
+    .dark header h1 { color: var(--text-1) !important; }
+
+    /* ── 9. Navigation ───────────────────────────────────────────── */
+    button[id^="nav"] {
+      font-size: 0.8rem !important;
+      font-weight: 600 !important;
+      letter-spacing: -0.01em !important;
+      padding: 0.45rem 0.875rem !important;
+      border-radius: var(--radius-sm) !important;
+      color: var(--text-2) !important;
+      transition: all 0.18s ease !important;
+    }
+    button[id^="nav"]:hover {
+      color: var(--text-1) !important;
+      background: rgba(255,255,255,0.96) !important;
+      box-shadow: var(--shadow-sm) !important;
+      transform: translateY(-1px);
+    }
+    /* Active nav — JS adds ring-1 ring-indigo-400 */
+    button[id^="nav"].ring-1 {
+      background: #FFFFFF !important;
+      color: var(--accent) !important;
+      box-shadow: 0 2px 10px rgba(0,96,223,0.16), 0 1px 3px rgba(0,0,0,0.08) !important;
+      transform: none !important;
+    }
+    .dark button[id^="nav"].ring-1 {
+      background: rgba(0,96,223,0.14) !important;
+      color: #60A5FA !important;
+      box-shadow: none !important;
+    }
+    /* Suppress Tailwind ring visual (replaced above) */
+    button[id^="nav"].ring-indigo-400 { outline: none !important; }
+
+    /* ── 10. Utility buttons (theme, lang, refresh) ──────────────── */
+    #themeBtn, #langBtn, #refreshBtn {
+      font-size: 0.8rem !important;
+      font-weight: 500 !important;
+      padding: 0.45rem 0.75rem !important;
+      border-radius: var(--radius-sm) !important;
+      color: var(--text-2) !important;
+    }
+
+    /* ── 11. KPI hero numbers ────────────────────────────────────── */
+    #kpiYTD, #kpiTop, #kpiInvCost, #kpiInvPrice,
+    #kpiMoM, #kpiGrossMargin, #kpiNetMargin,
+    #kpiExpenseRatio, #kpiRunway {
+      font-size: clamp(1.6rem, 4.5vw, 2.4rem) !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.04em !important;
+      font-variant-numeric: tabular-nums !important;
+      line-height: 1.1 !important;
+      color: var(--text-1) !important;
+    }
+
+    /* ── 12. Section headings ────────────────────────────────────── */
+    .text-lg, .text-base {
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── 13. Hint / secondary text ───────────────────────────────── */
+    .hint {
+      color: var(--text-2) !important;
+    }
+    .dark .hint { color: var(--text-2) !important; }
+
+    /* ── 14. Badge ───────────────────────────────────────────────── */
+    .badge {
+      background: var(--accent-light) !important;
+      color: var(--accent) !important;
+      border: 1px solid rgba(0,96,223,0.18) !important;
+      font-size: 0.675rem !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.01em !important;
+    }
+    .dark .badge {
+      background: rgba(0,96,223,0.14) !important;
+      color: #60A5FA !important;
+      border-color: rgba(96,165,250,0.22) !important;
+    }
+
+    /* ── 15. Progress bars ───────────────────────────────────────── */
+    .progress-bar {
+      background: linear-gradient(90deg, #0060DF, #00B4FF) !important;
+    }
+
+    /* ── 16. Primary button ──────────────────────────────────────── */
+    .btn-primary {
+      background: var(--accent) !important;
+      box-shadow: 0 2px 8px rgba(0,96,223,0.28), 0 1px 3px rgba(0,0,0,0.08) !important;
+      border: none !important;
+      border-radius: var(--radius-sm) !important;
+    }
+    .btn-primary:hover {
+      background: #0048B4 !important;
+      box-shadow: 0 4px 14px rgba(0,96,223,0.36) !important;
+    }
+
+    /* ── 17. Input-pro ───────────────────────────────────────────── */
+    .input-pro {
+      background: rgba(0,0,0,0.03) !important;
+      border: 1px solid rgba(0,0,0,0.10) !important;
+      border-radius: var(--radius-sm) !important;
+    }
+    .dark .input-pro {
+      background: rgba(255,255,255,0.04) !important;
+      border-color: rgba(255,255,255,0.09) !important;
+    }
+    .input-pro:focus {
+      box-shadow: 0 0 0 3px rgba(0,96,223,0.18) !important;
+      border-color: var(--accent) !important;
+    }
+
+    /* ── 18. Tabular nums on all financial values ─────────────────── */
+    [id^="kpi"], [id^="loan"], [id^="prof"],
+    .cadde-num-primary, .cadde-num-secondary,
+    .insta-metric-num, [id^="gold"], [id^="fi5"],
+    [id^="sas"], [id^="isy"] {
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-body);
+    }
+
+    /* ── 19. Soft badge ──────────────────────────────────────────── */
+    .soft-badge {
+      background: var(--accent-light) !important;
+      color: var(--accent) !important;
+      border: 1px solid rgba(0,96,223,0.15) !important;
+    }
+    .dark .soft-badge {
+      background: rgba(0,96,223,0.13) !important;
+      color: #60A5FA !important;
+    }
+
+    /* ── 20. KPI direction colors ────────────────────────────────── */
+    .kpi-up   { color: var(--green) !important; }
+    .kpi-down { color: var(--red)   !important; }
+
+    /* ── 21. PIN overlay ─────────────────────────────────────────── */
+    .pin-box {
+      border-radius: 28px !important;
+      background: rgba(255,255,255,0.10) !important;
+      backdrop-filter: blur(40px) saturate(200%) !important;
+      -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+      border: 1px solid rgba(255,255,255,0.22) !important;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 4px 16px rgba(0,0,0,0.2) !important;
+    }
+
+    /* ── 22. Page enter animation ────────────────────────────────── */
+    @keyframes _pdFadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #mainContent > header {
+      animation: _pdFadeUp 0.35s ease both;
+    }
+    #mainContent > section,
+    #mainContent > div[data-page] {
+      animation: _pdFadeUp 0.4s ease both;
+    }
+    #mainContent > *:nth-child(2) { animation-delay: 0.05s; }
+    #mainContent > *:nth-child(3) { animation-delay: 0.10s; }
+    #mainContent > *:nth-child(4) { animation-delay: 0.15s; }
+    #mainContent > *:nth-child(5) { animation-delay: 0.18s; }
+
+    /* ── 23. Table refinements ───────────────────────────────────── */
+    thead th {
+      font-size: 0.68rem !important;
+      font-weight: 700 !important;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-3) !important;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border-card) !important;
+    }
+    tbody tr:hover {
+      background: rgba(0,96,223,0.025) !important;
+    }
+
+    /* ── 24. target-card (day/week mini cards) ───────────────────── */
+    .target-card {
+      border-radius: var(--radius-sm) !important;
+      padding: 0.5rem 0.65rem !important;
+    }
+    .target-card .ttl {
+      font-size: 0.67rem !important;
+      font-weight: 500 !important;
+      color: var(--text-3) !important;
+    }
+    .target-card .val {
+      font-size: 0.82rem !important;
+      font-weight: 700 !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── 25. Details/summary polish ─────────────────────────────── */
+    details summary {
+      font-size: 0.8rem !important;
+      font-weight: 600 !important;
+      color: var(--text-2) !important;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    details summary::-webkit-details-marker { display: none; }
+
+    /* ── 26. Scrollbar thinning (webkit) ─────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.14);
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
+
+    /* ── 27. Mobile refinements ──────────────────────────────────── */
+    @media (max-width: 640px) {
+      #themeBtn, #langBtn, #refreshBtn {
+        padding: 0.45rem 0.6rem !important;
+        font-size: 0.74rem !important;
+      }
+      button[id^="nav"] {
+        padding: 0.42rem 0.65rem !important;
+        font-size: 0.74rem !important;
+      }
+      header h1 {
+        font-size: 1.35rem !important;
+      }
+    }
+  </style>
 </head>
 <body class="min-h-screen pagebg">
   <!-- Giderler Page Lock Overlay -->

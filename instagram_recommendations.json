@@ -2,44 +2,44 @@
   "items": [
     {
       "priority": "high",
-      "type": "story_now",
-      "title": "Harness Carousel Amplify (6.6% ER)",
-      "reason": "En yüksek shares (44) ve ER olan harness carousel'ı story ile amplify et. Peaked momentum'da profil ziyaretini artır.",
-      "recommended_time": "14:00",
-      "confidence": 0.95,
-      "objective": "profile_visits",
-      "content_pattern": "story_amplification"
-    },
-    {
-      "priority": "high",
       "type": "carousel_today",
-      "title": "Lifestyle Carousel (Harness+Köpek Tarzı)",
-      "reason": "Lifestyle format 7.2% ER ile kazandı. Harness konusu 7.0% ER ile en konsisten. İkisini birleştir, shares potansiyeli yüksek.",
-      "recommended_time": "11:00",
+      "title": "Harness + Lifestyle Combo Carousel",
+      "reason": "Harness carousel'lar %6.7-7.0 ER ile winning. Lifestyle carousel %7.1 ER. İkisini birleştir, shares potansiyeli yüksek.",
+      "recommended_time": "14:00",
       "confidence": 0.92,
       "objective": "shares",
       "content_pattern": "harness_lifestyle_carousel"
     },
     {
+      "priority": "high",
+      "type": "story_now",
+      "title": "Story Amplification - Collar Reel",
+      "reason": "Collar reel %6.0 ER ile peaked momentum. Story ekleyip profil ziyaretini artır, saves artacak.",
+      "recommended_time": null,
+      "confidence": 0.88,
+      "objective": "profile_visits",
+      "content_pattern": "story_amplification"
+    },
+    {
       "priority": "medium",
       "type": "reel_today",
-      "title": "Collar Reel (Eğitim Yaklaşımı)",
-      "reason": "Collar reel 6.0% ER yaptı. Grooming reel düştü (2.1%). Collar üzerine eğitim reel'i test et, saves hedefle.",
-      "recommended_time": "17:30",
-      "confidence": 0.88,
-      "objective": "saves",
+      "title": "Reel Education - Grooming Format",
+      "reason": "Grooming reel %2.1 ER underperforming. Eğitim açısı ekle (tips/tricks), reel_education pattern'ını uygula.",
+      "recommended_time": "15:30",
+      "confidence": 0.75,
+      "objective": "reach",
       "content_pattern": "reel_education"
     },
     {
       "priority": "medium",
-      "type": "wait",
-      "title": "Grooming Reel Durdu (2.1% ER)",
-      "reason": "Grooming reel underperform etti, harness ve lifestyle ise kazandı. 5 gün sonra harness reel follow-up yap, grooming pause et.",
-      "recommended_time": null,
-      "confidence": 0.9,
-      "objective": "reach",
-      "content_pattern": "follow_up_format"
+      "type": "follow_up",
+      "title": "Collar Carousel Test - High ER",
+      "reason": "Collar static %3.5 neutral, ama carousel format'ta harness %7.0 ER. Collar carousel test et 48 saat sonra.",
+      "recommended_time": "18:00",
+      "confidence": 0.79,
+      "objective": "saves",
+      "content_pattern": "collar_test_carousel"
     }
   ],
-  "updated_at": "2026-04-22T03:00:18.295270+00:00"
+  "updated_at": "2026-04-22T12:19:31.058956+00:00"
 }
