@@ -916,6 +916,114 @@ th, td { white-space: nowrap; }
     .insta-cal-why { font-size: .68rem; color: #64748b; margin-top: 2px; line-height: 1.4; }
     .dark .insta-cal-why { color: #4b5563; }
     .insta-cal-conf { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; align-self: center; flex-shrink: 0; }
+
+    /* Decision Hero Card */
+    .insta-decision-card {
+      background: linear-gradient(148deg, rgba(168,85,247,.13) 0%, rgba(245,208,255,0.42) 100%);
+      border: 1.5px solid rgba(168,85,247,0.28);
+      border-left: 4px solid rgba(168,85,247,0.72);
+      border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+      box-shadow: 0 3px 18px rgba(168,85,247,0.1), inset 0 1px 0 rgba(255,255,255,0.72);
+    }
+    .dark .insta-decision-card {
+      background: linear-gradient(148deg, rgba(88,28,135,.22) 0%, rgba(16,4,30,0.55) 100%);
+      border-color: rgba(168,85,247,0.24); border-left-color: rgba(168,85,247,0.6);
+      box-shadow: 0 4px 22px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .insta-decision-type {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: .54rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .12em; padding: 3px 9px; border-radius: 999px;
+      background: rgba(168,85,247,.15); color: #6d28d9; margin-bottom: 8px;
+    }
+    .dark .insta-decision-type { background: rgba(168,85,247,.14); color: #c084fc; }
+    .insta-decision-title {
+      font-size: .96rem; font-weight: 700; color: #1e293b; line-height: 1.25; margin-bottom: 5px;
+    }
+    .dark .insta-decision-title { color: #f1f5f9; }
+    .insta-decision-reason {
+      font-size: .745rem; color: #4b5563; line-height: 1.5; margin-bottom: 10px;
+    }
+    .dark .insta-decision-reason { color: #64748b; }
+    .insta-decision-meta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+      padding-top: 9px; border-top: 1px solid rgba(168,85,247,.13);
+    }
+    .dark .insta-decision-meta { border-top-color: rgba(168,85,247,.1); }
+    .insta-decision-time {
+      font-size: .66rem; font-weight: 700; color: #7c3aed;
+      background: rgba(168,85,247,.09); padding: 2px 9px; border-radius: 999px;
+    }
+    .dark .insta-decision-time { color: #a78bfa; background: rgba(168,85,247,.1); }
+    .insta-decision-conf { font-size: .62rem; font-weight: 700; color: #94a3b8; font-variant-numeric: tabular-nums; }
+    .insta-decision-objective {
+      font-size: .66rem; color: #6d28d9; font-weight: 600; margin-left: auto;
+      max-width: 120px; text-align: right; line-height: 1.3;
+    }
+    .dark .insta-decision-objective { color: #a78bfa; }
+
+    /* Recent Momentum Panel */
+    .insta-mom-panel {
+      background: rgba(255,255,255,0.36); border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 13px; overflow: hidden; margin-bottom: 0;
+    }
+    .dark .insta-mom-panel { background: rgba(2,6,23,0.36); border-color: rgba(255,255,255,0.07); }
+    .insta-mom-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 13px; border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .dark .insta-mom-item { border-bottom-color: rgba(255,255,255,0.04); }
+    .insta-mom-item:last-child { border-bottom: none; }
+    .insta-mom-fmt {
+      flex-shrink: 0; font-size: .57rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; width: 54px; color: #7c3aed;
+      background: rgba(168,85,247,.08); border-radius: 7px;
+      padding: 4px 4px; text-align: center; line-height: 1.2;
+    }
+    .dark .insta-mom-fmt { color: #a78bfa; background: rgba(168,85,247,.1); }
+    .insta-mom-body { flex: 1; min-width: 0; }
+    .insta-mom-topic { font-size: .76rem; font-weight: 600; color: #1e293b; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dark .insta-mom-topic { color: #e2e8f0; }
+    .insta-mom-er { font-size: .62rem; color: #64748b; margin-top: 1px; }
+    .dark .insta-mom-er { color: #475569; }
+    .insta-mom-state {
+      flex-shrink: 0; font-size: .54rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; padding: 3px 8px; border-radius: 999px;
+    }
+    .insta-ms-rising        { background: rgba(52,211,153,.15);  color: #047857; }
+    .insta-ms-peaked        { background: rgba(251,191,36,.15);   color: #b45309; }
+    .insta-ms-fading        { background: rgba(249,115,22,.13);   color: #c2410c; }
+    .insta-ms-dead          { background: rgba(148,163,184,.13);  color: #475569; }
+    .insta-ms-underperforming { background: rgba(248,113,113,.14); color: #b91c1c; }
+    .dark .insta-ms-rising        { background: rgba(52,211,153,.12); color: #34d399; }
+    .dark .insta-ms-peaked        { background: rgba(251,191,36,.12);  color: #fbbf24; }
+    .dark .insta-ms-fading        { background: rgba(249,115,22,.11);  color: #fb923c; }
+    .dark .insta-ms-dead          { background: rgba(148,163,184,.09); color: #64748b; }
+    .dark .insta-ms-underperforming { background: rgba(248,113,113,.12); color: #f87171; }
+
+    /* Rec card upgrades */
+    .insta-rec-type {
+      display: inline-flex; align-items: center;
+      font-size: .56rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; padding: 2px 6px; border-radius: 6px;
+      background: rgba(96,165,250,.1); color: #1d4ed8; margin-left: 5px;
+    }
+    .dark .insta-rec-type { background: rgba(96,165,250,.1); color: #60a5fa; }
+    .insta-rec-title { font-size: .84rem; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    .dark .insta-rec-title { color: #f1f5f9; }
+    .insta-rec-objective { font-size: .62rem; color: #7c3aed; font-weight: 600; margin-top: 1px; }
+    .dark .insta-rec-objective { color: #a78bfa; }
+
+    /* Calendar action / objective */
+    .insta-cal-action {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: .55rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; padding: 2px 7px; border-radius: 999px;
+      background: rgba(96,165,250,.1); color: #1d4ed8; margin-bottom: 4px;
+    }
+    .dark .insta-cal-action { background: rgba(96,165,250,.1); color: #60a5fa; }
+    .insta-cal-objective { font-size: .63rem; color: #7c3aed; font-weight: 600; margin-top: 2px; }
+    .dark .insta-cal-objective { color: #a78bfa; }
   </style>
 </head>
 <body class="min-h-screen pagebg">
@@ -2023,18 +2131,49 @@ th, td { white-space: nowrap; }
         </div>
       </div>
 
-      <!-- Live summary banner -->
+      <!-- 1. Decision Hero Card -->
+      <div id="instaDecisionCard" style="display:none">
+        <div class="ai-card-label" style="margin-bottom:8px">
+          <span class="ai-dot" style="background:rgba(168,85,247,.85)"></span>
+          ⚡ Şu An Ne Yapmalısın
+        </div>
+        <div class="insta-decision-card">
+          <div id="instaDecisionType" class="insta-decision-type"></div>
+          <div id="instaDecisionTitle" class="insta-decision-title"></div>
+          <div id="instaDecisionReason" class="insta-decision-reason"></div>
+          <div class="insta-decision-meta">
+            <span id="instaDecisionTime" style="display:none" class="insta-decision-time"></span>
+            <span id="instaDecisionConf" class="insta-decision-conf"></span>
+            <span id="instaDecisionObjective" style="display:none" class="insta-decision-objective"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Live summary banner -->
+      <div class="ai-card-label" style="margin-bottom:8px">
+        <span class="ai-dot" style="background:rgba(168,85,247,.55)"></span>
+        📊 Canlı Durum
+      </div>
       <div class="insta-banner">
         <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin-bottom:9px">
-          <span class="insta-label">📊 Canlı Durum</span>
           <span id="instaMomentumBadge"></span>
+          <span id="instaLiveStats" style="font-size:.62rem;color:#64748b;font-variant-numeric:tabular-nums"></span>
         </div>
         <div id="instaSummaryText" style="font-size:.79rem;color:#374151;line-height:1.52">Veri yükleniyor…</div>
         <div id="instaCues" class="insta-cues"></div>
       </div>
 
-      <!-- Recommendations -->
-      <div class="ai-card-label" style="margin-bottom:8px">
+      <!-- 3. Recent Momentum Panel -->
+      <div id="instaRecentMomentumSection" style="display:none">
+        <div class="ai-card-label" style="margin-bottom:8px">
+          <span class="ai-dot" style="background:rgba(96,165,250,.65)"></span>
+          📈 Son İçerik Momentumu
+        </div>
+        <div id="instaRecentMomentum" class="insta-mom-panel"></div>
+      </div>
+
+      <!-- 4. Recommendations -->
+      <div class="ai-card-label" style="margin-top:18px;margin-bottom:8px">
         <span class="ai-dot" style="background:rgba(168,85,247,.65)"></span>
         💡 Önerilen Aksiyonlar
       </div>
@@ -2044,10 +2183,10 @@ th, td { white-space: nowrap; }
         </div>
       </div>
 
-      <!-- Calendar / planner -->
+      <!-- 5. Calendar / planner -->
       <div class="ai-card-label" style="margin-top:18px;margin-bottom:8px">
         <span class="ai-dot" style="background:rgba(96,165,250,.65)"></span>
-        🗓 İçerik Takvimi
+        🗓 Yayın Takvimi
       </div>
       <div id="instaCalBody" class="ai-card" style="border-left:2.5px solid rgba(168,85,247,.48)">
         <div style="font-size:.75rem;color:#94a3b8">Takvim yükleniyor…</div>
@@ -2534,12 +2673,48 @@ th, td { white-space: nowrap; }
     }
 
     /* ── Instagram Intelligence renderers ───────────────────── */
+    function renderInstaDecision(d) {
+      var card = document.getElementById('instaDecisionCard');
+      if (!card) return;
+      // accept standalone decision payload or fall back to live_summary.decision
+      var dec = (d && d.decision_type) ? d : null;
+      if (!dec) { card.style.display = 'none'; return; }
+
+      var typeEl  = document.getElementById('instaDecisionType');
+      var titleEl = document.getElementById('instaDecisionTitle');
+      var reaEl   = document.getElementById('instaDecisionReason');
+      var timeEl  = document.getElementById('instaDecisionTime');
+      var confEl  = document.getElementById('instaDecisionConf');
+      var objEl   = document.getElementById('instaDecisionObjective');
+
+      if (typeEl)  typeEl.textContent  = dec.decision_type || '';
+      if (titleEl) titleEl.textContent = dec.title         || '';
+      if (reaEl)   reaEl.textContent   = dec.reason        || '';
+      if (timeEl)  {
+        if (dec.recommended_time) {
+          timeEl.textContent = '⏰ ' + dec.recommended_time;
+          timeEl.style.display = '';
+        } else { timeEl.style.display = 'none'; }
+      }
+      if (confEl && dec.confidence != null)
+        confEl.textContent = Math.round(dec.confidence * 100) + '% güven';
+      if (objEl) {
+        if (dec.objective) { objEl.textContent = dec.objective; objEl.style.display = ''; }
+        else objEl.style.display = 'none';
+      }
+      card.style.display = '';
+    }
+
     function renderInstaSummary(d) {
-      var momEl  = document.getElementById('instaMomentumBadge');
-      var textEl = document.getElementById('instaSummaryText');
-      var cuesEl = document.getElementById('instaCues');
-      var tsEl   = document.getElementById('instaLastUpdate');
+      var momEl   = document.getElementById('instaMomentumBadge');
+      var textEl  = document.getElementById('instaSummaryText');
+      var cuesEl  = document.getElementById('instaCues');
+      var tsEl    = document.getElementById('instaLastUpdate');
+      var statsEl = document.getElementById('instaLiveStats');
       if (!d) return;
+
+      // If decision is embedded in live_summary, render it too
+      if (d.decision) renderInstaDecision(d.decision);
 
       if (momEl && d.momentum) {
         var mCls  = d.momentum === 'growing'   ? 'insta-momentum-up'
@@ -2550,6 +2725,14 @@ th, td { white-space: nowrap; }
         var mTxt  = d.momentum === 'growing'   ? 'Büyüyor'
                   : d.momentum === 'declining' ? 'Düşüyor' : 'Stabil';
         momEl.innerHTML = '<span class="insta-momentum '+mCls+'">'+mIcon+' '+mTxt+'</span>';
+      }
+
+      if (statsEl) {
+        var parts = [];
+        if (d.followers)         parts.push(d.followers + ' takipçi');
+        if (d.recent_reach)      parts.push('↗ ' + d.recent_reach + ' erişim');
+        if (d.recent_engagement) parts.push('❤ ' + d.recent_engagement + ' etkileşim');
+        statsEl.textContent = parts.join('  ·  ');
       }
 
       if (textEl && d.summary) textEl.textContent = d.summary;
@@ -2580,6 +2763,35 @@ th, td { white-space: nowrap; }
       }
     }
 
+    function renderInstaRecentMomentum(d) {
+      var section = document.getElementById('instaRecentMomentumSection');
+      var el      = document.getElementById('instaRecentMomentum');
+      if (!section || !el) return;
+      if (!d || !d.items || !d.items.length) { section.style.display = 'none'; return; }
+      var stateMap = {
+        rising:          { cls: 'insta-ms-rising',         label: 'Yükseliyor' },
+        peaked:          { cls: 'insta-ms-peaked',         label: 'Zirve' },
+        fading:          { cls: 'insta-ms-fading',         label: 'Düşüyor' },
+        dead:            { cls: 'insta-ms-dead',           label: 'Durdu' },
+        underperforming: { cls: 'insta-ms-underperforming',label: 'Zayıf' }
+      };
+      var items = d.items.slice(0, 5);
+      el.innerHTML = items.map(function(it){
+        var st  = stateMap[it.momentum_state] || { cls: 'insta-ms-dead', label: it.momentum_state || '–' };
+        var er  = it.engagement_rate != null ? (parseFloat(it.engagement_rate)*100).toFixed(1)+'% ER' : '';
+        var pub = it.published_at ? it.published_at.slice(0,10) : '';
+        return '<div class="insta-mom-item">'
+          + '<div class="insta-mom-fmt">'+esc(it.format||'–')+'</div>'
+          + '<div class="insta-mom-body">'
+          +   '<div class="insta-mom-topic">'+esc(it.topic||'–')+'</div>'
+          +   '<div class="insta-mom-er">'+esc([er,pub].filter(Boolean).join(' · '))+'</div>'
+          + '</div>'
+          + '<span class="insta-mom-state '+st.cls+'">'+st.label+'</span>'
+          + '</div>';
+      }).join('');
+      section.style.display = '';
+    }
+
     function renderInstaRecs(d) {
       var el = document.getElementById('instaRecsGrid');
       if (!el) return;
@@ -2597,12 +2809,19 @@ th, td { white-space: nowrap; }
                    : r.priority === 'medium' ? '● Orta'
                    : '● Düşük';
         var conf = (r.confidence != null) ? Math.round(r.confidence * 100) : null;
+        var headline = r.title || r.action || '';
+        var subline  = r.title ? (r.action || '') : '';
         return '<div class="insta-rec-card">'
-          + '<div><span class="insta-rec-priority '+priCls+'">'+priTxt+'</span></div>'
-          + '<div class="insta-rec-action">'+esc(r.action||'')+'</div>'
+          + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
+          +   '<span class="insta-rec-priority '+priCls+'">'+priTxt+'</span>'
+          +   (r.type ? '<span class="insta-rec-type">'+esc(r.type)+'</span>' : '')
+          + '</div>'
+          + '<div class="insta-rec-title">'+esc(headline)+'</div>'
+          + (subline ? '<div class="insta-rec-action" style="margin-top:-2px">'+esc(subline)+'</div>' : '')
           + '<div class="insta-rec-reason">'+esc(r.reason||'')+'</div>'
+          + (r.objective ? '<div class="insta-rec-objective">→ '+esc(r.objective)+'</div>' : '')
           + '<div class="insta-rec-footer">'
-          +   '<span class="insta-rec-time">⏰ '+esc(r.recommended_time||'')+'</span>'
+          +   (r.recommended_time ? '<span class="insta-rec-time">⏰ '+esc(r.recommended_time)+'</span>' : '<span></span>')
           +   (conf !== null
                 ? '<div class="insta-conf-bar">'
                   + '<div class="insta-conf-track"><div class="insta-conf-fill" style="width:'+conf+'%"></div></div>'
@@ -2617,21 +2836,43 @@ th, td { white-space: nowrap; }
     function renderInstaCalendar(d) {
       var el = document.getElementById('instaCalBody');
       if (!el) return;
-      if (!d || !d.slots || !d.slots.length) {
+
+      // Normalise: accept flat {slots:[]} or nested {days:[{date,slots:[]}]}
+      var slots = [];
+      if (d && Array.isArray(d.slots) && d.slots.length) {
+        slots = d.slots;
+      } else if (d && Array.isArray(d.days) && d.days.length) {
+        d.days.forEach(function(day){
+          if (!Array.isArray(day.slots)) return;
+          day.slots.forEach(function(s){
+            slots.push(Object.assign({ date: day.date, day_label: day.day_label }, s));
+          });
+        });
+      }
+
+      if (!slots.length) {
         el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Takvim verisi henüz gelmedi</div>';
         return;
       }
-      el.innerHTML = d.slots.map(function(s){
-        var conf = s.confidence != null ? Math.round(s.confidence * 100) : null;
+
+      el.innerHTML = slots.map(function(s){
+        var conf      = s.confidence != null ? Math.round(s.confidence * 100) : null;
+        var dateLabel = s.day_label || (s.date ? s.date.slice(5) : '');
+        var actionBadge = s.content_type || s.action || '';
+        var topicText   = s.topic || s.action || '';
+        var whyText     = s.reasoning || s.reason || '';
         return '<div class="insta-cal-row">'
           + '<div class="insta-cal-date">'
-          +   '<div class="insta-cal-day">'+esc(s.day_label||s.date||'')+'</div>'
+          +   '<div class="insta-cal-day">'+esc(dateLabel)+'</div>'
           +   '<div class="insta-cal-time">'+esc(s.time||'')+'</div>'
           + '</div>'
           + '<div class="insta-cal-body">'
-          +   '<span class="insta-cal-type">'+esc(s.content_type||'')+'</span>'
-          +   '<div class="insta-cal-topic">'+esc(s.topic||'')+'</div>'
-          +   '<div class="insta-cal-why">'+esc(s.reasoning||'')+'</div>'
+          +   (actionBadge ? '<span class="insta-cal-action">'+esc(actionBadge)+'</span>' : '')
+          +   (s.content_type && s.action && s.content_type !== s.action
+                ? '<span class="insta-cal-type" style="margin-left:4px">'+esc(s.content_type)+'</span>' : '')
+          +   '<div class="insta-cal-topic">'+esc(topicText)+'</div>'
+          +   (whyText ? '<div class="insta-cal-why">'+esc(whyText)+'</div>' : '')
+          +   (s.objective ? '<div class="insta-cal-objective">→ '+esc(s.objective)+'</div>' : '')
           + '</div>'
           + (conf !== null
               ? '<div class="insta-cal-conf">'
@@ -2651,7 +2892,9 @@ th, td { white-space: nowrap; }
       loadJSON('/api/alerts',       function(d){ renderAlerts       (document.getElementById('aiAlerts'),  d); });
       loadJSON('/api/daily',        function(d){ renderSummary      (document.getElementById('aiSummary'), d); });
       loadJSON('/api/caddebostan_live',  function(d){ renderCaddebostan  (d); });
+      loadJSON('/api/instagram_decision',             function(d){ renderInstaDecision(d); });
       loadJSON('/api/instagram_live_summary',         function(d){ renderInstaSummary(d); });
+      loadJSON('/api/instagram_recent_momentum',      function(d){ renderInstaRecentMomentum(d); });
       loadJSON('/api/instagram_recommendations',      function(d){ renderInstaRecs(d); });
       loadJSON('/api/instagram_calendar_suggestions', function(d){ renderInstaCalendar(d); });
     }
