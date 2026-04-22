@@ -1,45 +1,45 @@
 {
   "items": [
     {
-      "level": "positive",
-      "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
-      "detail": "ROAS 25.57x, harcama 3171.0 TRY"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Phantom | Mesh Göğüs Tasması",
+      "detail": "stok=0"
     },
     {
-      "level": "warning",
-      "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CTR %0.03"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Wasabi | Mesh Göğüs Tasması",
+      "detail": "stok=0"
     },
     {
-      "level": "warning",
-      "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CPC 22.01 TRY"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Gummy | Mesh Göğüs Tasması",
+      "detail": "stok=0"
     },
     {
-      "level": "warning",
-      "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CTR %0.81"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Maui | Kedi Tasması",
+      "detail": "stok=0"
     },
     {
-      "level": "positive",
-      "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
-      "detail": "ROAS 11.94x, harcama 3408.0 TRY"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Cadillac Papyon - Zee.Dog",
+      "detail": "stok=0"
     },
     {
-      "level": "positive",
-      "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
-      "detail": "ROAS 12.23x, harcama 12790.0 TRY"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Zee.Cat - Lazy | Kedi Tasması",
+      "detail": "stok=0"
     },
     {
-      "level": "warning",
-      "title": "Channel Underperformance",
-      "detail": "En zayıf: Paid Shopping (72 oturum) vs. en güçlü: Paid Social (3183 oturum)"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Oregon | Papyon",
+      "detail": "stok=0"
     },
     {
-      "level": "positive",
-      "title": "Top Product Acceleration — Kompostlanabilir Dışkı Torbası (4 x 15 adet) - Zee.Dog",
-      "detail": "30g satış: 0 adet, gelir: 0 TRY"
+      "level": "critical",
+      "title": "Low Stock Fast Mover — Paisley | Papyon",
+      "detail": "stok=0"
     }
   ],
-  "updated_at": "2026-04-21T13:00:03.319156+00:00"
+  "updated_at": "2026-04-22T03:04:14.286786+00:00"
 }

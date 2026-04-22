@@ -811,12 +811,58 @@ th, td { white-space: nowrap; }
       font-size: .6rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: .08em; padding: 2px 8px; border-radius: 999px;
     }
-    .insta-momentum-up   { background: rgba(52,211,153,.15); color: #059669; }
-    .insta-momentum-flat { background: rgba(148,163,184,.15); color: #64748b; }
-    .insta-momentum-down { background: rgba(248,113,113,.15); color: #dc2626; }
-    .dark .insta-momentum-up   { background: rgba(52,211,153,.12); color: #34d399; }
-    .dark .insta-momentum-flat { background: rgba(148,163,184,.08); color: #94a3b8; }
-    .dark .insta-momentum-down { background: rgba(248,113,113,.12); color: #f87171; }
+    .insta-momentum-up     { background: rgba(52,211,153,.15);  color: #059669; }
+    .insta-momentum-flat   { background: rgba(148,163,184,.15); color: #64748b; }
+    .insta-momentum-down   { background: rgba(248,113,113,.15); color: #dc2626; }
+    .insta-momentum-peaked { background: rgba(251,191,36,.15);  color: #b45309; }
+    .dark .insta-momentum-up     { background: rgba(52,211,153,.12);  color: #34d399; }
+    .dark .insta-momentum-flat   { background: rgba(148,163,184,.08); color: #94a3b8; }
+    .dark .insta-momentum-down   { background: rgba(248,113,113,.12); color: #f87171; }
+    .dark .insta-momentum-peaked { background: rgba(251,191,36,.12);  color: #fbbf24; }
+
+    /* Live metrics grid */
+    .insta-metrics-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 10px 0 4px;
+    }
+    @media (min-width: 480px) { .insta-metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+    .insta-metric {
+      display: flex; flex-direction: column; gap: 2px;
+      background: rgba(255,255,255,0.52); border: 1px solid rgba(0,0,0,0.055);
+      border-radius: 10px; padding: 8px 10px;
+    }
+    .dark .insta-metric { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.07); }
+    .insta-metric-num {
+      font-size: .88rem; font-weight: 700; color: #1e293b;
+      font-variant-numeric: tabular-nums; line-height: 1.15;
+    }
+    .dark .insta-metric-num { color: #f1f5f9; }
+    .insta-metric-lbl {
+      font-size: .515rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: #94a3b8;
+    }
+    .insta-metric-delta {
+      font-size: .6rem; font-weight: 600; color: #059669; margin-top: 1px;
+    }
+    .dark .insta-metric-delta { color: #34d399; }
+
+    /* Format insight chips */
+    .insta-insight-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .insta-insight {
+      display: inline-flex; flex-direction: column; gap: 1px;
+      background: rgba(255,255,255,0.52); border: 1px solid rgba(0,0,0,0.055);
+      border-radius: 9px; padding: 6px 10px;
+    }
+    .dark .insta-insight { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.07); }
+    .insta-insight-lbl {
+      font-size: .5rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: #94a3b8;
+    }
+    .insta-insight-val { font-size: .73rem; font-weight: 600; color: #1e293b; line-height: 1.3; }
+    .dark .insta-insight-val { color: #e2e8f0; }
+    .insta-insight-win  .insta-insight-val { color: #059669; }
+    .insta-insight-warn .insta-insight-val { color: #b91c1c; }
+    .dark .insta-insight-win  .insta-insight-val { color: #34d399; }
+    .dark .insta-insight-warn .insta-insight-val { color: #f87171; }
     .insta-cues { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .insta-cue {
       display: inline-flex; flex-direction: column; gap: 2px;
@@ -2155,12 +2201,13 @@ th, td { white-space: nowrap; }
         📊 Canlı Durum
       </div>
       <div class="insta-banner">
-        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin-bottom:9px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px">
           <span id="instaMomentumBadge"></span>
-          <span id="instaLiveStats" style="font-size:.62rem;color:#64748b;font-variant-numeric:tabular-nums"></span>
+          <span id="instaLiveStats" style="font-size:.61rem;color:#94a3b8;font-variant-numeric:tabular-nums"></span>
         </div>
-        <div id="instaSummaryText" style="font-size:.79rem;color:#374151;line-height:1.52">Veri yükleniyor…</div>
-        <div id="instaCues" class="insta-cues"></div>
+        <div id="instaMetricsGrid"></div>
+        <div id="instaSummaryText" style="font-size:.775rem;color:#4b5563;line-height:1.52;margin-top:8px"></div>
+        <div id="instaCues" class="insta-insight-row"></div>
       </div>
 
       <!-- 3. Recent Momentum Panel -->
@@ -2673,11 +2720,20 @@ th, td { white-space: nowrap; }
     }
 
     /* ── Instagram Intelligence renderers ───────────────────── */
+
+    function fmtK(n) {
+      if (n == null) return '–';
+      var v = parseFloat(n);
+      if (isNaN(v)) return String(n);
+      if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K';
+      return String(Math.round(v));
+    }
+
     function renderInstaDecision(d) {
       var card = document.getElementById('instaDecisionCard');
       if (!card) return;
-      // accept standalone decision payload or fall back to live_summary.decision
-      var dec = (d && d.decision_type) ? d : null;
+      // accept 'type' or 'decision_type' field; require title+reason to be meaningful
+      var dec = (d && (d.decision_type || d.type) && d.title) ? d : null;
       if (!dec) { card.style.display = 'none'; return; }
 
       var typeEl  = document.getElementById('instaDecisionType');
@@ -2687,71 +2743,98 @@ th, td { white-space: nowrap; }
       var confEl  = document.getElementById('instaDecisionConf');
       var objEl   = document.getElementById('instaDecisionObjective');
 
-      if (typeEl)  typeEl.textContent  = dec.decision_type || '';
-      if (titleEl) titleEl.textContent = dec.title         || '';
-      if (reaEl)   reaEl.textContent   = dec.reason        || '';
-      if (timeEl)  {
+      if (typeEl)  typeEl.textContent  = dec.decision_type || dec.type || '';
+      if (titleEl) titleEl.textContent = dec.title   || '';
+      if (reaEl)   reaEl.textContent   = dec.reason  || '';
+      if (timeEl) {
         if (dec.recommended_time) {
           timeEl.textContent = '⏰ ' + dec.recommended_time;
           timeEl.style.display = '';
         } else { timeEl.style.display = 'none'; }
       }
-      if (confEl && dec.confidence != null)
-        confEl.textContent = Math.round(dec.confidence * 100) + '% güven';
+      if (confEl) confEl.textContent = dec.confidence != null ? Math.round(dec.confidence * 100) + '% güven' : '';
       if (objEl) {
-        if (dec.objective) { objEl.textContent = dec.objective; objEl.style.display = ''; }
+        if (dec.objective) { objEl.textContent = '→ ' + dec.objective; objEl.style.display = ''; }
         else objEl.style.display = 'none';
       }
       card.style.display = '';
     }
 
     function renderInstaSummary(d) {
-      var momEl   = document.getElementById('instaMomentumBadge');
-      var textEl  = document.getElementById('instaSummaryText');
-      var cuesEl  = document.getElementById('instaCues');
-      var tsEl    = document.getElementById('instaLastUpdate');
-      var statsEl = document.getElementById('instaLiveStats');
+      var momEl     = document.getElementById('instaMomentumBadge');
+      var statsEl   = document.getElementById('instaLiveStats');
+      var metricsEl = document.getElementById('instaMetricsGrid');
+      var textEl    = document.getElementById('instaSummaryText');
+      var cuesEl    = document.getElementById('instaCues');
+      var tsEl      = document.getElementById('instaLastUpdate');
       if (!d) return;
 
-      // If decision is embedded in live_summary, render it too
+      // If decision embedded, render it
       if (d.decision) renderInstaDecision(d.decision);
 
-      if (momEl && d.momentum) {
-        var mCls  = d.momentum === 'growing'   ? 'insta-momentum-up'
-                  : d.momentum === 'declining' ? 'insta-momentum-down'
-                  : 'insta-momentum-flat';
-        var mIcon = d.momentum === 'growing'   ? '▲'
-                  : d.momentum === 'declining' ? '▼' : '●';
-        var mTxt  = d.momentum === 'growing'   ? 'Büyüyor'
-                  : d.momentum === 'declining' ? 'Düşüyor' : 'Stabil';
-        momEl.innerHTML = '<span class="insta-momentum '+mCls+'">'+mIcon+' '+mTxt+'</span>';
+      // Normalise field names: bot may send momentum_state OR momentum
+      var mom = d.momentum_state || d.momentum || null;
+
+      if (momEl && mom) {
+        var mMap = {
+          growing:  { cls: 'insta-momentum-up',     icon: '▲', txt: 'Büyüyor' },
+          peaked:   { cls: 'insta-momentum-peaked',  icon: '◆', txt: 'Zirve'   },
+          stable:   { cls: 'insta-momentum-flat',    icon: '●', txt: 'Stabil'  },
+          declining:{ cls: 'insta-momentum-down',    icon: '▼', txt: 'Düşüyor' },
+          fading:   { cls: 'insta-momentum-down',    icon: '▼', txt: 'Düşüyor' },
+        };
+        var m = mMap[mom] || { cls: 'insta-momentum-flat', icon: '●', txt: mom };
+        momEl.innerHTML = '<span class="insta-momentum ' + m.cls + '">' + m.icon + ' ' + esc(m.txt) + '</span>';
       }
 
-      if (statsEl) {
-        var parts = [];
-        if (d.followers)         parts.push(d.followers + ' takipçi');
-        if (d.recent_reach)      parts.push('↗ ' + d.recent_reach + ' erişim');
-        if (d.recent_engagement) parts.push('❤ ' + d.recent_engagement + ' etkileşim');
-        statsEl.textContent = parts.join('  ·  ');
+      if (statsEl) tsEl && (statsEl.style.display = 'none'); // timestamp will show in header
+
+      // Metrics grid — show whichever fields are present
+      if (metricsEl) {
+        var metrics = [];
+        if (d.followers != null)
+          metrics.push({ num: fmtK(d.followers), lbl: 'Takipçi' });
+        if (d.recent_reach != null)
+          metrics.push({ num: fmtK(d.recent_reach), lbl: 'Son Erişim' });
+        if (d.daily_reach != null)
+          metrics.push({ num: fmtK(d.daily_reach), lbl: 'Günlük Erişim' });
+        if (d.recent_engagement != null)
+          metrics.push({ num: parseFloat(d.recent_engagement).toFixed(1) + '%', lbl: 'Etkileşim' });
+        if (d.rising_posts != null)
+          metrics.push({ num: String(d.rising_posts), lbl: 'Yükselen Post' });
+        metricsEl.innerHTML = metrics.length
+          ? '<div class="insta-metrics-grid">'
+            + metrics.map(function(m){
+                return '<div class="insta-metric">'
+                  + '<div class="insta-metric-num">' + esc(m.num) + '</div>'
+                  + '<div class="insta-metric-lbl">' + esc(m.lbl) + '</div>'
+                  + '</div>';
+              }).join('')
+            + '</div>'
+          : '';
       }
 
-      if (textEl && d.summary) textEl.textContent = d.summary;
+      if (textEl) {
+        textEl.textContent = d.summary || '';
+        textEl.style.display = d.summary ? '' : 'none';
+      }
 
       if (cuesEl) {
+        // Normalise field names: worst_format OR weak_format
+        var weakFmt = d.weak_format || d.worst_format || null;
         var fatigue = d.fatigue_risk === 'high'   ? '🔴 Yüksek'
                     : d.fatigue_risk === 'medium' ? '🟡 Orta'
-                    : d.fatigue_risk              ? '🟢 Düşük' : '–';
-        var cues = [
-          { label: 'En İyi Format',   val: d.best_format    || '–' },
-          { label: 'Güçlü Konu',      val: d.best_topic     || '–' },
-          { label: 'Zayıf Format',    val: d.weak_format    || '–' },
-          { label: 'Güçlü Post',      val: d.strongest_post || '–' },
-          { label: 'Yorgunluk Riski', val: fatigue }
-        ];
-        cuesEl.innerHTML = cues.map(function(c){
-          return '<div class="insta-cue">'
-            + '<span class="insta-cue-label">'+esc(c.label)+'</span>'
-            + '<span class="insta-cue-val">'+esc(c.val)+'</span>'
+                    : d.fatigue_risk              ? '🟢 Düşük' : null;
+        var insights = [];
+        if (d.best_format)    insights.push({ lbl: 'En İyi Format', val: d.best_format,    cls: 'insta-insight-win' });
+        if (d.best_topic)     insights.push({ lbl: 'Güçlü Konu',    val: d.best_topic,     cls: '' });
+        if (weakFmt)          insights.push({ lbl: 'Zayıf Format',  val: weakFmt,          cls: 'insta-insight-warn' });
+        if (d.strongest_post) insights.push({ lbl: 'Güçlü Post',    val: d.strongest_post, cls: '' });
+        if (fatigue)          insights.push({ lbl: 'Yüklenme Riski',val: fatigue,          cls: '' });
+        cuesEl.innerHTML = insights.map(function(c){
+          return '<div class="insta-insight ' + c.cls + '">'
+            + '<span class="insta-insight-lbl">' + esc(c.lbl) + '</span>'
+            + '<span class="insta-insight-val">' + esc(c.val) + '</span>'
             + '</div>';
         }).join('');
       }
@@ -2759,7 +2842,7 @@ th, td { white-space: nowrap; }
       if (tsEl && d.updated_at) {
         var ageMin = Math.round((Date.now() - new Date(d.updated_at).getTime()) / 60000);
         if (!isNaN(ageMin) && ageMin >= 0)
-          tsEl.textContent = ageMin < 60 ? ageMin+' dk önce' : Math.round(ageMin/60)+' sa önce';
+          tsEl.textContent = ageMin < 60 ? ageMin + ' dk önce' : Math.round(ageMin / 60) + ' sa önce';
       }
     }
 
