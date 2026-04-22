@@ -3,35 +3,35 @@
     {
       "priority": "high",
       "type": "story_now",
-      "title": "Harness Carousel'i Amplify Et",
-      "reason": "Son harness carousel %7.0 ER, 59 share ile winning. Peak momentumda story ile traction artır.",
+      "title": "Harness Carousel'i Story'ye Aktar",
+      "reason": "6.6% ER + 44 shares = peaked tier winning. Story amplify ile reach 40% artırılabilir.",
       "recommended_time": null,
       "confidence": 0.95
     },
     {
       "priority": "high",
       "type": "carousel_today",
-      "title": "Lifestyle Carousel Serisine Devam",
-      "reason": "%7.2 ER, 57 share ile en yüksek performing içerik. Konuyu tekrarla.",
-      "recommended_time": "14:00",
+      "title": "Lifestyle Harness Kombinasyonu",
+      "reason": "7.2% ER lifestyle konu en yüksek. Harness + lifestyle merge = 8%+ ER potansiyeli.",
+      "recommended_time": "19:00",
       "confidence": 0.92
     },
     {
       "priority": "medium",
-      "type": "do_not_post",
-      "title": "Grooming Reel'ini Durdur",
-      "reason": "%2.1 ER, underperforming. Grooming konu zayıf, reel formatı bu hesapta işe yaramıyor.",
-      "recommended_time": null,
+      "type": "reel_today",
+      "title": "Grooming Reel Format Değiştir",
+      "reason": "2.1% ER underperforming. Reel yerine carousel/static grooming + harness tips dene.",
+      "recommended_time": "18:30",
       "confidence": 0.88
     },
     {
       "priority": "medium",
-      "type": "reel_today",
-      "title": "Collar Reel'i Tekrarla",
-      "reason": "Collar reel %6.0 ER, 33 share ile winning. Format başarılı, konuyu devam ettir.",
-      "recommended_time": "19:00",
+      "type": "wait",
+      "title": "Collar İçeriği Rotation Bekle",
+      "reason": "Collar ER 3.4-6.0% değişken. 7+ gün sonra retest et, şimdi harness/lifestyle yoğunlaş.",
+      "recommended_time": null,
       "confidence": 0.85
     }
   ],
-  "updated_at": "2026-04-22T01:48:05.495011+00:00"
+  "updated_at": "2026-04-22T02:49:45.747741+00:00"
 }

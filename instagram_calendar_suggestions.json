@@ -1,0 +1,44 @@
+{
+  "days": [
+    {
+      "date": "2026-04-22",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "topic": "lifestyle",
+          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
+          "confidence": 0.5,
+          "objective": "reach"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-23",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "topic": "lifestyle",
+          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
+          "confidence": 0.5,
+          "objective": "reach"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "topic": "lifestyle",
+          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
+          "confidence": 0.5,
+          "objective": "reach"
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-04-22T02:53:09.925589+00:00"
+}

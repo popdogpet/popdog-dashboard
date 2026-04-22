@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "priority": "high",
+      "type": "story_now",
+      "title": "Harness Carousel'i Story ile Amplify Et",
+      "reason": "ER:7.0% carousel (1668 reach) peaked momentum. 59 share ile viral potansiyeli var. Story amplify = profil visit +40%.",
+      "recommended_time": "14:00",
+      "confidence": 0.92,
+      "objective": "profile_visits",
+      "content_pattern": "story_amplification"
+    },
+    {
+      "priority": "high",
+      "type": "carousel_today",
+      "title": "Lifestyle Carousel - Harness Focus",
+      "reason": "ER:7.2% lifestyle carousel zirvededir (57 share). Takipçi 30K+ olduğu halde format en güçlü. Tekrar et.",
+      "recommended_time": "16:00",
+      "confidence": 0.88,
+      "objective": "shares",
+      "content_pattern": "harness_lifestyle_carousel"
+    },
+    {
+      "priority": "medium",
+      "type": "wait",
+      "title": "Grooming Reel'ini Analiz Beklet",
+      "reason": "Grooming reel ER:2.1% (worst performer). 2385 reach ama düşük shares. Format/konu değiştir, şimdi post yapma.",
+      "recommended_time": null,
+      "confidence": 0.85,
+      "objective": "saves",
+      "content_pattern": "reel_education"
+    },
+    {
+      "priority": "medium",
+      "type": "carousel_today",
+      "title": "Collar Carousel - Harness Testi",
+      "reason": "Collar static ER:3.4% (neutral). Carousel formatına geçir. Harness carousels ER:6.6-7.0% arası başarılı.",
+      "recommended_time": "18:00",
+      "confidence": 0.79,
+      "objective": "engagement_rate",
+      "content_pattern": "collar_test_carousel"
+    }
+  ],
+  "updated_at": "2026-04-22T02:53:09.729768+00:00"
+}
