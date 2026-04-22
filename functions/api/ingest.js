@@ -7,11 +7,11 @@ const KV_KEY = {
   caddebostan:                    'ai:caddebostan',
   caddebostan_live:               'ai:caddebostan_live',
   caddebostan_close:              'ai:caddebostan_close',
-  instagram_live_summary:         'instagram:live_summary',
-  instagram_recommendations:      'instagram:recommendations',
-  instagram_calendar_suggestions: 'instagram:calendar_suggestions',
-  instagram_decision:             'instagram:decision',
-  instagram_recent_momentum:      'instagram:recent_momentum',
+  instagram_live_summary:         'ai:instagram_live_summary',
+  instagram_recommendations:      'ai:instagram_recommendations',
+  instagram_calendar_suggestions: 'ai:instagram_calendar_suggestions',
+  instagram_decision:             'ai:instagram_decision',
+  instagram_recent_momentum:      'ai:instagram_recent_momentum',
 };
 
 function jsonResp(body, status) {
