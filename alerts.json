@@ -1,45 +1,45 @@
 {
   "items": [
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Phantom | Mesh Göğüs Tasması",
+      "level": "warning",
+      "title": "Stock Selling Through — Phantom | Mesh Göğüs Tasması",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Wasabi | Mesh Göğüs Tasması",
+      "level": "warning",
+      "title": "Stock Selling Through — Wasabi | Mesh Göğüs Tasması",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Gummy | Mesh Göğüs Tasması",
+      "level": "warning",
+      "title": "Stock Selling Through — Gummy | Mesh Göğüs Tasması",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Maui | Kedi Tasması",
+      "level": "warning",
+      "title": "Stock Selling Through — Maui | Kedi Tasması",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Cadillac Papyon - Zee.Dog",
+      "level": "warning",
+      "title": "Stock Selling Through — Cadillac Papyon - Zee.Dog",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Zee.Cat - Lazy | Kedi Tasması",
+      "level": "warning",
+      "title": "Stock Selling Through — Zee.Cat - Lazy | Kedi Tasması",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Oregon | Papyon",
+      "level": "warning",
+      "title": "Stock Selling Through — Oregon | Papyon",
       "detail": "stok=0"
     },
     {
-      "level": "critical",
-      "title": "Low Stock Fast Mover — Paisley | Papyon",
+      "level": "warning",
+      "title": "Stock Selling Through — Paisley | Papyon",
       "detail": "stok=0"
     }
   ],
-  "updated_at": "2026-04-22T03:04:14.286786+00:00"
+  "updated_at": "2026-04-22T10:38:32.067058+00:00"
 }

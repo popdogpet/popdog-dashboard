@@ -1,7 +1,7 @@
 {
-  "title": "Stok azalıyor — sell-through güçlü. Replenishment beklenmeyebilir; yeni seri planını kontrol et ve reklamı koru.",
-  "why": "Low Stock Fast Mover: stok=0",
-  "impact": "Mevcut satışları sonuna kadar yakalarken gelecek seri için plan yapılır.",
+  "title": "Stok azalıyor — sell-through güçlü. Replenishment belirsiz; mevcut stoğu yönet.",
+  "why": "Stock Selling Through: stok=0",
+  "impact": "Kalan stok sonuna kadar yakalanır; gereksiz beklenti yaratılmaz.",
   "urgency": "Orta",
-  "updated_at": "2026-04-22T03:04:49.709415+00:00"
+  "updated_at": "2026-04-22T10:38:02.431757+00:00"
 }
