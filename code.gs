@@ -652,6 +652,7 @@ function doPost(e){
     if (action === '__ping__')      return json({ ok:true, pong:true, ts: new Date().toISOString() });
     if (action === 'appendexpense' || action === 'append_expense') return appendExpense_(row || {});
     if (action === 'appenddaily' || action === 'append_daily')     return appendDaily_(Array.isArray(rows) ? rows : []);
+    if (action === 'fixkuafor' || action === 'fix_kuafor')         return runKuaforFix_();
 
     // ALTIN (POST)
     if (action === 'goldquote'){
@@ -1375,4 +1376,154 @@ function testGoldQuote(){
 function testFundQuote(){
   var result = getTEFASQuoteByCode_('FI5');
   Logger.log(JSON.stringify(result, null, 2));
+}
+
+/* ============================================================
+   FIX: CKM sütununda Kuaför dahil yazılmış geçmiş satırları düzelt
+
+   NASIL ÇALIŞIR:
+   Eski parser Kuaför'ü CKM'den çıkarmıyordu. Bu fonksiyon:
+   1. Kuaför > 0 olan tüm satırları bulur
+   2. Toptan + Online + CKM + Trendyol + HB ≈ Total ise → CKM içinde Kuaför var (eski format)
+   3. CKM = CKM - Kuaför yaparak düzeltir
+
+   ÇALIŞTIRMADAN ÖNCE: önce previewKuaforFix() ile kontrol edin!
+   ============================================================ */
+
+function previewKuaforFix(){
+  var ss   = SpreadsheetApp.openById(SHEET_ID);
+  var sh   = ss.getSheetByName(SHEET_NAME);
+  if (!sh) { Logger.log('Sheet bulunamadı: ' + SHEET_NAME); return; }
+
+  var data = sh.getDataRange().getValues();
+  if (data.length < 2){ Logger.log('Veri yok.'); return; }
+
+  var header = data[0].map(function(h){ return String(h||'').trim().toLowerCase(); });
+  var iDate = header.indexOf('date');
+  var iCKM  = header.indexOf('ckm');
+  var iKuf  = header.findIndex(function(h){ return h === 'kuaför' || h === 'kuafor'; });
+  var iTopt = header.indexOf('toptan');
+  var iOnl  = header.indexOf('online');
+  var iTrnd = header.indexOf('trendyol');
+  var iHB   = header.findIndex(function(h){ return h === 'hepsiburada' || h === 'hb'; });
+  var iTot  = header.indexOf('total');
+
+  if ([iCKM, iKuf, iTot].some(function(i){ return i < 0; })){
+    Logger.log('Gerekli sütunlar bulunamadı. Header: ' + JSON.stringify(data[0]));
+    return;
+  }
+
+  var toFix = [];
+  var skipManual = [];
+
+  for (var r = 1; r < data.length; r++){
+    var row    = data[r];
+    var ckm    = toNumber(row[iCKM]);
+    var kuafor = toNumber(row[iKuf]);
+    var total  = toNumber(row[iTot]);
+    if (kuafor <= 0) continue;
+
+    var toptan = iTopt >= 0 ? toNumber(row[iTopt]) : 0;
+    var online = iOnl  >= 0 ? toNumber(row[iOnl])  : 0;
+    var trnd   = iTrnd >= 0 ? toNumber(row[iTrnd]) : 0;
+    var hb     = iHB   >= 0 ? toNumber(row[iHB])   : 0;
+
+    var sumWithoutKuafor = toptan + online + ckm + trnd + hb;
+    var diff = Math.abs(sumWithoutKuafor - total);
+
+    if (diff < 2.0){
+      var correctedCKM = ckm - kuafor;
+      if (correctedCKM < 0){
+        skipManual.push({ row: r+1, date: row[iDate], ckm: ckm, kuafor: kuafor, total: total, note: 'NEGATIF_SONUC' });
+      } else {
+        toFix.push({ row: r+1, date: row[iDate], ckm: ckm, kuafor: kuafor, corrected: correctedCKM, total: total });
+      }
+    }
+  }
+
+  Logger.log('=== DÜZELTİLECEK SATIRLAR (' + toFix.length + ' adet) ===');
+  toFix.forEach(function(x){
+    Logger.log('Satır ' + x.row + ' | ' + x.date + ' | CKM: ' + x.ckm + ' → ' + x.corrected + ' | Kuaför: ' + x.kuafor + ' | Total: ' + x.total);
+  });
+
+  if (skipManual.length > 0){
+    Logger.log('\n=== MANUEL KONTROL GEREKLİ (' + skipManual.length + ' adet) ===');
+    skipManual.forEach(function(x){
+      Logger.log('Satır ' + x.row + ' | ' + x.date + ' | CKM=' + x.ckm + ', Kuaför=' + x.kuafor + ' → ' + x.note);
+    });
+  }
+
+  Logger.log('\nDüzeltmek için applyKuaforFix() fonksiyonunu çalıştırın.');
+}
+
+function applyKuaforFix(){
+  runKuaforFix_();
+}
+
+function runKuaforFix_(){
+  try{
+    var ss   = SpreadsheetApp.openById(SHEET_ID);
+    var sh   = ss.getSheetByName(SHEET_NAME);
+    if (!sh) return json({ ok:false, error:'Sheet bulunamadı: ' + SHEET_NAME });
+
+    var data = sh.getDataRange().getValues();
+    if (data.length < 2) return json({ ok:false, error:'Veri yok.' });
+
+    var header = data[0].map(function(h){ return String(h||'').trim().toLowerCase(); });
+    var iCKM  = header.indexOf('ckm');
+    var iKuf  = -1;
+    for(var hi=0;hi<header.length;hi++){
+      if(header[hi]==='kuaför'||header[hi]==='kuafor'){ iKuf=hi; break; }
+    }
+    var iTopt = header.indexOf('toptan');
+    var iOnl  = header.indexOf('online');
+    var iTrnd = header.indexOf('trendyol');
+    var iHB   = -1;
+    for(var hi2=0;hi2<header.length;hi2++){
+      if(header[hi2]==='hepsiburada'||header[hi2]==='hb'){ iHB=hi2; break; }
+    }
+    var iTot  = header.indexOf('total');
+
+    if(iCKM<0 || iKuf<0 || iTot<0){
+      return json({ ok:false, error:'Gerekli sütunlar bulunamadı (CKM, Kuaför, Total).', header: data[0] });
+    }
+
+    var fixed = 0;
+    var skipped = [];
+    var fixedRows = [];
+
+    for(var r=1; r<data.length; r++){
+      var row    = data[r];
+      var ckm    = toNumber(row[iCKM]);
+      var kuafor = toNumber(row[iKuf]);
+      var total  = toNumber(row[iTot]);
+      if(kuafor <= 0) continue;
+
+      var toptan = iTopt>=0 ? toNumber(row[iTopt]) : 0;
+      var online = iOnl>=0  ? toNumber(row[iOnl])  : 0;
+      var trnd   = iTrnd>=0 ? toNumber(row[iTrnd]) : 0;
+      var hb     = iHB>=0   ? toNumber(row[iHB])   : 0;
+
+      var sumWithoutKuafor = toptan + online + ckm + trnd + hb;
+      var diff = Math.abs(sumWithoutKuafor - total);
+
+      if(diff < 2.0){
+        var correctedCKM = ckm - kuafor;
+        if(correctedCKM < 0){
+          skipped.push({ row: r+1, date: String(row[0]), ckm: ckm, kuafor: kuafor, note: 'CKM < Kuaför — manuel kontrol gerekli' });
+          continue;
+        }
+        sh.getRange(r+1, iCKM+1).setValue(correctedCKM);
+        fixedRows.push({ row: r+1, date: String(row[0]), from: ckm, to: correctedCKM, kuafor: kuafor });
+        fixed++;
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return json({ ok:true, fixed: fixed, skipped: skipped.length, fixedRows: fixedRows, skippedRows: skipped });
+
+  }catch(err){
+    logError_('runKuaforFix', err, {});
+    return json({ ok:false, error: String(err && err.message || err) });
+  }
 }

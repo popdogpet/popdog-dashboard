@@ -2429,9 +2429,10 @@ th, td { white-space: nowrap; }
         <div class="hint text-sm">Format: Tarih, Kredi Kartı, QNB/İş/Garanti, Nakit, Toplam, Kasa Nakit, Pop Dog Online, Pop Dog Toptan, Trendyol, Hepsiburada</div>
       </div>
       <textarea id="dailyText" class="w-full mt-3 rounded-2xl border p-3 focus:outline-none bg-white/70 dark:bg-slate-800 dark:text-slate-100" rows="6" placeholder="WhatsApp raporunu yapıştır..."></textarea>
-      <div class="mt-3 flex items-center gap-3">
+      <div class="mt-3 flex items-center gap-3 flex-wrap">
         <button id="parseAddBtn" class="glass card-3d px-4 py-2 rounded-2xl">Satıra çevir ve ekle</button>
         <button id="pushRowsBtn" class="glass card-3d px-4 py-2 rounded-2xl">Sheet’e Yaz</button>
+        <button id="fixKuaforBtn" class="glass card-3d px-4 py-2 rounded-2xl text-orange-600 dark:text-orange-400" title="Kuaför iki kez sayılan geçmiş satırları otomatik düzelt">🔧 Geçmişi Düzelt</button>
         <span id="parseInfo" class="hint text-sm"></span>
       </div>
 
@@ -4509,6 +4510,52 @@ function renderStagedRows(stagedRows) {
 window.getStagedDailyRows = () => (Array.isArray(window.stagedRows) ? window.stagedRows.slice() : []);
 })();
 /* ================== /DAILY REPORT PARSER ================== */
+
+/* ================== GEÇMİŞ KUAFÖR DÜZELTMESİ ================== */
+(function(){
+  const btn = document.getElementById('fixKuaforBtn');
+  if (!btn) return;
+
+  btn.onclick = async function(){
+    const info = document.getElementById('parseInfo');
+    const base = getSheetWebAppURL();
+    if (!base){ if(info) info.textContent = 'Sheet URL ayarlı değil.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Düzeltiliyor…';
+    if (info) info.textContent = '';
+
+    try{
+      const res = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        body: JSON.stringify({ action: 'fixKuafor' })
+      });
+      const text = await res.text();
+      let data;
+      try{ data = JSON.parse(text); }catch(_){ data = null; }
+
+      if (data && data.ok){
+        const msg = `✅ ${data.fixed} satır düzeltildi` +
+          (data.skipped > 0 ? ` • ⚠️ ${data.skipped} satır manuel kontrol gerekli` : '');
+        if (info) info.textContent = msg;
+        btn.textContent = '✅ Düzeltildi';
+        // Tabloyu yenile
+        if (typeof renderRevenueTables === 'function') renderRevenueTables();
+      } else {
+        const err = (data && data.error) || text || 'Bilinmeyen hata';
+        if (info) info.textContent = '❌ Hata: ' + err;
+        btn.textContent = '🔧 Geçmişi Düzelt';
+        btn.disabled = false;
+      }
+    }catch(e){
+      if (info) info.textContent = '❌ ' + (e && e.message || 'Bağlantı hatası');
+      btn.textContent = '🔧 Geçmişi Düzelt';
+      btn.disabled = false;
+    }
+  };
+})();
+/* ================== /GEÇMİŞ KUAFÖR DÜZELTMESİ ================== */
 
 
 /* ================== LOANS STATE HELPERS ================== */
@@ -7335,9 +7382,13 @@ function buildMonthly(rows){
     if(isNaN(+d)) return;
     const key = monthKey(d);
     const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, ckmN=+r["CKM Nakit"]||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0, kua=+r.Kuaför||0;
-    const computedTotal = tpt + onl + ckm + trn + hb + kua;
+    // Sheet'teki Total sütununu kullan (her zaman doğru hesaplanmış)
+    // Yoksa veya 0 ise kanalları topla — eski satırlarda Kuaför CKM içinde olduğu için
+    // bu fallback sadece Total=0 olan çok eski satırlar için devreye girer
+    const sheetTotal = +r.Total || 0;
+    const usedTotal = sheetTotal > 0 ? sheetTotal : (tpt + onl + ckm + trn + hb);
     const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
-    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=computedTotal;
+    prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=usedTotal;
     map.set(key, prev);
   });
   return Array.from(map.values()).filter(m=>m.Total>0).sort((a,b)=>a.month.localeCompare(b.month));
@@ -7352,7 +7403,8 @@ function buildWeekly(rows){
     const mon = toMonday(d);
     const key = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
     const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0, kua=+r.Kuaför||0;
-    const total = tpt + onl + ckm + trn + hb + kua;
+    const sheetTotal = +r.Total || 0;
+    const total = sheetTotal > 0 ? sheetTotal : (tpt + onl + ckm + trn + hb);
     const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
     prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=total;
     map.set(key, prev);
