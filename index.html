@@ -4525,31 +4525,39 @@ window.getStagedDailyRows = () => (Array.isArray(window.stagedRows) ? window.sta
     btn.textContent = '⏳ Düzeltiliyor…';
     if (info) info.textContent = '';
 
-    try{
-      const res = await fetch(base, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json;charset=utf-8' },
-        body: JSON.stringify({ action: 'fixKuafor' })
-      });
-      const text = await res.text();
-      let data;
-      try{ data = JSON.parse(text); }catch(_){ data = null; }
-
-      if (data && data.ok){
-        const msg = `✅ ${data.fixed} satır düzeltildi` +
-          (data.skipped > 0 ? ` • ⚠️ ${data.skipped} satır manuel kontrol gerekli` : '');
-        if (info) info.textContent = msg;
-        btn.textContent = '✅ Düzeltildi';
-        // Tabloyu yenile
-        if (typeof renderRevenueTables === 'function') renderRevenueTables();
-      } else {
-        const err = (data && data.error) || text || 'Bilinmeyen hata';
-        if (info) info.textContent = '❌ Hata: ' + err;
-        btn.textContent = '🔧 Geçmişi Düzelt';
-        btn.disabled = false;
+    async function tryPost(headers, body){
+      try{
+        const res = await fetch(base, { method:'POST', headers, body });
+        const text = await res.text().catch(()=>'');
+        let data = null;
+        try{ data = JSON.parse(text); }catch(_){ }
+        return { ok: res.ok, data, text };
+      }catch(e){
+        return { ok:false, data:null, text: String(e && e.message || 'load failed') };
       }
-    }catch(e){
-      if (info) info.textContent = '❌ ' + (e && e.message || 'Bağlantı hatası');
+    }
+
+    const payload = JSON.stringify({ action: 'fixKuafor' });
+
+    // İlk deneme: text/plain (preflight tetiklemez, Apps Script'te çalışır)
+    let r = await tryPost({ 'Content-Type':'text/plain;charset=utf-8' }, payload);
+
+    // Yedek: form-urlencoded
+    if (!r.ok || !r.data){
+      const form = new URLSearchParams();
+      form.set('action', 'fixKuafor');
+      r = await tryPost({ 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' }, form.toString());
+    }
+
+    if (r.data && r.data.ok){
+      const msg = `✅ ${r.data.fixed} satır düzeltildi` +
+        (r.data.skipped > 0 ? ` • ⚠️ ${r.data.skipped} satır manuel kontrol gerekli` : '');
+      if (info) info.textContent = msg;
+      btn.textContent = '✅ Düzeltildi';
+      if (typeof renderRevenueTables === 'function') renderRevenueTables();
+    } else {
+      const err = (r.data && r.data.error) || r.text || 'Bilinmeyen hata';
+      if (info) info.textContent = '❌ Hata: ' + err;
       btn.textContent = '🔧 Geçmişi Düzelt';
       btn.disabled = false;
     }
