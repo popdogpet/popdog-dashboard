@@ -3,7 +3,7 @@
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
-      "detail": "ROAS 27.73x, harcama 3068.0 TRY"
+      "detail": "ROAS 10.18x, harcama 3354.0 TRY"
     },
     {
       "level": "warning",
@@ -13,33 +13,33 @@
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CPC 22.87 TRY"
+      "detail": "CPC 30.87 TRY"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CTR %0.8"
+      "detail": "CTR %0.25"
+    },
+    {
+      "level": "warning",
+      "title": "Ad Spend Waste — POPDOG -_- #Engagement",
+      "detail": "CPC 28.36 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
-      "detail": "ROAS 12.53x, harcama 3152.0 TRY"
+      "detail": "ROAS 22.01x, harcama 3487.0 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
-      "detail": "ROAS 12.58x, harcama 12546.0 TRY"
+      "detail": "ROAS 8.13x, harcama 12338.0 TRY"
     },
     {
       "level": "warning",
       "title": "Channel Underperformance",
-      "detail": "En zayıf: Paid Shopping (63 oturum) vs. en güçlü: Paid Social (3257 oturum)"
-    },
-    {
-      "level": "positive",
-      "title": "Top Product Acceleration — Reebok x Zee.Dog Suede FlyHarness Köpek Göğüs Tasması",
-      "detail": "30g satış: 0 adet, gelir: 0 TRY"
+      "detail": "En zayıf: Paid Shopping (68 oturum) vs. en güçlü: Paid Social (4612 oturum)"
     }
   ],
-  "updated_at": "2026-04-22T12:20:22.889013+00:00"
+  "updated_at": "2026-05-03T18:10:33.975623+00:00"
 }

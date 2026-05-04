@@ -1,11 +1,19 @@
 {
   "items": [
     {
+      "title": "🏀 Sokak stili, sahadan gelen enerji.\n\nYe",
+      "format": "carousel",
+      "topic": "harness",
+      "published_at": "2026-04-22T16:47:46+0000",
+      "engagement_rate": 3.05,
+      "momentum_state": "peaked"
+    },
+    {
       "title": "🏔 Doğadan ilham alan performans stili. \n",
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-18T15:00:06+0000",
-      "engagement_rate": 6.66,
+      "engagement_rate": 6.83,
       "momentum_state": "peaked"
     },
     {
@@ -13,7 +21,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-15T19:21:38+0000",
-      "engagement_rate": 2.77,
+      "engagement_rate": 2.5,
       "momentum_state": "peaked"
     },
     {
@@ -21,7 +29,7 @@
       "format": "carousel",
       "topic": "lifestyle",
       "published_at": "2026-04-11T16:57:49+0000",
-      "engagement_rate": 7.11,
+      "engagement_rate": 6.88,
       "momentum_state": "peaked"
     },
     {
@@ -29,17 +37,9 @@
       "format": "reel",
       "topic": "collar",
       "published_at": "2026-04-09T17:17:49+0000",
-      "engagement_rate": 5.98,
-      "momentum_state": "peaked"
-    },
-    {
-      "title": "Pop Dog’da neler oluyor? Sadece yanlış c",
-      "format": "static",
-      "topic": "general",
-      "published_at": "2026-04-07T18:39:46+0000",
-      "engagement_rate": 5.75,
+      "engagement_rate": 5.94,
       "momentum_state": "peaked"
     }
   ],
-  "updated_at": "2026-04-22T12:19:31.806890+00:00"
+  "updated_at": "2026-05-03T07:09:48.698450+00:00"
 }
