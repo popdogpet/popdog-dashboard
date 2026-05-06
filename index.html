@@ -9083,7 +9083,8 @@ function renderLast7(){
     const iso = d.toISOString().slice(0,10);
     const acc = byDate.get(iso) || {Total:0,Toptan:0,Online:0,CKM:0,Kuafor:0,Trendyol:0,Hepsiburada:0};
     const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, kua=+(r['Kuaför']||r.Kuafor)||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0;
-    acc.Total += (tpt+onl+ckm+kua+trn+hb);
+    const sheetTotal = +r.Total || 0;
+    acc.Total += sheetTotal > 0 ? sheetTotal : (tpt+onl+ckm+trn+hb);
     acc.Toptan += tpt; acc.Online += onl; acc.CKM += ckm; acc.Kuafor += kua; acc.Trendyol += trn; acc.Hepsiburada += hb;
     byDate.set(iso, acc);
   });
