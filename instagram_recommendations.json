@@ -3,9 +3,9 @@
     {
       "priority": "high",
       "type": "carousel_today",
-      "title": "Harness + Lifestyle Combo",
-      "reason": "Harness carousel'ler %6.5-6.8 ER, lifestyle %6.9 ER. İkisini birleştir, shares potansiyeli yüksek.",
-      "recommended_time": "19:00",
+      "title": "Harness Lifestyle Carousel (7.0% ER model)",
+      "reason": "Harness carousel 7.0% ER ile winning tier. Tekrar edilen format için optimal momentum. Saves (47) ve shares (71) güçlü.",
+      "recommended_time": "14:00",
       "confidence": 0.92,
       "objective": "shares",
       "content_pattern": "harness_lifestyle_carousel"
@@ -13,8 +13,8 @@
     {
       "priority": "high",
       "type": "story_now",
-      "title": "Peaked İçeriği Story ile Amplify",
-      "reason": "Son 10 içerik 100% peaked. Story ile profil ziyaretini ve erişimi 2-3x artır.",
+      "title": "Son 3 Winning Postin Story Amplify",
+      "reason": "6 winning tier içerik peaked momentum'da. Story amplification profil ziyaretini +30-45% artırır organik takipçi için.",
       "recommended_time": null,
       "confidence": 0.88,
       "objective": "profile_visits",
@@ -23,23 +23,23 @@
     {
       "priority": "medium",
       "type": "reel_today",
-      "title": "Collar + Lifestyle Reel",
-      "reason": "Collar reel %5.9 ER, education format %4.1 ER. Test et, reels saves'e daha zayıf.",
-      "recommended_time": "20:30",
-      "confidence": 0.76,
-      "objective": "saves",
+      "title": "Grooming Reel Format Değiştir",
+      "reason": "Grooming reel 2.1% ER (underperforming). Reel_education pattern ile collar/lifestyle konu kombinasyonu test et.",
+      "recommended_time": "15:30",
+      "confidence": 0.75,
+      "objective": "reach",
       "content_pattern": "reel_education"
     },
     {
       "priority": "medium",
-      "type": "wait",
-      "title": "Grooming Reel Formatını Değiştir",
-      "reason": "Grooming reel %2.1 ER (underperforming). Önce winning harness/collar carousel'leri tekrarla.",
-      "recommended_time": null,
-      "confidence": 0.84,
-      "objective": "reach",
-      "content_pattern": "follow_up_format"
+      "type": "follow_up",
+      "title": "Collar Reel Follow-up Carousel",
+      "reason": "Collar reel 5.9% ER winning. Carousel ile collar_test_carousel pattern uygulanarak saves (19→40+) hedefleme.",
+      "recommended_time": "16:00",
+      "confidence": 0.81,
+      "objective": "saves",
+      "content_pattern": "collar_test_carousel"
     }
   ],
-  "updated_at": "2026-05-03T07:09:47.656533+00:00"
+  "updated_at": "2026-05-04T11:09:47.688176+00:00"
 }
