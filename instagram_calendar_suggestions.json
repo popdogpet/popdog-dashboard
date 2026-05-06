@@ -1,33 +1,33 @@
 {
   "days": [
     {
-      "date": "2026-05-04",
-      "slots": [
-        {
-          "time": "19:30",
-          "action": "carousel",
-          "topic": "lifestyle",
-          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
-          "confidence": 0.5,
-          "objective": "reach"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-05",
-      "slots": [
-        {
-          "time": "19:30",
-          "action": "carousel",
-          "topic": "lifestyle",
-          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
-          "confidence": 0.5,
-          "objective": "reach"
-        }
-      ]
-    },
-    {
       "date": "2026-05-06",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "topic": "lifestyle",
+          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
+          "confidence": 0.5,
+          "objective": "reach"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-07",
+      "slots": [
+        {
+          "time": "19:30",
+          "action": "carousel",
+          "topic": "lifestyle",
+          "reason": "Veri destekli prime-time slot — lifestyle konusu en iyi ER aldı",
+          "confidence": 0.5,
+          "objective": "reach"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-08",
       "slots": [
         {
           "time": "19:30",
@@ -40,5 +40,5 @@
       ]
     }
   ],
-  "updated_at": "2026-05-04T11:09:47.950345+00:00"
+  "updated_at": "2026-05-06T11:09:40.566036+00:00"
 }

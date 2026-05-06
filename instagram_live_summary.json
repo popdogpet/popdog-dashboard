@@ -1,21 +1,21 @@
 {
   "title": "Instagram Intelligence",
-  "followers": 30236,
-  "recent_reach": 14346,
-  "recent_engagement": 5.3,
+  "followers": 30240,
+  "recent_reach": 14658,
+  "recent_engagement": 5.26,
   "best_format": "carousel",
   "best_topic": "lifestyle",
   "worst_format": "reel",
   "momentum_state": "peaked",
   "rising_posts": 0,
-  "daily_reach": 7826,
+  "daily_reach": 6518,
   "decision": {
     "type": "post_now",
     "title": "Yayın zamanı: carousel / harness",
-    "reason": "Son içerik 48sa önce. En iyi format carousel/harness (ER 7.0%) ile devam et",
+    "reason": "Son içerik 48sa önce. En iyi format carousel/harness (ER 6.9%) ile devam et",
     "recommended_time": "19:30",
     "confidence": 0.8,
     "objective": "reach"
   },
-  "updated_at": "2026-05-04T11:09:46.904941+00:00"
+  "updated_at": "2026-05-06T11:09:39.630723+00:00"
 }

@@ -5,7 +5,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-22T16:47:46+0000",
-      "engagement_rate": 3.08,
+      "engagement_rate": 3.11,
       "momentum_state": "peaked"
     },
     {
@@ -13,7 +13,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-18T15:00:06+0000",
-      "engagement_rate": 6.95,
+      "engagement_rate": 6.92,
       "momentum_state": "peaked"
     },
     {
@@ -21,7 +21,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-15T19:21:38+0000",
-      "engagement_rate": 2.49,
+      "engagement_rate": 2.41,
       "momentum_state": "peaked"
     },
     {
@@ -29,7 +29,7 @@
       "format": "carousel",
       "topic": "lifestyle",
       "published_at": "2026-04-11T16:57:49+0000",
-      "engagement_rate": 6.81,
+      "engagement_rate": 6.72,
       "momentum_state": "peaked"
     },
     {
@@ -41,5 +41,5 @@
       "momentum_state": "peaked"
     }
   ],
-  "updated_at": "2026-05-04T11:09:48.463233+00:00"
+  "updated_at": "2026-05-06T11:09:41.092834+00:00"
 }
