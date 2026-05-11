@@ -4,7 +4,7 @@
       "priority": "high",
       "type": "carousel_today",
       "title": "Harness + Lifestyle Combo Post",
-      "reason": "Harness carousels %6.5-7.0 ER, lifestyle %6.7 ER. Kombinasyon proven winner, shares yüksek (59-72).",
+      "reason": "Harness carousels 6.4-6.9% ER, lifestyle 6.8% ER. Kombinasyon shares'i 59-72'ye çıkarır.",
       "recommended_time": "14:00",
       "confidence": 0.92,
       "objective": "shares",
@@ -13,8 +13,8 @@
     {
       "priority": "high",
       "type": "story_now",
-      "title": "Top Carousel'ı Story Amplify Et",
-      "reason": "Son harness carousel (%7.0 ER, 3549 reach) zirveye ulaştı. Story ile momentum korunsun, profil visit 25% artacak.",
+      "title": "Son 3 Winning İçeriği Story'de Amplify Et",
+      "reason": "6 winning post peaked momentum. Story ile profil ziyareti ve saves artacak, 30K takipçiye doğru çıkılan.",
       "recommended_time": null,
       "confidence": 0.89,
       "objective": "profile_visits",
@@ -23,23 +23,23 @@
     {
       "priority": "medium",
       "type": "reel_today",
-      "title": "Collar Ürün Reel (Eğitim Formatı)",
-      "reason": "Collar reeli %5.9 ER yapıştı. Grooming reeli (%2.1) düştü. Reel_education pattern ile collar odağını tekrarla.",
-      "recommended_time": "17:30",
-      "confidence": 0.85,
+      "title": "Grooming Reel (Format Test Gerekli)",
+      "reason": "Grooming reeli 2.1% ER ile zayıf. Harness/collar reel'lerinin education tarzını uygula.",
+      "recommended_time": "15:30",
+      "confidence": 0.75,
       "objective": "reach",
       "content_pattern": "reel_education"
     },
     {
       "priority": "medium",
       "type": "wait",
-      "title": "General Carousel Post Saklı Tut",
-      "reason": "Son 2 general post zirveye ulaştı (4.1%, 3397 reach). 48 saat bekle, momentum fade olmadan pattern break etme.",
+      "title": "Collar Carousel Hazırla (48h İçinde)",
+      "reason": "Collar reel 5.9% ER başarılı. Carousel formatıyla test et, harness başarısını replike et.",
       "recommended_time": null,
-      "confidence": 0.87,
+      "confidence": 0.78,
       "objective": "saves",
-      "content_pattern": "no_post_window"
+      "content_pattern": "collar_test_carousel"
     }
   ],
-  "updated_at": "2026-05-06T15:09:50.084223+00:00"
+  "updated_at": "2026-05-09T21:24:26.303117+00:00"
 }
