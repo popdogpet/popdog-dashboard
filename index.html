@@ -4064,43 +4064,67 @@ window.getStagedDailyRows = () => (Array.isArray(window.stagedRows) ? window.sta
     const base = getSheetWebAppURL();
     if (!base){ if(info) info.textContent = 'Sheet URL ayarlı değil.'; return; }
 
+    async function gasPost(action){
+      const payload = JSON.stringify({ action });
+      try{
+        const res = await fetch(base, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: payload });
+        const text = await res.text().catch(()=>'');
+        try{ return JSON.parse(text); }catch(_){ return null; }
+      }catch(e){ return null; }
+    }
+
+    // Step 1: Preview
     btn.disabled = true;
-    btn.textContent = '⏳ Düzeltiliyor…';
+    btn.textContent = '⏳ Kontrol ediliyor…';
     if (info) info.textContent = '';
 
-    async function tryPost(headers, body){
-      try{
-        const res = await fetch(base, { method:'POST', headers, body });
-        const text = await res.text().catch(()=>'');
-        let data = null;
-        try{ data = JSON.parse(text); }catch(_){ }
-        return { ok: res.ok, data, text };
-      }catch(e){
-        return { ok:false, data:null, text: String(e && e.message || 'load failed') };
-      }
+    const preview = await gasPost('previewkuafor');
+
+    if (!preview || !preview.ok){
+      if(info) info.textContent = '❌ Önizleme hatası: ' + ((preview && preview.error) || 'Sunucu yanıt vermedi');
+      btn.textContent = '🔧 Geçmişi Düzelt';
+      btn.disabled = false;
+      return;
     }
 
-    const payload = JSON.stringify({ action: 'fixKuafor' });
+    const fixCount = preview.toFix ? preview.toFix.length : 0;
+    const skipCount = preview.skipManual ? preview.skipManual.length : 0;
 
-    // İlk deneme: text/plain (preflight tetiklemez, Apps Script'te çalışır)
-    let r = await tryPost({ 'Content-Type':'text/plain;charset=utf-8' }, payload);
-
-    // Yedek: form-urlencoded
-    if (!r.ok || !r.data){
-      const form = new URLSearchParams();
-      form.set('action', 'fixKuafor');
-      r = await tryPost({ 'Content-Type':'application/x-www-form-urlencoded;charset=utf-8' }, form.toString());
+    if (fixCount === 0){
+      if(info) info.textContent = `✅ Zaten temiz — düzeltilecek satır yok (${preview.totalRows} satır kontrol edildi)`;
+      btn.textContent = '🔧 Geçmişi Düzelt';
+      btn.disabled = false;
+      return;
     }
 
-    if (r.data && r.data.ok){
-      const msg = `✅ ${r.data.fixed} satır düzeltildi` +
-        (r.data.skipped > 0 ? ` • ⚠️ ${r.data.skipped} satır manuel kontrol gerekli` : '');
-      if (info) info.textContent = msg;
+    // Build preview detail
+    const dateList = (preview.toFix || []).slice(0,10).map(x =>
+      `${x.date}: CKM ${x.ckmOld}→${x.ckmNew} (kuaför ${x.kuafor})`
+    ).join('\n') + (fixCount > 10 ? `\n… ve ${fixCount-10} satır daha` : '');
+
+    const msg = `${fixCount} satırda CKM kuaförü içeriyor.\n\n${dateList}\n\n` +
+      (skipCount > 0 ? `⚠️ ${skipCount} satır atlanacak (CKM < Kuaför).\n\n` : '') +
+      'Google Sheets\'te bu satırların CKM sütunu düzeltilsin mi?\n(Toplam rakamlar değişmez, sadece CKM ↓ ve Kuaför ayrı sayılır.)';
+
+    if (!window.confirm(msg)){
+      if(info) info.textContent = 'İptal edildi.';
+      btn.textContent = '🔧 Geçmişi Düzelt';
+      btn.disabled = false;
+      return;
+    }
+
+    // Step 2: Apply fix
+    btn.textContent = '⏳ Düzeltiliyor…';
+    const result = await gasPost('fixkuafor');
+
+    if (result && result.ok){
+      if(info) info.textContent = `✅ ${result.fixed} satır düzeltildi` +
+        (result.skipped > 0 ? ` • ⚠️ ${result.skipped} satır atlandı (manuel kontrol)` : '');
       btn.textContent = '✅ Düzeltildi';
-      if (typeof renderRevenueTables === 'function') renderRevenueTables();
+      if (typeof refreshAll === 'function') try{ refreshAll(); }catch(_){}
     } else {
-      const err = (r.data && r.data.error) || r.text || 'Bilinmeyen hata';
-      if (info) info.textContent = '❌ Hata: ' + err;
+      const err = (result && result.error) || 'Bilinmeyen hata';
+      if(info) info.textContent = '❌ Hata: ' + err;
       btn.textContent = '🔧 Geçmişi Düzelt';
       btn.disabled = false;
     }

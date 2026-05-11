@@ -3,7 +3,7 @@
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
-      "detail": "ROAS 9.14x, harcama 3353.0 TRY"
+      "detail": "ROAS 5.12x, harcama 3297.0 TRY"
     },
     {
       "level": "warning",
@@ -13,33 +13,33 @@
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CPC 30.26 TRY"
+      "detail": "CPC 29.68 TRY"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CTR %0.27"
+      "detail": "CTR %0.25"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CPC 24.65 TRY"
+      "detail": "CPC 24.85 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
-      "detail": "ROAS 3.98x, harcama 3434.0 TRY"
+      "detail": "ROAS 6.13x, harcama 3535.0 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
-      "detail": "ROAS 11.64x, harcama 12558.0 TRY"
+      "detail": "ROAS 10.75x, harcama 12216.0 TRY"
     },
     {
       "level": "warning",
       "title": "Channel Underperformance",
-      "detail": "En zayıf: Paid Shopping (62 oturum) vs. en güçlü: Paid Social (3772 oturum)"
+      "detail": "En zayıf: Organic Shopping (61 oturum) vs. en güçlü: Paid Social (3574 oturum)"
     }
   ],
-  "updated_at": "2026-05-09T04:25:24.963828+00:00"
+  "updated_at": "2026-05-11T10:25:19.765958+00:00"
 }

@@ -653,6 +653,7 @@ function doPost(e){
     if (action === 'appendexpense' || action === 'append_expense') return appendExpense_(row || {});
     if (action === 'appenddaily' || action === 'append_daily')     return appendDaily_(Array.isArray(rows) ? rows : []);
     if (action === 'fixkuafor' || action === 'fix_kuafor')         return runKuaforFix_();
+    if (action === 'previewkuafor' || action === 'preview_kuafor') return previewKuaforFixJson_();
 
     // ALTIN (POST)
     if (action === 'goldquote'){
@@ -1524,6 +1525,70 @@ function runKuaforFix_(){
 
   }catch(err){
     logError_('runKuaforFix', err, {});
+    return json({ ok:false, error: String(err && err.message || err) });
+  }
+}
+
+function previewKuaforFixJson_(){
+  try{
+    var ss   = SpreadsheetApp.openById(SHEET_ID);
+    var sh   = ss.getSheetByName(SHEET_NAME);
+    if (!sh) return json({ ok:false, error:'Sheet bulunamadı: ' + SHEET_NAME });
+
+    var data = sh.getDataRange().getValues();
+    if (data.length < 2) return json({ ok:false, error:'Veri yok.' });
+
+    var header = data[0].map(function(h){ return String(h||'').trim().toLowerCase(); });
+    var iDate = header.indexOf('date');
+    var iCKM  = header.indexOf('ckm');
+    var iKuf  = -1;
+    for(var hi=0;hi<header.length;hi++){
+      if(header[hi]==='kuaför'||header[hi]==='kuafor'){ iKuf=hi; break; }
+    }
+    var iTopt = header.indexOf('toptan');
+    var iOnl  = header.indexOf('online');
+    var iTrnd = header.indexOf('trendyol');
+    var iHB   = -1;
+    for(var hi2=0;hi2<header.length;hi2++){
+      if(header[hi2]==='hepsiburada'||header[hi2]==='hb'){ iHB=hi2; break; }
+    }
+    var iTot = header.indexOf('total');
+
+    if(iCKM<0 || iKuf<0 || iTot<0){
+      return json({ ok:false, error:'Gerekli sütunlar bulunamadı (CKM, Kuaför, Total).', header: data[0] });
+    }
+
+    var toFix = [];
+    var skipManual = [];
+
+    for(var r=1; r<data.length; r++){
+      var row    = data[r];
+      var ckm    = toNumber(row[iCKM]);
+      var kuafor = toNumber(row[iKuf]);
+      var total  = toNumber(row[iTot]);
+      if(kuafor <= 0) continue;
+
+      var toptan = iTopt>=0 ? toNumber(row[iTopt]) : 0;
+      var online = iOnl>=0  ? toNumber(row[iOnl])  : 0;
+      var trnd   = iTrnd>=0 ? toNumber(row[iTrnd]) : 0;
+      var hb     = iHB>=0   ? toNumber(row[iHB])   : 0;
+
+      var sumWithoutKuafor = toptan + online + ckm + trnd + hb;
+      var diff = Math.abs(sumWithoutKuafor - total);
+
+      if(diff < 2.0){
+        var correctedCKM = ckm - kuafor;
+        if(correctedCKM < 0){
+          skipManual.push({ row: r+1, date: String(row[iDate]||row[0]), ckm: ckm, kuafor: kuafor, total: total, note: 'CKM < Kuaför' });
+        } else {
+          toFix.push({ row: r+1, date: String(row[iDate]||row[0]), ckmOld: ckm, ckmNew: correctedCKM, kuafor: kuafor, total: total });
+        }
+      }
+    }
+
+    return json({ ok:true, toFix: toFix, skipManual: skipManual, totalRows: data.length - 1 });
+  }catch(err){
+    logError_('previewKuaforFixJson', err, {});
     return json({ ok:false, error: String(err && err.message || err) });
   }
 }
