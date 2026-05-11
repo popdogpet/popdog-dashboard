@@ -4951,7 +4951,11 @@ async function loadFromSheet(url){
               Trendyol: parseTL(r.Trendyol),
               Hepsiburada: parseTL(r.Hepsiburada),
             };
-            row.Total = row.Toptan + row.Online + row.CKM + row.Kuaför + row.Trendyol + row.Hepsiburada;
+            // Prefer the sheet's own Total column — it's always correct for both old-format rows
+            // (where CKM already includes Kuaför) and new-format rows (where CKM excludes Kuaför).
+            // Recalculating here would double-count Kuaför for old-format rows.
+            const rawSheetTotal = parseTL(r.Total);
+            row.Total = rawSheetTotal > 0 ? rawSheetTotal : (row.Toptan + row.Online + row.CKM + row.Kuaför + row.Trendyol + row.Hepsiburada);
             return row;
           }).filter(r=>r.Date);
           // Optional cleaning while loading from Sheet:
@@ -8289,13 +8293,16 @@ document.getElementById('fileInput').addEventListener('change', e=>{
   Papa.parse(file, { header:true, skipEmptyLines:true, complete:(res)=>{
     const data = (res.data||[]).map(r=>{
       const iso = r.Date ? String(r.Date).trim().slice(0,10) : '';
+      const kuaforVal = parseTL(r['Kuaför'] ?? r['Kuafor'] ?? r['Grooming'] ?? 0);
       const row = {
         Date: iso,
         Toptan: parseTL(r.Toptan), Online: parseTL(r.Online),
         CKM: parseTL(r.CKM), ["CKM Nakit"]: parseTL(r["CKM Nakit"]),
+        Kuaför: kuaforVal,
         Trendyol: parseTL(r.Trendyol), Hepsiburada: parseTL(r.Hepsiburada),
       };
-      row.Total = row.Toptan + row.Online + row.CKM + row.Trendyol + row.Hepsiburada;
+      const rawSheetTotal = parseTL(r.Total);
+      row.Total = rawSheetTotal > 0 ? rawSheetTotal : (row.Toptan + row.Online + row.CKM + row.Kuaför + row.Trendyol + row.Hepsiburada);
       return row;
     }).filter(r=>r.Date);
     loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
