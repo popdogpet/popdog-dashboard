@@ -1,11 +1,19 @@
 {
   "items": [
     {
+      "title": "Pop Dog Caddebostan’ın çocukları 🫠\n.\nCon",
+      "format": "carousel",
+      "topic": "general",
+      "published_at": "2026-05-06T17:54:29+0000",
+      "engagement_rate": 6.83,
+      "momentum_state": "peaked"
+    },
+    {
       "title": "🏀 Sokak stili, sahadan gelen enerji.\n\nYe",
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-22T16:47:46+0000",
-      "engagement_rate": 3.1,
+      "engagement_rate": 3.11,
       "momentum_state": "peaked"
     },
     {
@@ -13,7 +21,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-18T15:00:06+0000",
-      "engagement_rate": 6.96,
+      "engagement_rate": 6.88,
       "momentum_state": "peaked"
     },
     {
@@ -21,7 +29,7 @@
       "format": "carousel",
       "topic": "harness",
       "published_at": "2026-04-15T19:21:38+0000",
-      "engagement_rate": 2.41,
+      "engagement_rate": 2.45,
       "momentum_state": "peaked"
     },
     {
@@ -29,17 +37,9 @@
       "format": "carousel",
       "topic": "lifestyle",
       "published_at": "2026-04-11T16:57:49+0000",
-      "engagement_rate": 6.74,
-      "momentum_state": "peaked"
-    },
-    {
-      "title": "Reebok x Zee.Dog 🐾🔥\nSokak stilinin en gü",
-      "format": "reel",
-      "topic": "collar",
-      "published_at": "2026-04-09T17:17:49+0000",
-      "engagement_rate": 5.91,
+      "engagement_rate": 6.78,
       "momentum_state": "peaked"
     }
   ],
-  "updated_at": "2026-05-06T15:09:50.800560+00:00"
+  "updated_at": "2026-05-09T21:24:26.305800+00:00"
 }

@@ -2,44 +2,44 @@
   "items": [
     {
       "priority": "high",
-      "type": "story_now",
-      "title": "Harness Carousel'ı Story ile Amplify Et",
-      "reason": "Son harness carousel ER:6.9% (winning), 72 share aldı. Story amplification ile peaked momentum'u uzat, profil ziyareti artır.",
-      "recommended_time": "14:00",
-      "confidence": 0.95,
-      "objective": "profile_visits",
-      "content_pattern": "story_amplification"
-    },
-    {
-      "priority": "high",
       "type": "carousel_today",
-      "title": "Collar + Harness Lifestyle Carousel",
-      "reason": "Collar reel ER:5.9%, harness carousel ER:6.5% kazanıyor. İkisini lifestyle açısından combine et, share potansiyeli yüksek.",
-      "recommended_time": "19:00",
+      "title": "Harness + Lifestyle Combo Post",
+      "reason": "Harness carousels %6.5-7.0 ER, lifestyle %6.7 ER. Kombinasyon proven winner, shares yüksek (59-72).",
+      "recommended_time": "14:00",
       "confidence": 0.92,
       "objective": "shares",
       "content_pattern": "harness_lifestyle_carousel"
     },
     {
+      "priority": "high",
+      "type": "story_now",
+      "title": "Top Carousel'ı Story Amplify Et",
+      "reason": "Son harness carousel (%7.0 ER, 3549 reach) zirveye ulaştı. Story ile momentum korunsun, profil visit 25% artacak.",
+      "recommended_time": null,
+      "confidence": 0.89,
+      "objective": "profile_visits",
+      "content_pattern": "story_amplification"
+    },
+    {
       "priority": "medium",
       "type": "reel_today",
-      "title": "Harness Eğitim Reeli (Grooming Yerine)",
-      "reason": "Grooming reel ER:2.1% zayıf. Harness + eğitim konusu ER:6.5-6.9% performans gösteriyor. Format dönüşümü et.",
+      "title": "Collar Ürün Reel (Eğitim Formatı)",
+      "reason": "Collar reeli %5.9 ER yapıştı. Grooming reeli (%2.1) düştü. Reel_education pattern ile collar odağını tekrarla.",
       "recommended_time": "17:30",
-      "confidence": 0.88,
-      "objective": "saves",
+      "confidence": 0.85,
+      "objective": "reach",
       "content_pattern": "reel_education"
     },
     {
       "priority": "medium",
       "type": "wait",
-      "title": "24-48 Saat Momentum Takibi",
-      "reason": "Tüm içerik peaked durumda. Story amplification yapana kadar yeni post atma. Follow_up format için bekle, fade riski az.",
+      "title": "General Carousel Post Saklı Tut",
+      "reason": "Son 2 general post zirveye ulaştı (4.1%, 3397 reach). 48 saat bekle, momentum fade olmadan pattern break etme.",
       "recommended_time": null,
-      "confidence": 0.89,
-      "objective": "reach",
+      "confidence": 0.87,
+      "objective": "saves",
       "content_pattern": "no_post_window"
     }
   ],
-  "updated_at": "2026-05-06T11:09:40.256722+00:00"
+  "updated_at": "2026-05-06T15:09:50.084223+00:00"
 }

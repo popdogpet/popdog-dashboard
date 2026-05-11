@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "priority": "high",
+      "type": "carousel_today",
+      "title": "Harness + Lifestyle Combo Post",
+      "reason": "Harness carousels 6.4-6.9% ER, lifestyle 6.8% ER. Kombinasyon shares'i 59-72'ye çıkarır.",
+      "recommended_time": "14:00",
+      "confidence": 0.92,
+      "objective": "shares",
+      "content_pattern": "harness_lifestyle_carousel"
+    },
+    {
+      "priority": "high",
+      "type": "story_now",
+      "title": "Son 3 Winning İçeriği Story'de Amplify Et",
+      "reason": "6 winning post peaked momentum. Story ile profil ziyareti ve saves artacak, 30K takipçiye doğru çıkılan.",
+      "recommended_time": null,
+      "confidence": 0.89,
+      "objective": "profile_visits",
+      "content_pattern": "story_amplification"
+    },
+    {
+      "priority": "medium",
+      "type": "reel_today",
+      "title": "Grooming Reel (Format Test Gerekli)",
+      "reason": "Grooming reeli 2.1% ER ile zayıf. Harness/collar reel'lerinin education tarzını uygula.",
+      "recommended_time": "15:30",
+      "confidence": 0.75,
+      "objective": "reach",
+      "content_pattern": "reel_education"
+    },
+    {
+      "priority": "medium",
+      "type": "wait",
+      "title": "Collar Carousel Hazırla (48h İçinde)",
+      "reason": "Collar reel 5.9% ER başarılı. Carousel formatıyla test et, harness başarısını replike et.",
+      "recommended_time": null,
+      "confidence": 0.78,
+      "objective": "saves",
+      "content_pattern": "collar_test_carousel"
+    }
+  ],
+  "updated_at": "2026-05-09T21:24:26.303117+00:00"
+}

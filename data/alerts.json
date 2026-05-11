@@ -1,9 +1,14 @@
 {
   "items": [
     {
+      "level": "critical",
+      "title": "Revenue Drop",
+      "detail": "Shopify gelir WoW: -21.9% (son 7g vs önceki 7g)"
+    },
+    {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Dpa",
-      "detail": "ROAS 12.19x, harcama 3296.0 TRY"
+      "detail": "ROAS 9.76x, harcama 3395.0 TRY"
     },
     {
       "level": "warning",
@@ -13,33 +18,28 @@
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Reach",
-      "detail": "CPC 33.91 TRY"
+      "detail": "CPC 33.57 TRY"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CTR %0.22"
+      "detail": "CTR %0.25"
     },
     {
       "level": "warning",
       "title": "Ad Spend Waste — POPDOG -_- #Engagement",
-      "detail": "CPC 31.55 TRY"
+      "detail": "CPC 26.9 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales Adv",
-      "detail": "ROAS 13.02x, harcama 3485.0 TRY"
+      "detail": "ROAS 6.11x, harcama 3296.0 TRY"
     },
     {
       "level": "positive",
       "title": "Winning Campaign Momentum — POPDOG -_- #Sales",
-      "detail": "ROAS 9.9x, harcama 12495.0 TRY"
-    },
-    {
-      "level": "warning",
-      "title": "Channel Underperformance",
-      "detail": "En zayıf: Paid Shopping (62 oturum) vs. en güçlü: Paid Social (4099 oturum)"
+      "detail": "ROAS 11.1x, harcama 12257.0 TRY"
     }
   ],
-  "updated_at": "2026-05-06T14:10:35.538449+00:00"
+  "updated_at": "2026-05-08T09:10:51.784518+00:00"
 }
