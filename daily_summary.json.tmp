@@ -1,0 +1,14 @@
+{
+  "title": "Günlük Özet",
+  "highlights": [
+    "| Kanal | Oturum | Kullanıcı | Gelir | İşlem |",
+    "|-------|--------|-----------|-------|--------|",
+    "| Ücretli Sosyal | 3.578 | 3.253 | ₺33.200 | 9 |",
+    "| Ücretli Arama | 699 | 469 | ₺89.312 | 23 |",
+    "| Doğrudan | 623 | 491 | ₺48.740 | 11 |",
+    "| Çapraz Ağ | 688 | 545 | ₺54.092 | 14 |"
+  ],
+  "risks": [],
+  "opportunities": [],
+  "updated_at": "2026-05-11T10:40:27.778668+00:00"
+}

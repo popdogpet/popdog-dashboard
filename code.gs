@@ -495,6 +495,14 @@ function appendDaily_(rows){
       sh.getRange(1, 1, 1, defaultHeader.length).setValues([defaultHeader]);
     }
 
+    // Build existing-date index to prevent duplicates (bot may retry)
+    var existingDates = {};
+    var lastRow = sh.getLastRow();
+    if (lastRow > 1){
+      var dateCol = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+      dateCol.forEach(function(r, i){ existingDates[String(r[0]).trim()] = i + 2; });
+    }
+
     // Unicode-safe normalize
     function keyNorm_(s){
       s = String(s == null ? '' : s)
@@ -583,14 +591,28 @@ function appendDaily_(rows){
       return rowArr;
     });
 
-    // Write to sheet
-    if (out.length){
-      sh.getRange(sh.getLastRow() + 1, 1, out.length, header.length).setValues(out);
-    }
+    // Write to sheet — skip rows whose date already exists (upsert: overwrite instead)
+    var added = 0;
+    var updated = 0;
+    var dateColIdx = (idx['date'] != null) ? idx['date'] : 0;
+    out.forEach(function(rowArr){
+      var dateVal = String(rowArr[dateColIdx] || '').trim();
+      var existingRowNum = existingDates[dateVal];
+      if (existingRowNum){
+        // Overwrite existing row (bot retried or corrected data)
+        sh.getRange(existingRowNum, 1, 1, rowArr.length).setValues([rowArr]);
+        updated++;
+      } else {
+        sh.getRange(sh.getLastRow() + 1, 1, 1, rowArr.length).setValues([rowArr]);
+        existingDates[dateVal] = sh.getLastRow();
+        added++;
+      }
+    });
 
     return json({
       ok: true,
-      added: out.length,
+      added: added,
+      updated: updated,
       sheetName: sh.getName(),
       debug: {
         kuaforCol: kuaforCol,
