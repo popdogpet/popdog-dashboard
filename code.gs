@@ -348,11 +348,55 @@ function doGet(e){
       });
     }
 
+    // STOK ÖZET → ?action=stocksummary
+    if (action === 'stocksummary'){
+      return getStockSummaryJSON_();
+    }
+
     // Default ping
     return json({ ok:true, method:'GET', ts:new Date().toISOString() });
 
   }catch(err){
     logError_('doGet', err, { params: e && e.parameter });
+    return json({ ok:false, error: String(err && err.message || err) });
+  }
+}
+
+/* ============================================================
+   STOK ÖZET — inventory_value sheet'ini JSON olarak döndür
+   ============================================================ */
+function getStockSummaryJSON_(){
+  try{
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sh = ss.getSheetByName(CFG.out_inv_value);
+    if (!sh){
+      return json({ ok:false, error:'inventory_value sheet bulunamadı. Önce buildAll() çalıştırın.' });
+    }
+
+    var values = sh.getDataRange().getValues();
+    if (values.length < 2){
+      return json({ ok:false, error:'inventory_value sheet boş.' });
+    }
+
+    var headers = values[0].map(function(h){ return String(h || '').trim(); });
+    var rows = [];
+    for (var r = 1; r < values.length; r++){
+      var obj = {};
+      headers.forEach(function(h, i){
+        obj[h] = values[r][i];
+      });
+      rows.push(obj);
+    }
+
+    return json({
+      ok: true,
+      rows: rows,
+      count: rows.length,
+      ts: new Date().toISOString()
+    });
+
+  }catch(err){
+    logError_('getStockSummaryJSON', err, {});
     return json({ ok:false, error: String(err && err.message || err) });
   }
 }
@@ -1138,7 +1182,7 @@ function readOrders(){
   if (!sh) throw new Error('orders raw sheet bulunamadı');
 
   var values = sh.getDataRange().getValues();
-  if (!values.length) return [['date','sku','qty','price','revenue']];
+  if (!values.length) return [['date','sku','qty','price','revenue','channel']];
 
   var head = values[0].map(norm);
   var idx  = headerIndexMap(head);
@@ -1149,18 +1193,20 @@ function readOrders(){
   var iQty     = findIdx(idx,['Lineitem quantity','Lineitem Quantity','Quantity']);
   var iSKU     = findIdx(idx,['Lineitem sku','Lineitem SKU','SKU']);
   var iPrice   = findIdx(idx,['Lineitem price','Lineitem Price','Price']);
+  var iTags    = findIdx(idx,['Tags','tags']);
+  var iSource  = findIdx(idx,['Source','source','source_name']);
 
-  if ([iQty,iSKU,iPrice].some(function(v){ return v == null; }) ||
+  if ([iQty,iPrice].some(function(v){ return v == null; }) ||
       (iCreated == null && iPaid == null && iFulfill == null)){
-    throw new Error('orders raw: Gerekli başlıklar yok (Created/Paid/Fulfilled at, Lineitem quantity, Lineitem sku, Lineitem price)');
+    throw new Error('orders raw: Gerekli başlıklar yok (Created/Paid/Fulfilled at, Lineitem quantity, Lineitem price)');
   }
 
-  var out = [['date','sku','qty','price','revenue']];
+  var out = [['date','sku','qty','price','revenue','channel']];
 
   for (var r=1;r<values.length;r++){
     var row = values[r];
-    var sku = normSKU(row[iSKU]);
-    if (!sku) continue;
+    var sku = iSKU != null ? normSKU(row[iSKU]) : '';
+
     var dStr = (iCreated != null ? row[iCreated] : '') ||
                (iPaid    != null ? row[iPaid]    : '') ||
                (iFulfill != null ? row[iFulfill] : '');
@@ -1171,7 +1217,29 @@ function readOrders(){
     var price = toNumber(row[iPrice]);
     if (qty <= 0) continue;
 
-    out.push([d, sku, qty, price, qty * price]);
+    // Kanal tespiti: Tags ve Source'dan
+    var tags   = iTags   != null ? String(row[iTags]  ||'').toLowerCase() : '';
+    var source = iSource != null ? String(row[iSource]||'').toLowerCase() : '';
+    var channel;
+    if (tags.indexOf('grooming') !== -1 || tags.indexOf('kuafor') !== -1 ||
+        tags.indexOf('kuaför')  !== -1 || tags.indexOf('groom')   !== -1) {
+      channel = 'Kuaför';
+    } else if (tags.indexOf('hepsiburada') !== -1) {
+      channel = 'Hepsiburada';
+    } else if (tags.indexOf('trendyol') !== -1) {
+      channel = 'Trendyol';
+    } else if (tags.indexOf('b2b') !== -1 || tags.indexOf('toptan') !== -1) {
+      channel = 'Toptan';
+    } else if (source === 'pos' || source.indexOf('pos') !== -1) {
+      channel = 'CKM';
+    } else {
+      channel = 'Online';
+    }
+
+    // Grooming siparişlerinde SKU boş olabilir (hizmet kalemi) — yine de dahil et
+    if (!sku && channel !== 'Kuaför') continue;
+
+    out.push([d, sku, qty, price, qty * price, channel]);
   }
   return out;
 }

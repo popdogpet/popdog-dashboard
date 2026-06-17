@@ -3384,7 +3384,7 @@ async function renderRevenueTables(){
   ];
 
   // Aggregate by YEAR -> MONTH
-  const byYear = new Map(); // y -> Map(monthKey -> { total, channels })
+  const byYear = new Map(); // y -> Map(monthKey -> { total, channels, kuaforQty })
 
   function ensureYearMonth(y, mk){
     if (!byYear.has(y)) byYear.set(y, new Map());
@@ -3392,7 +3392,7 @@ async function renderRevenueTables(){
     if (!mMap.has(mk)){
       const ch = {};
       CHANNELS.forEach(c=> ch[c.key]=0);
-      mMap.set(mk, { total:0, channels: ch });
+      mMap.set(mk, { total:0, channels: ch, kuaforQty: 0 });
     }
     return mMap.get(mk);
   }
@@ -3412,6 +3412,10 @@ async function renderRevenueTables(){
       const v = parseTL(getFieldCI(r, c.cols)) || 0;
       o.channels[c.key] += v;
     });
+
+    // Kuaför seans adedi (Ciro sheet'te "Kuaför Adet" sütunu varsa oku)
+    const kuaforAdetVal = Number(getFieldCI(r, ['Kuaför Adet','Kuafor Adet','Grooming Adet','Grooming Qty','Kuaför Qty','KuaforAdet','GroomingAdet'])) || 0;
+    if (kuaforAdetVal > 0) o.kuaforQty += kuaforAdetVal;
   }
 
   const years = Array.from(byYear.keys()).sort((a,b)=> a-b);
@@ -3563,10 +3567,22 @@ async function renderRevenueTables(){
   // === Grooming (Kuaför) monthly totals + MoM ===
   const wrapGroom = document.getElementById('groomMonthlyTblWrap');
   if (wrapGroom){
+    // Önce Ciro sheet'teki "Kuaför Adet" sütunundan kontrol et (byYear içinde kuaforQty olarak toplandı)
+    // Yoksa Shopify siparişlerinden aylık Kuaför adetini dene (channel='Kuaför' ile etiketli siparişler)
+    const groomQtyByYM = {};
+    try {
+      (getOrdersCache()||[]).forEach(function(o){
+        if (!o.date || o.channel !== 'Kuaför') return;
+        const mk = o.date.getFullYear() + '-' + String(o.date.getMonth()+1).padStart(2,'0');
+        groomQtyByYM[mk] = (groomQtyByYM[mk]||0) + (o.qty||0);
+      });
+    } catch(_) {}
+
     let html = '<div class="overflow-auto"><table class="min-w-full text-sm">'
       + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
       + '<th class="text-left py-2 pr-4">Ay</th>'
       + '<th class="text-right py-2 pr-4">Kuaför</th>'
+      + '<th class="text-right py-2 pr-4">Adet</th>'
       + '<th class="text-right py-2 pr-0">MoM</th>'
       + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
@@ -3575,16 +3591,24 @@ async function renderRevenueTables(){
       const months = Array.from(mMap.keys()).sort();
 
       html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
-        + `<td class="py-2 pr-4 font-semibold" colspan="3">${safeText(String(y))}</td>`
+        + `<td class="py-2 pr-4 font-semibold" colspan="4">${safeText(String(y))}</td>`
         + `</tr>`;
 
       let prev = 0;
       let yearSum = 0;
+      let yearQty = 0;
 
       months.forEach(mk=>{
         const o = mMap.get(mk);
         const v = Number((o && o.channels && o.channels.kuafor) || 0);
         yearSum += v;
+
+        // Adet: önce Ciro sheet'teki "Kuaför Adet" sütununa bak, yoksa Shopify cache'ine dön
+        const ciroQty = (o && o.kuaforQty) || 0;
+        const ymKey = mk.length === 7 ? mk : mk.slice(0,7);
+        const shopifyQty = groomQtyByYM[ymKey] || 0;
+        const qty = ciroQty > 0 ? ciroQty : shopifyQty;
+        yearQty += qty;
 
         let mom = '–';
         let cls = '';
@@ -3597,6 +3621,7 @@ async function renderRevenueTables(){
         html += `<tr>`
           + `<td class="py-1 pr-4">${safeText(mk)}</td>`
           + `<td class="py-1 pr-4 text-right">${numberTL(v)}</td>`
+          + `<td class="py-1 pr-4 text-right">${qty > 0 ? qty.toLocaleString('tr-TR') : '<span class="hint">–</span>'}</td>`
           + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
           + `</tr>`;
 
@@ -3606,6 +3631,7 @@ async function renderRevenueTables(){
       html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
         + `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Kuaför Toplam</td>`
         + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(yearSum)}</td>`
+        + `<td class="py-2 pr-4 text-right font-semibold">${yearQty > 0 ? yearQty.toLocaleString('tr-TR') : '<span class="hint">–</span>'}</td>`
         + `<td class="py-2 pr-0"></td>`
         + `</tr>`;
     });
@@ -4952,7 +4978,7 @@ let mergedRowsCache = [];
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
-  const resp = await fetch(assetURL(url), { cache: isFreshMode()? 'reload' : 'default' });
+  const resp = await fetch(assetURL(url), { cache: 'no-store' });
   if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
   const csvText = await resp.text();
   return new Promise((resolve,reject)=>{
@@ -4994,12 +5020,15 @@ async function loadFromSheet(url){
   });
 }
 
-function loadCSV(url){
-  return new Promise((resolve,reject)=>{
-    if(!url) return resolve([]);
-    Papa.parse(assetURL(url), {
-      download:true, header:true, skipEmptyLines:true,
-      worker:true, fastMode:true,
+async function loadCSV(url){
+  if(!url) return [];
+  const busted = withCacheBust(url);
+  const resp = await fetch(busted, { cache: 'no-store' });
+  if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
+  const text = await resp.text();
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header:true, skipEmptyLines:true,
       complete: (res)=> resolve(res.data||[]),
       error: reject
     });
@@ -5989,7 +6018,7 @@ function getOrdersCache(){
     price: parseTL(o.price||0),
     date: o.date ? new Date(o.date) : null,  // <- rehydrate
     channel: o.channel || 'Online'           // <- kanal bilgisi
-  })).filter(o => o.sku && o.qty>0 && o.date && !isNaN(+o.date));
+  })).filter(o => (o.sku || o.channel === 'Kuaför') && o.qty>0 && o.date && !isNaN(+o.date));
 }
 
 /**
@@ -6093,13 +6122,15 @@ function mapOrderRow(r){
 
   let channel = 'Online'; // varsayılan
 
-  // 1) Tags'ten marketplace/B2B tespiti
+  // 1) Tags'ten marketplace/B2B/Grooming tespiti
   if (tags.includes('hepsiburada')) {
     channel = 'Hepsiburada';
   } else if (tags.includes('trendyol')) {
     channel = 'Trendyol';
   } else if (tags.includes('b2b') || tags.includes('toptan')) {
     channel = 'Toptan';
+  } else if (tags.includes('grooming') || tags.includes('kuaför') || tags.includes('kuafor') || tags.includes('groom') || tags.includes('groomin')) {
+    channel = 'Kuaför';
   }
   // 2) Source'dan POS (mağaza) tespiti
   else if (source === 'pos' || source.includes('pos')) {
@@ -7455,12 +7486,29 @@ function renderMainExpensesTable(){
       }
     }catch(err){ console.warn('Revenue boot error', err); }
 
-    // 2) INVENTORY
+    // 2) INVENTORY — Apps Script JSON endpoint (CSV fallback)
     try{
-      const invUrl = localStorage.getItem('popdog_inv_csv') || DEFAULT_INV_CSV;
-      if (invUrl){
-        const invRows = await loadCSV(invUrl);
-        try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows||[])); } catch(e){}
+      const gasBase = (typeof getSheetWebAppURL === 'function' ? getSheetWebAppURL() : null)
+                   || (typeof SHEET_WEBAPP_URL !== 'undefined' ? SHEET_WEBAPP_URL : '');
+      let loaded = false;
+      if (gasBase) {
+        try {
+          const r = await fetch(`${gasBase}?action=stocksummary&t=${Date.now()}`, { cache:'no-store', redirect:'follow' });
+          if (r.ok) {
+            const d = await r.json();
+            if (d.ok && Array.isArray(d.rows) && d.rows.length) {
+              localStorage.setItem('popdog_inv_cache', JSON.stringify(d.rows));
+              loaded = true;
+            }
+          }
+        } catch(e){ console.warn('stocksummary fetch error', e); }
+      }
+      if (!loaded) {
+        const invUrl = localStorage.getItem('popdog_inv_csv') || DEFAULT_INV_CSV;
+        if (invUrl) {
+          const invRows = await loadCSV(invUrl);
+          if (invRows && invRows.length) localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+        }
       }
     }catch(err){ console.warn('Inventory load error', err); }
 
@@ -7469,7 +7517,7 @@ function renderMainExpensesTable(){
       const ordersUrl = localStorage.getItem('popdog_orders_csv') || DEFAULT_ORDERS_CSV;
       if (ordersUrl){
         const ordersRaw = await loadCSV(ordersUrl);
-        const mapped = (ordersRaw||[]).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+        const mapped = (ordersRaw||[]).map(mapOrderRow).filter(o=>o && (o.sku || o.channel==='Kuaför') && o.qty>0 && o.date);
         try { localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped)); } catch(e){}
       }
     }catch(err){ console.warn('Orders load error', err); }
@@ -8558,9 +8606,25 @@ try {
 
       const pInv = (async()=>{
         try{
-          if(!invUrl) return;
-          const invRows = await loadCSV(invUrl);
-          try { localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows || [])); } catch(e){}
+          const gasBase = (typeof getSheetWebAppURL === 'function' ? getSheetWebAppURL() : null)
+                       || (typeof SHEET_WEBAPP_URL !== 'undefined' ? SHEET_WEBAPP_URL : '');
+          let loaded = false;
+          if (gasBase) {
+            try {
+              const r = await fetch(`${gasBase}?action=stocksummary&t=${Date.now()}`, { cache:'no-store', redirect:'follow' });
+              if (r.ok) {
+                const d = await r.json();
+                if (d.ok && Array.isArray(d.rows) && d.rows.length) {
+                  localStorage.setItem('popdog_inv_cache', JSON.stringify(d.rows));
+                  loaded = true;
+                }
+              }
+            } catch(e){ console.warn('stocksummary fetch error', e); }
+          }
+          if (!loaded && invUrl) {
+            const invRows = await loadCSV(invUrl);
+            if (invRows && invRows.length) localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+          }
           renderStockBlock();
         } catch(e){ console.warn('Inventory load/render error', e); }
       })();
@@ -8569,7 +8633,7 @@ try {
         try{
           if(!ordUrl) return;
           const ordRaw = await loadCSV(ordUrl);
-          const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && o.sku && o.qty>0 && o.date);
+          const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && (o.sku || o.channel==='Kuaför') && o.qty>0 && o.date);
           const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString(), channel:o.channel }));
           try { localStorage.setItem('popdog_orders_cache', JSON.stringify(persist)); } catch(e){}
           renderStockBlock();
@@ -8761,20 +8825,49 @@ try {
     console.warn('CSV URL yok: Sheet verisi yüklenemedi.');
   }
 
-  // 6) inventory_value
+  // 6) inventory_value — Apps Script'ten direkt JSON olarak çek (published CSV cache'ini bypass eder)
   try {
-    if (invUrl) {
+    const gasBase = (typeof getSheetWebAppURL === 'function' ? getSheetWebAppURL() : null)
+                 || SHEET_WEBAPP_URL || '';
+    if (gasBase) {
+      const gasResp = await fetch(`${gasBase}?action=stocksummary&t=${Date.now()}`, {
+        cache: 'no-store',
+        redirect: 'follow'
+      });
+      if (gasResp.ok) {
+        const gasData = await gasResp.json();
+        if (gasData.ok && Array.isArray(gasData.rows) && gasData.rows.length) {
+          localStorage.setItem('popdog_inv_cache', JSON.stringify(gasData.rows));
+        } else {
+          console.warn('stocksummary boş/hatalı döndü, CSV fallback deneniyor:', gasData);
+          if (invUrl) {
+            const invRows = await loadCSV(invUrl);
+            if (invRows.length) localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+          }
+        }
+      } else {
+        throw new Error(`stocksummary HTTP ${gasResp.status}`);
+      }
+    } else if (invUrl) {
       const invRows = await loadCSV(invUrl);
-      localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+      if (invRows.length) localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
     }
-  } catch (e) { console.warn('INV CSV error', e); }
+  } catch (e) {
+    console.warn('INV load error, CSV fallback deneniyor:', e);
+    try {
+      if (invUrl) {
+        const invRows = await loadCSV(invUrl);
+        if (invRows.length) localStorage.setItem('popdog_inv_cache', JSON.stringify(invRows));
+      }
+    } catch (e2) { console.warn('INV CSV fallback da başarısız:', e2); }
+  }
 
   // 7) orders_raw (Shopify)
   try {
     if (ordersUrl) {
       const rawRows = await loadCSV(ordersUrl);
       const mapped = rawRows.map(mapOrderRow)
-                            .filter(o => o.sku && o.qty > 0 && o.date && !isNaN(+o.date));
+                            .filter(o => (o.sku || o.channel === 'Kuaför') && o.qty > 0 && o.date && !isNaN(+o.date));
       localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
     }
   } catch (e) { console.warn('ORDERS CSV error', e); }
