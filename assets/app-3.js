@@ -1660,6 +1660,9 @@ async function refreshLoansFromExpenses(){
     const BIZ2_TARGET = Number(st?.loans?.biz2?.instTRY) > 0 ? Number(st.loans.biz2.instTRY) : 71_453;
     const BIZ2_EPS    = 500; // ±500 TL tolerans
 
+    // Garanti Ticari Kredi — gider Sheet'inde alt kategori "Garanti Kredi" olarak geçiyor.
+    const GARANTI_RE = /garanti\s*kredi/i;
+
     // Araç ipuçları
     const CAR_HINT_RE = /(araç|taşıt|oto|otomobil)/i;
     const CAR_TARGET  = Number(st?.loans?.car?.instTRY) > 0 ? Number(st.loans.car.instTRY) : 30_000;
@@ -1669,6 +1672,7 @@ async function refreshLoansFromExpenses(){
     const bizMonths = new Set();
     const biz2Months = new Set();
     const carMonths = new Set();
+    const garantiMonths = new Set();
 
     // Yardımcı: YYYY-MM anahtarı
     const monthKeyFromRow = (r) => {
@@ -1709,6 +1713,10 @@ async function refreshLoansFromExpenses(){
         const near = Math.abs(amt - BIZ2_TARGET) <= BIZ2_EPS;
         if (near) biz2Months.add(monthK);
       }
+      // === Garanti kredisi: alt kategori "Garanti Kredi" ===
+      else if (GARANTI_RE.test(sub) || GARANTI_RE.test(finSub)){
+        garantiMonths.add(monthK);
+      }
       // === İşletme/Ticari kredi (regular) ===
       else if (isSubKredi && !isCarHint){
         const near = Math.abs(amt - BIZ_TARGET) <= BIZ_EPS;
@@ -1725,6 +1733,7 @@ async function refreshLoansFromExpenses(){
     const bizPaid = bizMonths.size;
     const biz2Paid = biz2Months.size;
     const carPaid = carMonths.size;
+    const garantiPaid = garantiMonths.size;
 
     // State'i güncelle
     st.loans = st.loans || {};
@@ -1734,9 +1743,15 @@ async function refreshLoansFromExpenses(){
       { total:24, instTRY:71452.86, remainTRY:1714868.61, principalTRY:1714868.61, monthlyRate:0, paid:0 },
       st.loans.biz2 || {}
     );
+    st.loans.garanti = Object.assign(
+      { total:12, instTRY:106175.29, remainTRY:1274103.37, principalTRY:1000000,
+        monthlyRate:3.69, paid:0, dueDay:26, firstPaymentDate:'2026-09-26' },
+      st.loans.garanti || {}
+    );
     st.loans.biz.paid = bizPaid;
     st.loans.biz2.paid = biz2Paid;
     st.loans.car.paid = carPaid;
+    st.loans.garanti.paid = garantiPaid;
 
     // Kalan toplamı kabaca taksit* (kalan adet) olarak güncelle (opsiyonel)
     const bizRemainCnt = Math.max(0, (st.loans.biz.total||0) - bizPaid);
@@ -1745,6 +1760,8 @@ async function refreshLoansFromExpenses(){
     if (st.loans.biz.instTRY>0) st.loans.biz.remainTRY = bizRemainCnt * Number(st.loans.biz.instTRY||0);
     if (st.loans.biz2.instTRY>0) st.loans.biz2.remainTRY = biz2RemainCnt * Number(st.loans.biz2.instTRY||0);
     if (st.loans.car.instTRY>0) st.loans.car.remainTRY = carRemainCnt * Number(st.loans.car.instTRY||0);
+    const garantiRemainCnt = Math.max(0, (st.loans.garanti.total||0) - garantiPaid);
+    if (st.loans.garanti.instTRY>0) st.loans.garanti.remainTRY = garantiRemainCnt * Number(st.loans.garanti.instTRY||0);
 
     // Kaydet + UI
     if (typeof setLoansState === 'function') setLoansState(st);
@@ -2484,6 +2501,15 @@ const defaultLoansState = {
       instTRY: 71452.86,
       principalTRY: 1714868.61,
       monthlyRate: 3.72
+    },
+    garanti: {                // Garanti Ticari Kredi
+      remainTRY: 1274103.37,  // bankanın toplam geri ödeme tutarı
+      paid: 0, total: 12,
+      instTRY: 106175.29,
+      principalTRY: 1000000,
+      monthlyRate: 3.69,
+      dueDay: 26,                        // her ayın 26'sı
+      firstPaymentDate: '2026-09-26'     // ilk taksit
     }
   },
   zeeAwaitUSD: [
@@ -2524,7 +2550,7 @@ function getLoansState(){
 
   const out = Object.assign({}, d, s);
   out.loans = Object.assign({}, d.loans, s.loans || {});
-  ['biz', 'car', 'biz2'].forEach(function(k){
+  ['biz', 'car', 'biz2', 'garanti'].forEach(function(k){
     out.loans[k] = Object.assign({}, d.loans[k], (s.loans && s.loans[k]) || {});
   });
   out.zeeAwaitUSD = (Array.isArray(s.zeeAwaitUSD) && s.zeeAwaitUSD.length)
@@ -2618,6 +2644,20 @@ function renderLoansBlock(){
         }
       }
 
+      /* Sonraki ödeme tarihi: ilk taksit + ödenen taksit sayısı kadar ay.
+         firstPaymentDate tanımlı olmayan kredilerde alan gizli kalır. */
+      const nextEl = id('Next');
+      if (nextEl){
+        const ilk = loan && loan.firstPaymentDate ? new Date(loan.firstPaymentDate) : null;
+        if (ilk && !isNaN(+ilk) && paid < total){
+          const d = new Date(ilk.getFullYear(), ilk.getMonth() + paid, ilk.getDate());
+          nextEl.textContent = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+          if (nextEl.parentElement) nextEl.parentElement.style.display = '';
+        } else if (nextEl.parentElement) {
+          nextEl.parentElement.style.display = 'none';
+        }
+      }
+
       const bar = id('Bar');
       if (bar){
         const pct = total > 0 ? Math.max(0, Math.min(100, (paid / total) * 100)) : 0;
@@ -2625,10 +2665,11 @@ function renderLoansBlock(){
       }
     }
 
-    // 3 kredi: biz, car, biz2
-    applyLoan('loanBiz',  loans.biz);
-    applyLoan('loanCar',  loans.car);
-    applyLoan('loanBiz2', loans.biz2);
+    // Krediler
+    applyLoan('loanBiz',     loans.biz);
+    applyLoan('loanCar',     loans.car);
+    applyLoan('loanBiz2',    loans.biz2);
+    applyLoan('loanGaranti', loans.garanti);
 
     // Zee.Dog Bekleyen Ödemeler tablosu
     const tbody = document.getElementById('tblZeeAwait');
@@ -4237,17 +4278,35 @@ function buildAlerts(monthly){
     const loans = st.loans || {};
     const dayOfMonth = now.getDate();
 
-    // Kredi taksitleri yaklaşıyorsa (ayın 10'undan sonra uyar)
-    if (dayOfMonth >= 10) {
-      if (loans.biz && loans.biz.paid < loans.biz.total) {
-        const inst = Number(loans.biz.instTRY || 0);
-        if (inst > 0) alerts.push({type:'info', text:`Ticari kredi taksiti yaklaşıyor: ${numberTL(inst)}`, priority: 3});
+    /* Her kredi kendi ödeme gününden itibaren uyarır. dueDay tanımlı değilse
+       eski davranış korunur (ayın 10'u). */
+    [
+      { key: 'biz',     ad: 'Ticari kredi' },
+      { key: 'car',     ad: 'Araç kredisi' },
+      { key: 'garanti', ad: 'Garanti kredisi' },
+    ].forEach(function(k){
+      const l = loans[k.key];
+      if (!l || !(l.paid < l.total)) return;
+
+      if (l.firstPaymentDate){
+        /* Ödeme takvimi biliniyorsa yalnızca sıradaki taksidin ayında ve
+           gününde uyar — aksi halde ilk taksitten aylar önce uyarı çıkıyor. */
+        const ilk = new Date(l.firstPaymentDate);
+        if (isNaN(+ilk)) return;
+        const sonraki = new Date(ilk.getFullYear(), ilk.getMonth() + Number(l.paid || 0), ilk.getDate());
+        const ayniAy = now.getFullYear() === sonraki.getFullYear() && now.getMonth() === sonraki.getMonth();
+        if (!ayniAy || dayOfMonth < sonraki.getDate()) return;
+      } else {
+        // Takvimi bilinmeyen krediler için eski davranış: ayın 10'undan sonra.
+        const gun = Number(l.dueDay) > 0 ? Number(l.dueDay) : 10;
+        if (dayOfMonth < gun) return;
       }
-      if (loans.car && loans.car.paid < loans.car.total) {
-        const inst = Number(loans.car.instTRY || 0);
-        if (inst > 0) alerts.push({type:'info', text:`Araç kredisi taksiti yaklaşıyor: ${numberTL(inst)}`, priority: 3});
+
+      const inst = Number(l.instTRY || 0);
+      if (inst > 0) {
+        alerts.push({ type:'info', text:`${k.ad} taksiti yaklaşıyor: ${numberTL(inst)}`, priority: 3 });
       }
-    }
+    });
   } catch(e){}
 
   // 3) Margin Uyarıları

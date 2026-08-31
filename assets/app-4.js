@@ -441,6 +441,12 @@ function renderUpcomingPayments(){
       payments.push({ name: 'Ticari Kredi 2 Taksiti', amount: inst, type: 'loan' });
     }
 
+    if (loans.garanti && loans.garanti.paid < loans.garanti.total) {
+      const inst = Number(loans.garanti.instTRY || 0);
+      totalUpcoming += inst;
+      payments.push({ name: 'Garanti Kredi Taksiti', amount: inst, type: 'loan' });
+    }
+
     // Zee.Dog bekleyen ödemeler
     const zeeList = Array.isArray(st.zeeAwaitUSD) ? st.zeeAwaitUSD : [];
     const fxRate = (typeof tryPerUsd === 'function') ? tryPerUsd() : 35;

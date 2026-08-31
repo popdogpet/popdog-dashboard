@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.08.31-1610'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.08.31-1703'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1610">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1703">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -411,8 +411,8 @@
         </div>
       </div>
     
-      <!-- üç kredi -->
-      <div class="grid md:grid-cols-3 gap-4">
+      <!-- krediler -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Taksitli Ticari Kredi -->
         <div class="rounded-2xl p-4 card-glass-pro">
           <div class="flex items-center justify-between">
@@ -459,6 +459,19 @@
           <div class="progress-wrap mt-2">
             <div id="loanBiz2Bar" class="progress-bar" style="width:0%"></div>
           </div>
+        </div>
+
+        <!-- Garanti Ticari Kredi -->
+        <div class="rounded-2xl p-4 card-glass-pro">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">Garanti Ticari Kredi</div>
+            <span id="loanGarantiPaidBadge" class="badge">0/12</span>
+          </div>
+          <div class="mt-1 text-sm hint">Ödenecek Taksitler Toplamı: <span id="loanGarantiRemain" class="font-medium">–</span></div>
+          <div class="mt-1 text-sm">Taksit Tutarı: <span id="loanGarantiInst" class="font-semibold">–</span></div>
+          <div class="mt-1 text-xs hint">Kredi Tutarı: <span id="loanGarantiPrincipal">–</span> • Aylık Faiz: <span id="loanGarantiRate">–</span></div>
+          <div class="mt-1 text-xs hint">Sonraki Ödeme: <span id="loanGarantiNext" class="font-medium">–</span></div>
+          <div class="progress-wrap mt-2"><div id="loanGarantiBar" class="progress-bar" style="width:0%"></div></div>
         </div>
       </div>
 
@@ -1203,16 +1216,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.08.31-1610"></script>
+  <script src="/assets/app-1.js?v=2026.08.31-1703"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.08.31-1610"></script>
+  <script src="/assets/app-2.js?v=2026.08.31-1703"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.08.31-1610"></script>
-  <script src="/assets/app-4.js?v=2026.08.31-1610"></script>
+  <script src="/assets/app-3.js?v=2026.08.31-1703"></script>
+  <script src="/assets/app-4.js?v=2026.08.31-1703"></script>
 
-  <script src="/assets/app-5.js?v=2026.08.31-1610"></script>
+  <script src="/assets/app-5.js?v=2026.08.31-1703"></script>
 </body>
 </html>
