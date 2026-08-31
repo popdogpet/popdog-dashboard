@@ -2,14 +2,44 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "PopDog: Refresh",
+      "label": "PopDog: Commit & Push",
       "type": "shell",
-      "command": "git add . && git commit -m \"auto-refresh\" || echo \"(no changes)\" && git push",
+      "command": "git add -A && git commit -m \"${input:commitMessage}\" && git push",
+      "detail": "Değişiklikleri anlamlı bir mesajla commit'ler ve GitHub'a gönderir.",
       "group": {
         "kind": "build",
         "isDefault": true
       },
       "problemMatcher": []
+    },
+    {
+      "label": "PopDog: Yerel önizleme (wrangler)",
+      "type": "shell",
+      "command": "export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx wrangler pages dev .",
+      "detail": "Functions dahil siteyi localhost'ta çalıştırır. .dev.vars dosyasını okur.",
+      "problemMatcher": []
+    },
+    {
+      "label": "PopDog: Deploy",
+      "type": "shell",
+      "command": "export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx wrangler pages deploy . --project-name popdog-dashboard",
+      "detail": "Cloudflare Pages'e yayınlar.",
+      "problemMatcher": []
+    },
+    {
+      "label": "PopDog: Secret listesi",
+      "type": "shell",
+      "command": "export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx wrangler pages secret list --project-name popdog-dashboard",
+      "detail": "Cloudflare'de tanımlı secret'ları listeler (değerleri göstermez).",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMessage",
+      "type": "promptString",
+      "description": "Commit mesajı (ne değişti?)",
+      "default": ""
     }
   ]
 }

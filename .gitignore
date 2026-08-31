@@ -1,2 +1,5 @@
 .wrangler/
 .DS_Store
+.dev.vars
+*.tmp
+node_modules/
