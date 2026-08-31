@@ -62,11 +62,9 @@
               .then(({ ok, body }) => {
                 if(ok && body.ok){
                   sessionStorage.setItem(EXPENSES_SESSION_KEY,'true');
-                  try{ localStorage.setItem('popdog_active_page','expenses'); }catch(_){}
                   overlay.style.display = 'none';
-                  errEl.textContent = 'Giderler yükleniyor…';
-                  // Gider CSV'si kilitliyken atlanmıştı; çerez artık var, tazeleyip çekiyoruz.
-                  location.reload();
+                  errEl.textContent = '';
+                  showPage('expenses');
                 } else {
                   errEl.textContent = body.error || 'Yanlış şifre';
                   fresh.forEach(i=>{ i.value=''; });

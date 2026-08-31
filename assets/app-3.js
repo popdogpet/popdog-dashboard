@@ -2091,17 +2091,9 @@ function parseExpenseRow(r){
   }
 }
 
-/* Giderler ikinci PIN'in arkasında: /api/sheet?key=expenses kilitliyken 403
-   döner. Boşuna istek atıp konsolu kirletmemek için burada erken çıkıyoruz. */
-function isExpensesUnlocked(){
-  try{ return sessionStorage.getItem('popdog_expenses_unlocked') === 'true'; }
-  catch(_){ return false; }
-}
-
 // Correct CSV loader for Expenses (fetch text, then Papa.parse on string)
 async function loadExpensesCsv(url){
   if (!url) return [];
-  if (!isExpensesUnlocked()) return [];
   try{
     const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
     if (!resp.ok) return [];

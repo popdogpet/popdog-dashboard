@@ -43,8 +43,11 @@ istemciye iniyordu. Artık:
   denemeden sonra kilitlenir (KV üzerinden).
 - **Veri adresleri sunucuda.** Sheets CSV ve Apps Script adresleri secret'larda;
   istemci yalnızca `/api/sheet?key=...` ve `/api/gas?action=...` görür.
-- **Giderler için ikinci PIN.** `EXPENSES_PIN` tanımlıysa `/api/sheet?key=expenses`
-  ayrı bir çerez ister. Tanımlı değilse bu ek kapı devre dışı kalır.
+- **Giderler için ikinci PIN.** `EXPENSES_PIN` sunucuda doğrulanır, ama yalnızca
+  **arayüz kapısıdır** — Giderler sekmesini açar. Gider CSV'si bu PIN'e bağlı
+  değildir ve bağlanmamalıdır: aynı veri kredi taksiti sayımını, Zee.Dog ödeme
+  eşleştirmesini, aylık gider tablolarını ve Özet'teki gider/ciro uyarısını da
+  besliyor. Veriyi koruyan şey ana oturum kontrolüdür.
 
 > `/api/ingest` bilinçli olarak çerez kapısının dışında — otomasyon çağırıyor ve
 > kendi Bearer token'ı var.

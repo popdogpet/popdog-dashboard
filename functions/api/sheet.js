@@ -5,7 +5,7 @@
  * env değişkenlerinde duruyor. İstemci sadece /api/sheet?key=revenue çağırır.
  * Bu uç middleware'in arkasında olduğu için oturum zaten doğrulanmış olur.
  */
-import { EXPENSES_COOKIE, parseCookies, verifySession, json } from '../lib/auth.js';
+import { json } from '../lib/auth.js';
 
 const SOURCES = {
   revenue:   'SHEET_CSV_REVENUE',
@@ -23,13 +23,15 @@ export async function onRequestGet({ request, env }) {
     return json({ ok: false, error: 'Geçersiz key. Beklenen: ' + Object.keys(SOURCES).join(' | ') }, 400);
   }
 
-  // Giderler ikinci PIN'in arkasında. EXPENSES_PIN tanımlı değilse ek kapı yok.
-  if (key === 'expenses' && env.EXPENSES_PIN) {
-    const cookies = parseCookies(request);
-    if (!(await verifySession(env.AUTH_SECRET, 'expenses', cookies[EXPENSES_COOKIE]))) {
-      return json({ ok: false, error: 'Giderler için ek PIN gerekli' }, 403);
-    }
-  }
+  /* NOT: Giderler PIN'i bilerek burada uygulanmıyor.
+   *
+   * Gider CSV'si sadece Giderler sayfasını değil; kredi taksiti sayımını,
+   * Zee.Dog ödeme eşleştirmesini, aylık gider tablolarını ve Özet'teki
+   * gider/ciro uyarısını da besliyor. Bu ucu ikinci PIN'e bağlamak, PIN
+   * girilene kadar tüm bu hesapları boş bırakıyordu. İkinci PIN artık
+   * eskiden olduğu gibi yalnızca arayüz kapısı; veriyi asıl koruyan şey
+   * middleware'deki ana oturum kontrolü.
+   */
 
   const target = env[envName];
   if (!target) return json({ ok: false, error: `${envName} tanımlı değil` }, 503);
