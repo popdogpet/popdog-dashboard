@@ -1945,6 +1945,10 @@ async function refreshZeeAwaitFromExpenses(){
 }
 
 document.addEventListener('DOMContentLoaded', async function(){
+  // Krediler önce sunucudan; diğer hesaplar bunun üzerine çalışsın.
+  try{ await loadLoansFromKV(); }catch(_){}
+  try{ if (typeof renderLoansBlock === 'function') renderLoansBlock(); }catch(_){}
+
   // Ensure fresh expenses before both passes
   try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
 
@@ -2554,12 +2558,35 @@ const defaultLoansState = {
  * loans.biz2, zeeAwaitUSD ve demoBank tanımsız kalıyor; buna bağlı render'lar
  * patlayıp "Yükleniyor..." ve "–%" ekranda kalıyordu. Artık eksik alanlar
  * varsayılandan tamamlanıyor — kullanıcının girdiği değerler korunuyor. */
+/* Kaynak sırası: bellek (KV'den gelen) → localStorage (çevrimdışı yedek)
+   → varsayılan. KV'ye yazma setLoansState içinde arka planda yapılır. */
+let __loansCache = null;
+let __loansLastSent = '';
+
+async function loadLoansFromKV(){
+  try{
+    const r = await fetch('/api/loans', { cache: 'no-store' });
+    if (!r.ok) return false;
+    const j = await r.json();
+    if (j && j.ok && j.state && typeof j.state === 'object'){
+      __loansCache = j.state;
+      __loansLastSent = JSON.stringify(j.state);
+      try{ localStorage.setItem(LOANS_KEY, __loansLastSent); }catch(_){}
+      return true;
+    }
+  }catch(e){ console.warn('loadLoansFromKV:', e && e.message); }
+  return false;
+}
+window.loadLoansFromKV = loadLoansFromKV;
+
 function getLoansState(){
   const d = structuredClone(defaultLoansState);
-  let s = null;
-  try{
-    s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
-  }catch(_){}
+  let s = __loansCache;
+  if (!s){
+    try{
+      s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
+    }catch(_){}
+  }
   if (!s || typeof s !== 'object') return d;
 
   const out = Object.assign({}, d, s);
@@ -2574,7 +2601,20 @@ function getLoansState(){
   return out;
 }
 function setLoansState(st){
-  try{ localStorage.setItem(LOANS_KEY, JSON.stringify(st)); }catch(_){}
+  __loansCache = st;
+  const payload = JSON.stringify(st);
+  try{ localStorage.setItem(LOANS_KEY, payload); }catch(_){}
+
+  // Değişmediyse KV'ye yazma — her sayfa açılışında boşuna PUT olmasın.
+  if (payload === __loansLastSent) return;
+  __loansLastSent = payload;
+  try{
+    fetch('/api/loans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    }).catch(function(e){ console.warn('setLoansState KV yazma:', e && e.message); });
+  }catch(_){}
 }
 
 /* Dosyanın üstündeki yardımcı blok window.defaultLoansState'i sıfır değerlerle

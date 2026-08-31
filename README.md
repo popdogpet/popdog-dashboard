@@ -25,6 +25,7 @@ functions/
   api/logout.js       Oturum kapatma
   api/sheet.js        Google Sheets CSV proxy'si
   api/gas.js          Apps Script Web App proxy'si
+  api/loans.js        Kredi/varlık durumu — KV'de okuma+yazma
   api/*.js            AI kartlarını KV'den okuyan uçlar
 apps-script/code.gs   Google Apps Script kaynağı (web'e deploy edilmez, referans)
 ```
@@ -103,7 +104,11 @@ VS Code'da aynı işler **Terminal → Run Task** altında hazır görevler olar
 - **AI uçlarının durumu:** Tüm `/api/*` kartları her zaman 200 döner ama yanıtta
   `_meta.source` alanı vardır: `kv` (gerçek veri), `empty` (kayıt yok),
   `config_error` (KV binding yok), `parse_error` (bozuk kayıt).
-- **KV'ye veri yazan taraf** Telegram botudur (`~/claude-lab/.claude/commands/
+- **Krediler ve varlıklar KV'de** (`app:loans`). Tarayıcının `localStorage`'ı
+  yalnızca çevrimdışı yedek: sayfa açılışta `/api/loans`'tan okur, değişiklik
+  olduğunda geri yazar. Böylece telefon ve bilgisayar aynı veriyi gösterir ve
+  cache temizliği veriyi silmez. Kayıt eksikse varsayılanlarla tamamlanır.
+- **AI kartlarının KV'sine veri yazan taraf** Telegram botudur (`~/claude-lab/.claude/commands/
   telegram-bot`, `services/exporter.py`). Cloudflare API'siyle doğrudan KV'ye
   yazar; bu repodaki uçlar yalnızca okur.
 - **`ai:caddebostan_close`** anahtarını okuyan bir uç yok, arayüzde kullanılmıyor.

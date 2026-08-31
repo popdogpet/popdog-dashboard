@@ -206,10 +206,36 @@
     }
 
     /* ── Fetch + wire ────────────────────────────────────── */
+    /* Uçlar her zaman 200 döner; durum yanıttaki _meta.source alanında:
+         kv           → gerçek veri
+         empty        → KV'de henüz kayıt yok  (normal, "veri gelmedi")
+         config_error → KV binding yok         (sistem sorunu)
+         parse_error  → KV kaydı bozuk         (sistem sorunu)
+       Son ikisini normal boşluktan ayırmazsak bozuk sistem "veri gelmedi"
+       gibi görünüyor ve fark edilmiyor. */
     function loadJSON(path, cb){
       fetch(path+'?_='+Date.now(), {cache:'no-store'})
         .then(function(r){ if(!r.ok) throw new Error('missing'); return r.json(); })
-        .then(cb).catch(function(){ cb(null); });
+        .then(function(d){
+          var src = d && d._meta && d._meta.source;
+          if (src === 'config_error' || src === 'parse_error'){
+            console.warn('[AI] ' + path + ' — sunucu sorunu: ' + src);
+            cb(null, { hata: true, kaynak: src });
+            return;
+          }
+          cb(d);
+        })
+        .catch(function(){ cb(null, { hata: true, kaynak: 'network' }); });
+    }
+
+    /* Sistem sorunu olan kartlar sessiz kalmasın. */
+    function hataKutusu(el, durum){
+      if (!el || !durum || !durum.hata) return false;
+      var mesaj = durum.kaynak === 'network'
+        ? 'Sunucuya ulaşılamadı'
+        : 'Sunucu verisi okunamadı (' + durum.kaynak + ')';
+      el.innerHTML = '<span style="color:#f87171;font-size:.775rem">\u26a0 ' + esc(mesaj) + '</span>';
+      return true;
     }
 
     function renderCaddebostan(d) {
@@ -398,15 +424,62 @@
         + '</div>';
     }
 
+    /* ── "Şimdi Ne Paylaşmalı" — instagram_decision ──────── */
+    var DECISION_LABEL = {
+      post_now:  'Şimdi paylaş',
+      wait:      'Bekle',
+      hold:      'Bekle',
+      boost:     'Öne çıkar',
+      skip:      'Bugün atla'
+    };
+    function renderInstaDecision(d){
+      var el = document.getElementById('instaDecision');
+      if (!el) return;
+      if (!d || !d.title){
+        el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Karar verisi henüz gelmedi</div>';
+        return;
+      }
+      var rozet = DECISION_LABEL[d.type] || d.type || '';
+      var meta = [];
+      if (d.recommended_time) meta.push('\u23f0 ' + esc(d.recommended_time));
+      if (typeof d.confidence === 'number') meta.push('güven %' + Math.round(d.confidence * 100));
+      if (d.objective) meta.push('hedef: ' + esc(d.objective));
+
+      var h = '';
+      if (rozet){
+        h += '<div style="display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;'
+           + 'letter-spacing:.08em;padding:2px 7px;border-radius:999px;margin-bottom:6px;'
+           + 'background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)">'
+           + esc(rozet) + '</div>';
+      }
+      h += '<div style="font-size:.875rem;font-weight:600;line-height:1.35;margin-bottom:5px;letter-spacing:-.01em">'
+         + esc(d.title) + '</div>';
+      if (d.reason){
+        h += '<div style="font-size:.775rem;opacity:.58;line-height:1.5;margin-bottom:6px">'
+           + esc(d.reason) + '</div>';
+      }
+      if (meta.length){
+        h += '<div style="font-size:.7rem;opacity:.5;font-variant-numeric:tabular-nums">'
+           + esc(meta.join('  ·  ')) + '</div>';
+      }
+      h += freshLine(d.updated_at);
+      el.innerHTML = h;
+      setHeaderTs(d.updated_at);
+    }
+
     function init(){
       // Reset so header timestamp always reflects the current cycle's freshest file
       _latestTs = null;
-      loadJSON('/api/focus',        function(d){ renderFocus        (document.getElementById('aiFocus'),   d); });
-      loadJSON('/api/action',       function(d){ renderAction       (document.getElementById('aiAction'),  d); });
-      loadJSON('/api/alerts',       function(d){ renderAlerts       (document.getElementById('aiAlerts'),  d); });
-      loadJSON('/api/daily',        function(d){ renderSummary      (document.getElementById('aiSummary'), d); });
+      loadJSON('/api/focus',        function(d, h){ var el=document.getElementById('aiFocus');   if(!hataKutusu(el,h)) renderFocus(el, d); });
+      loadJSON('/api/action',       function(d, h){ var el=document.getElementById('aiAction');  if(!hataKutusu(el,h)) renderAction(el, d); });
+      loadJSON('/api/alerts',       function(d, h){ var el=document.getElementById('aiAlerts');  if(!hataKutusu(el,h)) renderAlerts(el, d); });
+      loadJSON('/api/daily',        function(d, h){ var el=document.getElementById('aiSummary'); if(!hataKutusu(el,h)) renderSummary(el, d); });
       loadJSON('/api/caddebostan_live',  function(d){ renderCaddebostan  (d); });
       loadJSON('/api/instagram_live_summary',    function(d){ renderInstaMain(d); });
+      loadJSON('/api/instagram_decision', function(d, h){
+        var el = document.getElementById('instaDecision');
+        if (!hataKutusu(el, h)) renderInstaDecision(d);
+      });
       loadJSON('/api/instagram_recommendations', function(d){ renderInstaRecs(d); });
     }
 
