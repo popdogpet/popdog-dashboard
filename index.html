@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.08.31-1803'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.08.31-1812'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1803">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1812">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -498,8 +498,11 @@
         </div>
       </div>
     
-      <!-- Demoş Bank -->
-      <div class="mt-5 grid md:grid-cols-2 gap-4">
+      <!-- Varlıklar & Yatırımlar — gider değil, referans bilgi. Kendi
+           başlığı altında ve varsayılan kapalı. -->
+      <details class="mt-5">
+      <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-base font-medium mb-2">🏦 Varlıklar &amp; Yatırımlar</summary>
+      <div class="mt-3 grid md:grid-cols-2 gap-4">
         <div class="rounded-2xl p-4 card-glass-pro">
           <div class="flex items-center justify-between">
             <div class="font-medium">Demoş Bank — Altın Borç</div>
@@ -554,6 +557,7 @@
           <div class="hint text-xs mt-1" id="isyNote"></div>
         </div>
       </div>
+      </details>
     </section>
 
     <!-- Charts -->
@@ -625,15 +629,14 @@
           </details>
         </div>
       </div>
-      <!-- Gider Ekle — Hızlı Form -->
+      <!-- Gider Ekle — veri girişi aracı, varsayılan kapalı -->
       <div class="glass card-3d card-glass-pro rounded-2xl p-3 sm:p-4 mt-4" data-page="expenses">
-        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2" data-i18n="sec_exp_add">
-            <span aria-hidden="true">🧾</span>
-            Aylık Gider Ekle
-          </div>
-          <span class="soft-badge text-xs">Veri: expenses_master</span>
-        </div>
+        <details>
+        <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2" data-i18n="sec_exp_add">
+          <span aria-hidden="true">🧾</span>
+          Aylık Gider Ekle
+          <span class="soft-badge text-xs ml-2">Veri: expenses_master</span>
+        </summary>
 
         <div class="grid sm:grid-cols-4 gap-2 sm:gap-3 items-end">
           <div>
@@ -668,11 +671,15 @@
         </div>
 
         <div id="expAddInfo" class="hint text-xs mt-2 pt-2 border-t border-white/50 dark:border-slate-700/40">Alt kategoriler CSV’den çekiliyor…</div>
+        </details>
       </div>
-      <div class="grid lg:grid-cols-2 gap-4 mt-4">
-        <div class="glass card-3d rounded-2xl p-4">
-          <div class="text-slate-700 dark:text-slate-200 mb-2" data-i18n="sec_cat_detail">Ana Kategoriler (YTD) — Detay</div>
-          <div class="overflow-auto">
+      <!-- Gruplanmış tablo ana görünüm; 56 satırlık detay aynı veriyi tekrar
+           listelediği için katlanır hale getirildi. -->
+      <div class="grid gap-4 mt-4">
+        <div class="glass card-3d rounded-2xl p-4 order-2">
+          <details>
+          <summary class="cursor-pointer text-slate-700 dark:text-slate-200 mb-2" data-i18n="sec_cat_detail">Ana Kategoriler (YTD) — Detay</summary>
+          <div class="overflow-auto max-h-96">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300">
                 <tr>
@@ -684,8 +691,9 @@
               <tbody id="tblMainExpensesDetail" class="text-slate-800 dark:text-slate-100"></tbody>
             </table>
           </div>
+          </details>
         </div>
-        <div class="glass card-3d rounded-2xl p-4">
+        <div class="glass card-3d rounded-2xl p-4 order-1">
           <div class="text-slate-700 dark:text-slate-200 mb-2" data-i18n="sec_cat_grouped">Ana Kategoriler (YTD) — Gruplanmış</div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
@@ -1043,7 +1051,8 @@
       <!-- Largest Stock (Top 25) -->
       <div class="mt-4">
         <div class="glass rounded-2xl p-3 overflow-auto">
-          <div class="hint text-sm mb-1">📦 Stoğu En Fazla Olan (Top 25)</div>
+          <details>
+          <summary class="cursor-pointer hint text-sm mb-1">📦 Stoğu En Fazla Olan (Top 25)</summary>
           <div class="overflow-auto max-h-60">
             <table class="min-w-full text-sm">
               <thead class="text-slate-600 dark:text-slate-300 sticky top-0 bg-white/80 dark:bg-slate-800/80">
@@ -1056,6 +1065,7 @@
               <tbody id="tblLargestStock" class="text-slate-800 dark:text-slate-100"></tbody>
             </table>
           </div>
+          </details>
         </div>
       </div>
     </section>
@@ -1205,16 +1215,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.08.31-1803"></script>
+  <script src="/assets/app-1.js?v=2026.08.31-1812"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.08.31-1803"></script>
+  <script src="/assets/app-2.js?v=2026.08.31-1812"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.08.31-1803"></script>
-  <script src="/assets/app-4.js?v=2026.08.31-1803"></script>
+  <script src="/assets/app-3.js?v=2026.08.31-1812"></script>
+  <script src="/assets/app-4.js?v=2026.08.31-1812"></script>
 
-  <script src="/assets/app-5.js?v=2026.08.31-1803"></script>
+  <script src="/assets/app-5.js?v=2026.08.31-1812"></script>
 </body>
 </html>
