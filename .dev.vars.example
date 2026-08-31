@@ -11,9 +11,6 @@ APP_PIN=
 # Giderler sayfası için ikinci PIN (boş bırakılırsa ikinci kapı devre dışı kalır)
 EXPENSES_PIN=
 
-# /api/ingest için Bearer token
-AI_INGEST_TOKEN=
-
 # Apps Script Web App adresi (.../exec)
 GAS_EXEC_URL=
 

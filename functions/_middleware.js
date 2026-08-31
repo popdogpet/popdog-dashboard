@@ -5,14 +5,14 @@
  * Geçerli oturum çerezi olmayan istekler index.html'i hiç görmez —
  * PIN artık istemciye inmiyor.
  *
- * Muaf yollar:
- *   /api/login, /api/logout  → oturumu kuran/kapatan uçlar
- *   /api/ingest              → makineden makineye, kendi Bearer token'ı var
+ * Muaf yollar: yalnızca /api/login ve /api/logout.
+ * (Eskiden /api/ingest de muaftı; çağıranı olmadığı için kaldırıldı —
+ *  artık oturum kapısını atlayan hiçbir yazma ucu yok.)
  */
 import { APP_COOKIE, parseCookies, verifySession, json } from './lib/auth.js';
 import { loginPage } from './login-page.js';
 
-const OPEN_PATHS = new Set(['/api/login', '/api/logout', '/api/ingest']);
+const OPEN_PATHS = new Set(['/api/login', '/api/logout']);
 
 /**
  * Güvenlik başlıkları. CSP mevcut sayfanın ihtiyaçlarına göre daraltıldı:

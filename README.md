@@ -25,7 +25,6 @@ functions/
   api/logout.js       Oturum kapatma
   api/sheet.js        Google Sheets CSV proxy'si
   api/gas.js          Apps Script Web App proxy'si
-  api/ingest.js       Otomasyondan KV'ye yazma (Bearer token)
   api/*.js            AI kartlarını KV'den okuyan uçlar
 apps-script/code.gs   Google Apps Script kaynağı (web'e deploy edilmez, referans)
 ```
@@ -49,8 +48,9 @@ istemciye iniyordu. Artık:
   eşleştirmesini, aylık gider tablolarını ve Özet'teki gider/ciro uyarısını da
   besliyor. Veriyi koruyan şey ana oturum kontrolüdür.
 
-> `/api/ingest` bilinçli olarak çerez kapısının dışında — otomasyon çağırıyor ve
-> kendi Bearer token'ı var.
+> Oturum kapısını atlayan hiçbir uç yok. (Eskiden `/api/ingest` muaftı; Telegram
+> botu KV'ye Cloudflare API'si üzerinden doğrudan yazdığı için çağıranı yoktu,
+> kaldırıldı.)
 
 ## Kurulum
 
@@ -61,7 +61,6 @@ Gerekli secret'lar (hepsi zorunlu, `EXPENSES_PIN` opsiyonel):
 | `AUTH_SECRET` | Oturum çerezlerini imzalar. Uzun ve rastgele olmalı. |
 | `APP_PIN` | Dashboard giriş PIN'i |
 | `EXPENSES_PIN` | Giderler sayfası için ikinci PIN |
-| `AI_INGEST_TOKEN` | `/api/ingest` için Bearer token |
 | `GAS_EXEC_URL` | Apps Script Web App adresi (`.../exec`) |
 | `SHEET_CSV_REVENUE` | Ciro sekmesi CSV adresi |
 | `SHEET_CSV_INVENTORY` | Stok CSV adresi |
@@ -104,5 +103,7 @@ VS Code'da aynı işler **Terminal → Run Task** altında hazır görevler olar
 - **AI uçlarının durumu:** Tüm `/api/*` kartları her zaman 200 döner ama yanıtta
   `_meta.source` alanı vardır: `kv` (gerçek veri), `empty` (kayıt yok),
   `config_error` (KV binding yok), `parse_error` (bozuk kayıt).
-- **`caddebostan_close`** ingest ile yazılabiliyor ama okuyan bir uç yok;
-  arayüzde kullanılmıyor.
+- **KV'ye veri yazan taraf** Telegram botudur (`~/claude-lab/.claude/commands/
+  telegram-bot`, `services/exporter.py`). Cloudflare API'siyle doğrudan KV'ye
+  yazar; bu repodaki uçlar yalnızca okur.
+- **`ai:caddebostan_close`** anahtarını okuyan bir uç yok, arayüzde kullanılmıyor.

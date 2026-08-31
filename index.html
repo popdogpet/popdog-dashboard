@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.08.31-1812'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.08.31-1846'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1812">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1846">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,7 +141,7 @@
     <div class="grid md:grid-cols-2 gap-3 sm:gap-4 items-start" data-page="summary">
       <div class="grid gap-3 sm:gap-4">
         <div class="glass card-3d rounded-3xl p-4 sm:p-5">
-          <div class="hint text-xs sm:text-sm">Toplam Ciro (YTD)</div>
+          <div class="hint kpi-label text-xs sm:text-sm">Toplam Ciro (YTD)</div>
           <div id="kpiYTD" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
           <div id="kpiYTD_USD" class="text-xs sm:text-sm hint">≈ – USD</div>
           <div id="kpiYTD_YoY" class="text-xs hint mt-1"></div>
@@ -149,7 +149,7 @@
           <div id="fxNoteYoY" class="text-xs hint mt-0.5" style="opacity:0.7;"></div>
         </div>
         <div class="glass card-3d rounded-3xl p-4 sm:p-5">
-          <div class="hint text-xs sm:text-sm">En Büyük Kanal</div>
+          <div class="hint kpi-label text-xs sm:text-sm">En Büyük Kanal</div>
           <div id="kpiTop" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
           <div class="hint text-xs mt-2">Kanal kırılımının tamamı Ciro sayfasında</div>
         </div>
@@ -157,7 +157,7 @@
       <div class="glass card-3d rounded-3xl p-4 sm:p-5 space-y-3 sm:space-y-4">
         <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
           <div class="glass rounded-2xl p-3 sm:p-4">
-            <div class="hint text-xs sm:text-sm">Stok Değeri (Maliyet)</div>
+            <div class="hint kpi-label text-xs sm:text-sm">Stok Değeri (Maliyet)</div>
             <div id="kpiInvCost" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvCost_USD" class="text-xs hint mt-0.5">≈ – USD</div>
             <div class="hint text-xs mt-2">Vergi + Navlun dahil (+%65)</div>
@@ -165,7 +165,7 @@
             <div id="kpiInvCost_65_USD" class="text-xs hint mt-0.5">≈ – USD</div>
           </div>
           <div class="glass rounded-2xl p-3 sm:p-4">
-            <div class="hint text-sm">Stok Değeri (Satış)</div>
+            <div class="hint kpi-label text-sm">Stok Değeri (Satış)</div>
             <div id="kpiInvPrice" class="text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
             <div id="kpiInvPrice_USD" class="text-xs hint mt-0.5">≈ – USD</div>
             <div class="hint text-xs mt-2">KDV Hariç (−%20)</div>
@@ -175,12 +175,12 @@
         </div>
 
         <div class="glass rounded-2xl p-4">
-          <div class="hint text-sm">MoM Değişim <span id="momNote" class="text-xs"></span></div>
+          <div class="hint kpi-label text-sm">MoM Değişim <span id="momNote" class="text-xs"></span></div>
           <div id="kpiMoM" class="text-xl md:text-2xl font-semibold">–</div>
         </div>
 
         <div>
-          <div class="hint text-sm mb-1">Uyarılar</div>
+          <div class="hint kpi-label text-sm mb-1">Uyarılar</div>
           <ul id="alertsList" class="text-sm text-slate-700 dark:text-slate-200 space-y-1">
             <li class="hint">Henüz veri yok.</li>
           </ul>
@@ -201,25 +201,25 @@
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <!-- Gross Margin -->
         <div class="glass rounded-2xl p-3 border-l-4 border-green-500">
-          <div class="hint text-xs">Brüt Kar Marjı (YTD)</div>
+          <div class="hint kpi-label text-xs">Brüt Kar Marjı (YTD)</div>
           <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiGrossMargin">–%</div>
           <div class="hint text-[10px] mt-1" id="kpiGrossMarginNote">Ciro − COGS / Ciro</div>
         </div>
         <!-- Net Profit Margin -->
         <div class="glass rounded-2xl p-3 border-l-4 border-blue-500">
-          <div class="hint text-xs">Net Kar Marjı (YTD)</div>
+          <div class="hint kpi-label text-xs">Net Kar Marjı (YTD)</div>
           <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiNetMargin">–%</div>
           <div class="hint text-[10px] mt-1" id="kpiNetMarginNote">Net Kar / Ciro</div>
         </div>
         <!-- Gider/Ciro Oranı -->
         <div class="glass rounded-2xl p-3 border-l-4 border-orange-500">
-          <div class="hint text-xs">Gider / Ciro Oranı</div>
+          <div class="hint kpi-label text-xs">Gider / Ciro Oranı</div>
           <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiExpenseRatio">–%</div>
           <div class="hint text-[10px] mt-1" id="kpiExpenseRatioNote">Toplam Gider / Ciro</div>
         </div>
         <!-- Runway -->
         <div class="glass rounded-2xl p-3 border-l-4 border-purple-500">
-          <div class="hint text-xs">Tahmini Runway</div>
+          <div class="hint kpi-label text-xs">Tahmini Runway</div>
           <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="kpiRunway">– ay</div>
           <div class="hint text-[10px] mt-1" id="kpiRunwayNote">Stok değeri / aylık gider</div>
         </div>
@@ -1215,16 +1215,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.08.31-1812"></script>
+  <script src="/assets/app-1.js?v=2026.08.31-1846"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.08.31-1812"></script>
+  <script src="/assets/app-2.js?v=2026.08.31-1846"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.08.31-1812"></script>
-  <script src="/assets/app-4.js?v=2026.08.31-1812"></script>
+  <script src="/assets/app-3.js?v=2026.08.31-1846"></script>
+  <script src="/assets/app-4.js?v=2026.08.31-1846"></script>
 
-  <script src="/assets/app-5.js?v=2026.08.31-1812"></script>
+  <script src="/assets/app-5.js?v=2026.08.31-1846"></script>
 </body>
 </html>
