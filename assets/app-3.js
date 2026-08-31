@@ -2515,16 +2515,41 @@ const defaultLoansState = {
 }
 };
 
+/* Kayıtlı durumu varsayılanlarla birleştirir.
+ *
+ * Eskiden kayıt neyse olduğu gibi döndürülüyordu. Eksik veya eski şemalı bir
+ * kayıt (ör. sadece {loans:{biz:{paid,total}}}) geldiğinde loans.car,
+ * loans.biz2, zeeAwaitUSD ve demoBank tanımsız kalıyor; buna bağlı render'lar
+ * patlayıp "Yükleniyor..." ve "–%" ekranda kalıyordu. Artık eksik alanlar
+ * varsayılandan tamamlanıyor — kullanıcının girdiği değerler korunuyor. */
 function getLoansState(){
+  const d = structuredClone(defaultLoansState);
+  let s = null;
   try{
-    const s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
-    if (s && typeof s==='object') return s;
+    s = JSON.parse(localStorage.getItem(LOANS_KEY) || 'null');
   }catch(_){}
-  return structuredClone(defaultLoansState);
+  if (!s || typeof s !== 'object') return d;
+
+  const out = Object.assign({}, d, s);
+  out.loans = Object.assign({}, d.loans, s.loans || {});
+  ['biz', 'car', 'biz2'].forEach(function(k){
+    out.loans[k] = Object.assign({}, d.loans[k], (s.loans && s.loans[k]) || {});
+  });
+  out.zeeAwaitUSD = (Array.isArray(s.zeeAwaitUSD) && s.zeeAwaitUSD.length)
+    ? s.zeeAwaitUSD
+    : structuredClone(d.zeeAwaitUSD);
+  out.demoBank = Object.assign({}, d.demoBank, s.demoBank || {});
+  return out;
 }
 function setLoansState(st){
   try{ localStorage.setItem(LOANS_KEY, JSON.stringify(st)); }catch(_){}
 }
+
+/* Dosyanın üstündeki yardımcı blok window.defaultLoansState'i sıfır değerlerle
+   kurmuştu (const olduğu için gerçek tanımı göremiyordu). Doğrusuyla eşitliyoruz. */
+window.defaultLoansState = defaultLoansState;
+window.getLoansState = getLoansState;
+window.setLoansState = setLoansState;
 
 /* Yardımcı: yaklaşık eşleşme (taksit sayısı tahmini) */
 function approxInstallments(paidAmount, instAmount){
