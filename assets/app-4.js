@@ -727,13 +727,38 @@ function renderYoYComparison(){
   }
 }
 
-// Financial health'i başlat
+/* Financial health'i başlat.
+ *
+ * renderFinancialHealth() girdilerini (kpiExpYTD, kpiInvCost, kpiInvPrice)
+ * DOM'dan okuyor; bu elemanlar başka async zincirler tarafından dolduruluyor.
+ * Eskiden sabit bir setTimeout(2000) vardı — veri geç gelirse hesaplama boş
+ * değerlerle çalışıp "–%" bırakıyor ve bir daha denenmiyordu. Artık girdiler
+ * hazır olana kadar bekliyoruz, en fazla 10 saniye. */
+function financialInputsReady(){
+  return ['kpiExpYTD', 'kpiInvCost', 'kpiInvPrice'].every(function(id){
+    var el = document.getElementById(id);
+    if (!el) return false;
+    var digits = (el.textContent || '').replace(/[^0-9]/g, '');
+    return digits.length > 0 && Number(digits) > 0;
+  });
+}
+
+function scheduleFinancialHealth(attempt){
+  attempt = attempt || 0;
+  if (financialInputsReady() || attempt >= 20){
+    try { renderFinancialHealth(); } catch(e){ console.warn('renderFinancialHealth:', e); }
+    try { renderChannelProfitability(); } catch(e){ console.warn('renderChannelProfitability:', e); }
+    try { renderYoYComparison(); } catch(e){ console.warn('renderYoYComparison:', e); }
+    return;
+  }
+  setTimeout(function(){ scheduleFinancialHealth(attempt + 1); }, 500);
+}
+
 document.addEventListener('DOMContentLoaded', function(){
-  setTimeout(renderFinancialHealth, 2000);
-  setTimeout(renderChannelProfitability, 2500);
-  setTimeout(renderYoYComparison, 2500);
+  setTimeout(function(){ scheduleFinancialHealth(0); }, 1200);
 }, { once:true });
 
+window.scheduleFinancialHealth = scheduleFinancialHealth;
 window.renderFinancialHealth = renderFinancialHealth;
 window.renderChannelProfitability = renderChannelProfitability;
 window.renderYoYComparison = renderYoYComparison;

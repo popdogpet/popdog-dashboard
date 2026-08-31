@@ -9,7 +9,10 @@ Ciro, gider, stok ve AI özet kartlarını tek ekranda toplar.
 ## Mimari
 
 ```
-index.html            Tüm arayüz (tek dosya, ~10.000 satır)
+index.html            Sayfa iskeleti (~1.200 satır). Stil ve kod assets/ altında.
+assets/app.css        Tüm stiller
+assets/app-1..5.js    Arayüz kodu, index.html'deki sırayla yüklenir
+tools/surum-yukselt.sh  assets/ düzenledikten sonra cache kırmak için
 config.json           Veri kaynağı yolları — hepsi /api/sheet proxy'sine bakar
 _routes.json          Her istek Functions'a uğrar (auth middleware için şart)
 _headers              Cache + robots
@@ -87,9 +90,14 @@ VS Code'da aynı işler **Terminal → Run Task** altında hazır görevler olar
 
 ## Bakım notları
 
-- **Arayüz cache'i:** `index.html` başındaki `APP_VERSION` değerini değiştirmek
-  tüm istemcilerde `popdog_*` localStorage anahtarlarını temizler ve bir kez
-  yeniden yükletir. Veri kaynağı değiştiğinde bunu bump'layın.
+- **`assets/` altını düzenlediyseniz `./tools/surum-yukselt.sh` çalıştırın.**
+  Bu dosyalar bir yıl boyunca cache'leniyor; script hem `index.html`'deki
+  `APP_VERSION`'ı hem de asset adreslerindeki `?v=` parametresini günceller.
+  Çalıştırmazsanız tarayıcılar eski kodu kullanmaya devam eder.
+- **Finansal Sağlık kartları** (`assets/app-4.js`) girdilerini başka KPI
+  elemanlarının DOM metninden okuyor. Bu yüzden sabit `setTimeout` yerine
+  `scheduleFinancialHealth()` kullanılıyor: girdiler dolana kadar (en fazla
+  10 sn) bekler. Yeni bir gecikmeli veri kaynağı eklerseniz bunu unutmayın.
 - **AI uçlarının durumu:** Tüm `/api/*` kartları her zaman 200 döner ama yanıtta
   `_meta.source` alanı vardır: `kv` (gerçek veri), `empty` (kayıt yok),
   `config_error` (KV binding yok), `parse_error` (bozuk kayıt).

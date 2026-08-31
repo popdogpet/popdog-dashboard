@@ -5603,14 +5603,9 @@ try {
 
   // 7) Finansal Sağlık Metrikleri
   try {
-    if (typeof renderFinancialHealth === 'function') {
-      setTimeout(renderFinancialHealth, 500);
-    }
-    if (typeof renderChannelProfitability === 'function') {
-      setTimeout(renderChannelProfitability, 600);
-    }
-    if (typeof renderYoYComparison === 'function') {
-      setTimeout(renderYoYComparison, 600);
+    // Sabit gecikme yerine girdiler hazır olduğunda çalışan zamanlayıcı.
+    if (typeof scheduleFinancialHealth === 'function') {
+      scheduleFinancialHealth(0);
     }
   } catch(e) {
     console.warn('Financial health render error', e);
