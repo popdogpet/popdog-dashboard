@@ -511,7 +511,9 @@ async function renderRevenueTables(){
       + '<thead class="text-slate-600 dark:text-slate-300"><tr>'
       + '<th class="text-left py-2 pr-4">Ay</th>'
       + '<th class="text-right py-2 pr-4">Toplam Ciro</th>'
-      + '<th class="text-right py-2 pr-0">MoM</th>'
+      + '<th class="text-right py-2 pr-4">MoM</th>'
+      + '<th class="text-right py-2 pr-4">Hedef</th>'
+      + '<th class="text-right py-2 pr-0">Gerçekleşme</th>'
       + '</tr></thead><tbody class="text-slate-800 dark:text-slate-100">';
 
     yearsToRender.forEach((y, yi)=>{
@@ -520,15 +522,25 @@ async function renderRevenueTables(){
 
       // Year separator row
       html += `<tr class="border-t border-white/30 dark:border-slate-700/40">`
-        + `<td class="py-2 pr-4 font-semibold" colspan="3">${safeText(String(y))}</td>`
+        + `<td class="py-2 pr-4 font-semibold" colspan="5">${safeText(String(y))}</td>`
         + `</tr>`;
 
       let prev = 0;
       let yearSum = 0;
+      /* Hedef kuralı, eski "Aylık Hedefler" bölümüyle aynı:
+         ilk ay kendi cirosu, sonraki aylar o yıl içinde kendinden önceki
+         ayların ortalaması. O bölüm kaldırıldı, buraya sütun olarak taşındı. */
+      const oncekiAylar = [];
 
       months.forEach(mk=>{
         const tot = Number(mMap.get(mk).total||0);
         yearSum += tot;
+
+        const hedef = oncekiAylar.length
+          ? oncekiAylar.reduce((a,b)=>a+b,0) / oncekiAylar.length
+          : tot;
+        const gercPct = hedef > 0 ? Math.min(100, Math.round(tot / hedef * 100)) : 0;
+        oncekiAylar.push(tot);
 
         let mom = '–';
         let cls = '';
@@ -541,7 +553,9 @@ async function renderRevenueTables(){
         html += `<tr>`
           + `<td class="py-1 pr-4">${safeText(mk)}</td>`
           + `<td class="py-1 pr-4 text-right">${numberTL(tot)}</td>`
-          + `<td class="py-1 pr-0 text-right ${cls}">${safeText(mom)}</td>`
+          + `<td class="py-1 pr-4 text-right ${cls}">${safeText(mom)}</td>`
+          + `<td class="py-1 pr-4 text-right hint">${numberTL(hedef)}</td>`
+          + `<td class="py-1 pr-0 text-right ${gercPct >= 100 ? 'kpi-up' : ''}">${gercPct}%</td>`
           + `</tr>`;
         prev = tot;
       });
@@ -550,7 +564,7 @@ async function renderRevenueTables(){
       html += `<tr class="border-t border-white/40 dark:border-slate-700/40">`
         + `<td class="py-2 pr-4 font-medium">${safeText(String(y))} Toplam</td>`
         + `<td class="py-2 pr-4 text-right font-semibold">${numberTL(yearSum)}</td>`
-        + `<td class="py-2 pr-0"></td>`
+        + `<td class="py-2 pr-4"></td><td class="py-2 pr-4"></td><td class="py-2 pr-0"></td>`
         + `</tr>`;
     });
 
@@ -4387,7 +4401,8 @@ function computeAutoTargets(monthly){
 }
 function renderTargets(monthly){
   const autoTargets = computeAutoTargets(monthly);
-  const wrap = document.getElementById('targetsWrap'); 
+  const wrap = document.getElementById('targetsWrap');
+  if (!wrap) return;   // Hedefler artık aylık ciro tablosunun sütunu
   wrap.innerHTML='';
   monthly.forEach(m=>{
     const target = autoTargets[m.month] || 0;

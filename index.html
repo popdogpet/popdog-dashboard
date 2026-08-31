@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.08.31-1750'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.08.31-1803'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1750">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1803">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -356,11 +356,11 @@
       </div>
       <div id="weekCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-3"></div>
       <div id="weekWoW" class="hint text-xs mt-2"></div>
-      <div class="mt-3 sm:mt-4">
-        <div class="text-slate-700 dark:text-slate-200 text-sm font-medium">Son 7 Gün Özeti</div>
+      <details class="mt-3 sm:mt-4">
+        <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-sm font-medium">Son 7 Gün Özeti</summary>
         <div id="last7Wrap" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-2"></div>
         <div id="last7Note" class="hint text-xs mt-1"></div>
-      </div>
+      </details>
     </section>
 
     <!-- Aylık Görünüm — Özet'ten Ciro'ya taşındı -->
@@ -579,14 +579,8 @@
     <div id="barStackTblWrap"></div>
   </div>
 
-  <div class=”glass card-3d rounded-3xl p-5”>
-    <div class=”flex items-center justify-between mb-2 gap-3 flex-wrap”>
-      <div class=”text-slate-700 dark:text-slate-200” data-i18n=”sec_rev_groomer”>Grooming Aylık Toplam</div>
-      <div class=”hint text-xs”>(Ciro sheet’teki “Kuaför” sütunundan)</div>
-    </div>
-    <div id=”groomMonthlyTblWrap”></div>
-    <div id=”groomUnitsWrap” class=”mt-3 pt-3 border-t border-slate-300\/60”></div>
-  </div>
+  <!-- Grooming Aylık Toplam bölümü kaldırıldı: HTML'inde eğik tırnak (”) vardı,
+       id ve class nitelikleri geçersizdi, tablolar hiçbir zaman basılmıyordu. -->
 </div>
 
     <!-- === Expenses (CFO) === -->
@@ -1066,10 +1060,11 @@
       </div>
     </section>
 
-    <!-- Günlük Rapor Yapıştır -->
+    <!-- Günlük Rapor Yapıştır — veri girişi aracı, varsayılan kapalı -->
     <section class="glass card-3d rounded-3xl p-5" data-page="revenue">
-      <div class="flex items-center justify-between gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Günlük Rapor Yapıştır → Satır Ekle</div>
+      <details>
+      <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-lg font-medium">Günlük Rapor Yapıştır → Satır Ekle</summary>
+      <div class="flex items-center justify-between gap-3 flex-wrap mt-2">
         <div class="hint text-sm">Format: Tarih, Kredi Kartı, QNB/İş/Garanti, Nakit, Toplam, Kasa Nakit, Pop Dog Online, Pop Dog Toptan, Trendyol, Hepsiburada</div>
       </div>
       <textarea id="dailyText" class="w-full mt-3 rounded-2xl border p-3 focus:outline-none bg-white/70 dark:bg-slate-800 dark:text-slate-100" rows="6" placeholder="WhatsApp raporunu yapıştır..."></textarea>
@@ -1099,16 +1094,11 @@
           <tbody id="stagedTbody" class="text-slate-800 dark:text-slate-100"></tbody>
         </table>
       </div>
+      </details>
     </section>
 
-    <!-- Targets -->
-    <section class="glass card-3d rounded-3xl p-4" data-page="revenue">
-      <div class="flex items-center justify-between gap-3 flex-wrap">
-        <div class="text-slate-700 dark:text-slate-200 text-base font-medium">Aylık Hedefler (YTD ortalama)</div>
-        <div class="hint text-xs">Her ay: aynı yıl o aya kadar ortalama</div>
-      </div>
-      <div class="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1 mt-2" id="targetsWrap"></div>
-    </section>
+    <!-- "Aylık Hedefler" bölümü kaldırıldı: hedef ve gerçekleşme artık
+         Aylık Toplam Ciro tablosunun sütunları. Aynı aylar iki kez listeleniyordu. -->
 
 
     <!-- === Executive AI === -->
@@ -1215,16 +1205,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.08.31-1750"></script>
+  <script src="/assets/app-1.js?v=2026.08.31-1803"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.08.31-1750"></script>
+  <script src="/assets/app-2.js?v=2026.08.31-1803"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.08.31-1750"></script>
-  <script src="/assets/app-4.js?v=2026.08.31-1750"></script>
+  <script src="/assets/app-3.js?v=2026.08.31-1803"></script>
+  <script src="/assets/app-4.js?v=2026.08.31-1803"></script>
 
-  <script src="/assets/app-5.js?v=2026.08.31-1750"></script>
+  <script src="/assets/app-5.js?v=2026.08.31-1803"></script>
 </body>
 </html>

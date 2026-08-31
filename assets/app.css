@@ -1033,3 +1033,15 @@ th, td { white-space: nowrap; }
       }
     }
   
+
+/* Uyarı listesi: her satırda zaten renkli bir .dot ve bir emoji var;
+   tarayıcının kendi madde işareti üçüncü bir işaret ekliyordu. */
+#alertsList {
+  list-style: none;
+  padding-left: 0;
+}
+#alertsList li {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+}
