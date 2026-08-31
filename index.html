@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.08.31-1703'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.08.31-1750'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1703">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.08.31-1750">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -151,8 +151,7 @@
         <div class="glass card-3d rounded-3xl p-4 sm:p-5">
           <div class="hint text-xs sm:text-sm">En Büyük Kanal</div>
           <div id="kpiTop" class="text-lg sm:text-xl md:text-2xl font-semibold text-slate-800 dark:text-slate-100">–</div>
-          <ul id="kpiOthers" class="text-xs sm:text-sm hint mt-2 space-y-1"></ul>
-          <table id="kpiShareTbl"></table>
+          <div class="hint text-xs mt-2">Kanal kırılımının tamamı Ciro sayfasında</div>
         </div>
       </div>
       <div class="glass card-3d rounded-3xl p-4 sm:p-5 space-y-3 sm:space-y-4">
@@ -343,8 +342,8 @@
       </details>
     </section>
 
-    <!-- Haftalık Mini Kartlar -->
-    <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="summary">
+    <!-- Haftalık Mini Kartlar — Özet'ten Ciro'ya taşındı (Özet tek ekranda kalsın) -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5" data-page="revenue">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_weekly">
           Haftalık Görünüm
@@ -364,8 +363,8 @@
       </div>
     </section>
 
-    <!-- Aylık Görünüm -->
-    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
+    <!-- Aylık Görünüm — Özet'ten Ciro'ya taşındı -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="revenue">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_monthly">
           Aylık Görünüm
@@ -380,8 +379,8 @@
       <div id="monthMoM" class="hint text-xs mt-2"></div>
     </section>
 
-    <!-- === Kanal Satışları (Shopify Orders) === -->
-    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="summary">
+    <!-- === Kanal Satışları (Shopify Orders) — Özet'ten Ciro'ya taşındı === -->
+    <section class="glass card-3d rounded-3xl p-4 sm:p-5 mt-4" data-page="revenue">
       <div class="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_channel_sales">
           🛒 Kanal Satışları
@@ -1216,16 +1215,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.08.31-1703"></script>
+  <script src="/assets/app-1.js?v=2026.08.31-1750"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.08.31-1703"></script>
+  <script src="/assets/app-2.js?v=2026.08.31-1750"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.08.31-1703"></script>
-  <script src="/assets/app-4.js?v=2026.08.31-1703"></script>
+  <script src="/assets/app-3.js?v=2026.08.31-1750"></script>
+  <script src="/assets/app-4.js?v=2026.08.31-1750"></script>
 
-  <script src="/assets/app-5.js?v=2026.08.31-1703"></script>
+  <script src="/assets/app-5.js?v=2026.08.31-1750"></script>
 </body>
 </html>
