@@ -2630,6 +2630,71 @@ window.defaultLoansState = defaultLoansState;
 window.getLoansState = getLoansState;
 window.setLoansState = setLoansState;
 
+/* ================== AYLIK ÖDEME PLANI ==================
+ * expenses_master'daki geçmişten bu ayın beklenen ödemelerini çıkarır.
+ * Bir kalem "düzenli" sayılır: son 8 ayın en az 5'inde görülmüşse.
+ * Tutar  = aylık toplamların medyanı (tek seferlik sapmalar etkilemesin)
+ * Gün    = ödeme günlerinin medyanı
+ * Durum  = bu ay aynı alt kategoride kayıt varsa "ödendi"
+ */
+function aylikOdemePlani(){
+  const rows = Array.isArray(expensesRowsCache) ? expensesRowsCache : [];
+  if (!rows.length) return { kalemler: [], buAy: null };
+
+  const buAy = (function(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
+
+  // son 8 tam ay (bu ay hariç — henüz tamamlanmadı)
+  const gecmisAylar = [];
+  {
+    const d = new Date(); d.setDate(1);
+    for (let i=0; i<8; i++){ d.setMonth(d.getMonth()-1);
+      gecmisAylar.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  }
+  const gecmisSet = new Set(gecmisAylar);
+
+  const aylik = {};   // alt kategori → { ay: toplam }
+  const gunler = {};  // alt kategori → [gün]
+  const meta   = {};  // alt kategori → {kategori}
+  const buAyOdenen = {};
+
+  rows.forEach(function(r){
+    const iso = String(r.Date || '').slice(0,10);
+    if (iso.length < 10) return;
+    const ay = iso.slice(0,7), gun = Number(iso.slice(8,10));
+    const alt = String(r.Subcategory || '').trim();
+    if (!alt) return;
+    const tl = (typeof readExpenseAmountTRY === 'function') ? readExpenseAmountTRY(r) : Number(r.Amount||0);
+    if (!(tl > 0)) return;
+
+    if (ay === buAy){ buAyOdenen[alt] = (buAyOdenen[alt]||0) + tl; return; }
+    if (!gecmisSet.has(ay)) return;
+    (aylik[alt] = aylik[alt] || {})[ay] = (aylik[alt][ay]||0) + tl;
+    (gunler[alt] = gunler[alt] || []).push(gun);
+    meta[alt] = { kategori: String(r.Category||'').trim() };
+  });
+
+  const medyan = function(a){ const b=a.slice().sort(function(x,y){return x-y;});
+    const m=Math.floor(b.length/2); return b.length%2 ? b[m] : (b[m-1]+b[m])/2; };
+
+  const kalemler = [];
+  Object.keys(aylik).forEach(function(alt){
+    const aylar = Object.keys(aylik[alt]);
+    if (aylar.length < 5) return;                       // düzenli değil
+    kalemler.push({
+      alt: alt,
+      kategori: (meta[alt]||{}).kategori || '',
+      gun: Math.round(medyan(gunler[alt])),
+      tutar: medyan(aylar.map(function(a){ return aylik[alt][a]; })),
+      gorulenAy: aylar.length,
+      odendi: !!buAyOdenen[alt],
+      odenenTutar: buAyOdenen[alt] || 0,
+    });
+  });
+  kalemler.sort(function(a,b){ return a.gun - b.gun || b.tutar - a.tutar; });
+  return { kalemler: kalemler, buAy: buAy };
+}
+window.aylikOdemePlani = aylikOdemePlani;
+
 /* Zee.Dog listesinde ana kalem (ör. YK#037) ile alt kalemleri (YK#037.1 = %30,
    YK#037.2 = %70) birlikte listeleniyor. Alt kalemler ana kalemi böldüğü için
    ikisini birden toplamak borcu iki kat gösteriyor. Toplamlarda ana kalem

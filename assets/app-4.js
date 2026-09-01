@@ -414,6 +414,37 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 }, { once: true });
 
+function esc2(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+/* Tek tıkla gider girişi.
+   Kendi fetch'imizi yazmıyoruz: appendExpenseRow() zaten kategori/alt kategori
+   eşleştirmesini, Zee.Dog USD ayrımını ve farklı Apps Script payload biçimlerini
+   deneyen sağlam yolu içeriyor. Manuel form da onu kullanıyor. */
+async function odemeyiGir(btn){
+  const alt = btn.dataset.alt, tutar = Number(btn.dataset.tutar), gun = Number(btn.dataset.gun);
+  const d = new Date();
+  const sonGun = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'
+            + String(Math.min(gun || d.getDate(), sonGun)).padStart(2,'0');
+
+  if (!confirm(alt + '\n' + numberTL(tutar) + '\n' + iso + '\n\nexpenses_master\'a eklensin mi?')) return;
+  if (typeof appendExpenseRow !== 'function'){ alert('Yazma fonksiyonu yüklenmemiş.'); return; }
+
+  const eski = btn.textContent;
+  btn.textContent = '…'; btn.disabled = true;
+  try{
+    await appendExpenseRow({ dateISO: iso, subcat: alt, amountTRY: tutar, note: 'plandan girildi' });
+    btn.textContent = '✓'; btn.style.color = '#34d399'; btn.style.borderColor = 'rgba(52,211,153,.4)';
+    try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
+    setTimeout(function(){ location.reload(); }, 1200);
+  }catch(e){
+    btn.textContent = eski; btn.disabled = false;
+    alert('Yazılamadı: ' + (e && e.message ? e.message : e));
+  }
+}
+window.odemeyiGir = odemeyiGir;
+
 function renderUpcomingPayments(){
   try {
     const st = (typeof getLoansState === 'function') ? getLoansState() : (window.defaultLoansState || {});
@@ -426,25 +457,25 @@ function renderUpcomingPayments(){
     if (loans.biz && loans.biz.paid < loans.biz.total) {
       const inst = Number(loans.biz.instTRY || 0);
       totalUpcoming += inst;
-      payments.push({ name: 'Ticari Kredi Taksiti', amount: inst, type: 'loan' });
+      payments.push({ name: 'Ticari Kredi Taksiti', amount: inst, type: 'loan', gun: 4 });
     }
 
     if (loans.car && loans.car.paid < loans.car.total) {
       const inst = Number(loans.car.instTRY || 0);
       totalUpcoming += inst;
-      payments.push({ name: 'Araç Kredisi Taksiti', amount: inst, type: 'loan' });
+      payments.push({ name: 'Araç Kredisi Taksiti', amount: inst, type: 'loan', gun: 18 });
     }
 
     if (loans.biz2 && loans.biz2.paid < loans.biz2.total) {
       const inst = Number(loans.biz2.instTRY || 0);
       totalUpcoming += inst;
-      payments.push({ name: 'Ticari Kredi 2 Taksiti', amount: inst, type: 'loan' });
+      payments.push({ name: 'Ticari Kredi 2 Taksiti', amount: inst, type: 'loan', gun: 21 });
     }
 
     if (loans.garanti && loans.garanti.paid < loans.garanti.total) {
       const inst = Number(loans.garanti.instTRY || 0);
       totalUpcoming += inst;
-      payments.push({ name: 'Garanti Kredi Taksiti', amount: inst, type: 'loan' });
+      payments.push({ name: 'Garanti Kredi Taksiti', amount: inst, type: 'loan', gun: Number(loans.garanti.dueDay) || 26 });
     }
 
     // Zee.Dog bekleyen ödemeler — ana kalem toplama girmez (alt kalemleri sayılır)
@@ -472,25 +503,58 @@ function renderUpcomingPayments(){
       payments.push({ name: 'Zee.Dog Ödemeleri', amount: zeeTRY, amountUSD: zeeTotal, type: 'supplier' });
     }
 
+    /* Kredi taksitlerine expenses_master'dan çıkarılan düzenli giderleri de
+       ekleyip ayın tam ödeme takvimini basıyoruz. Ödenmişler işaretli gelir;
+       ödenmemişlerde tek tıkla Sheet'e yazma butonu var. */
+    let planKalemleri = [];
+    try {
+      const plan = (typeof aylikOdemePlani === 'function') ? aylikOdemePlani() : { kalemler: [] };
+      /* Kredi taksitleri yukarıda kredi kayıtlarından zaten geliyor; Sheet'teki
+         aynı alt kategorileri saymazsak çift sayım olmaz. */
+      const KREDI_ALT = /^(kredi|araç kredi|taksitli ticari kredi 2|garanti kredi)$/i;
+      planKalemleri = (plan.kalemler || []).filter(function(k){ return !KREDI_ALT.test(k.alt); });
+    } catch(e){ console.warn('aylikOdemePlani:', e && e.message); }
+
+    const bugun = new Date().getDate();
+    /* Zee.Dog açık bakiyesi aylık bir yükümlülük değil, tedarikçi borcu —
+       kendi tablosunda gösteriliyor. Aylık takvimin toplamını şişirmesin. */
+    const satirlar = payments.filter(function(p){ return p.type !== 'supplier'; }).map(function(p){
+      return { gun: p.gun || 0, ad: p.name, tutar: p.amount, tur: p.type, odendi: false, alt: null };
+    }).concat(planKalemleri.map(function(k){
+      return { gun: k.gun, ad: k.alt, tutar: k.odendi ? k.odenenTutar : k.tutar,
+               tur: 'expense', odendi: k.odendi, alt: k.alt, kategori: k.kategori };
+    })).sort(function(a,b){ return a.gun - b.gun; });
+
+    const bekleyen = satirlar.filter(function(r){ return !r.odendi; });
+    totalUpcoming = bekleyen.reduce(function(a,r){ return a + Number(r.tutar||0); }, 0);
+
     const elTotal = document.getElementById('upcomingPaymentsTotal');
-    if (elTotal) elTotal.textContent = `Toplam: ${numberTL(totalUpcoming)}`;
+    if (elTotal) elTotal.textContent = `Kalan: ${numberTL(totalUpcoming)}`;
 
     const elList = document.getElementById('upcomingPaymentsList');
     if (elList) {
-      if (payments.length === 0) {
+      if (!satirlar.length) {
         elList.innerHTML = '<div class="hint text-xs">Bu ay bekleyen ödeme yok.</div>';
       } else {
-        elList.innerHTML = payments.map(p => {
-          const bgColor = p.type === 'loan' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400' :
-                          p.type === 'supplier' ? 'bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-400' :
-                          'bg-slate-50 dark:bg-slate-800/50';
-          const usdNote = p.amountUSD ? `<div class="hint text-[10px]">≈ $${p.amountUSD.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>` : '';
-          return `<div class="${bgColor} rounded-lg p-2">
-            <div class="text-xs font-medium text-slate-700 dark:text-slate-200">${p.name}</div>
-            <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">${numberTL(p.amount)}</div>
-            ${usdNote}
-          </div>`;
+        elList.innerHTML = satirlar.map(function(r){
+          const gecti = !r.odendi && r.gun && r.gun < bugun;
+          const renk = r.odendi ? 'opacity:.45' : (gecti ? 'color:#f87171' : '');
+          const isaret = r.odendi ? '✓' : (gecti ? '!' : '');
+          const buton = (!r.odendi && r.alt)
+            ? `<button class="odeme-gir" data-alt="${esc2(r.alt)}" data-tutar="${Math.round(r.tutar)}" data-gun="${r.gun}"
+                 style="font-size:.6rem;padding:1px 6px;border-radius:999px;border:1px solid rgba(96,165,250,.4);
+                        background:rgba(96,165,250,.12);color:#60a5fa;cursor:pointer">gir</button>`
+            : '';
+          return `<div style="display:flex;align-items:baseline;gap:6px;padding:2px 0;${renk}">
+              <span style="font-size:.62rem;opacity:.5;min-width:22px;text-align:right">${r.gun || '–'}.</span>
+              <span style="font-size:.72rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc2(r.ad)}</span>
+              <span style="font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums">${numberTL(r.tutar)}</span>
+              <span style="font-size:.62rem;width:10px">${isaret}</span>${buton}
+            </div>`;
         }).join('');
+        elList.querySelectorAll('.odeme-gir').forEach(function(b){
+          b.onclick = function(){ odemeyiGir(b); };
+        });
       }
     }
 
