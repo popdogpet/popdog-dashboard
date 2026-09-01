@@ -1226,6 +1226,9 @@ const DEFAULT_ZEE_AWAIT = [
   { id:'YK#035',   usd:37589.19, paidUsd:0, remainingUsd:37589.19, status:'waiting' },
   { id:'YK#035.1', usd:11276.76, paidUsd:0, remainingUsd:11276.76, status:'waiting' },
   { id:'YK#035.2', usd:26312.43, paidUsd:0, remainingUsd:26312.43, status:'waiting' },
+  { id:'YK#037',   usd:31021.80, paidUsd:0, remainingUsd:31021.80, status:'waiting' },
+  { id:'YK#037.1', usd: 9306.54, paidUsd:0, remainingUsd: 9306.54, status:'waiting' },  // %30
+  { id:'YK#037.2', usd:21715.26, paidUsd:0, remainingUsd:21715.26, status:'waiting' },  // %70
 ];
 (function(){
   if (typeof window.defaultLoansState === 'undefined') {
@@ -2538,6 +2541,9 @@ const defaultLoansState = {
     { id:'YK#035',   usd: 37589.19, paid:false },
     { id:'YK#035.1', usd: 11276.76, paid:false },
     { id:'YK#035.2', usd: 26312.43, paid:false },
+    { id:'YK#037',   usd: 31021.80, paid:false },
+    { id:'YK#037.1', usd:  9306.54, paid:false },   // toplamın %30'u
+    { id:'YK#037.2', usd: 21715.26, paid:false },   // toplamın %70'i
   ],
   demoBank: {
   goldGram: 169,
@@ -2594,9 +2600,18 @@ function getLoansState(){
   ['biz', 'car', 'biz2', 'garanti'].forEach(function(k){
     out.loans[k] = Object.assign({}, d.loans[k], (s.loans && s.loans[k]) || {});
   });
-  out.zeeAwaitUSD = (Array.isArray(s.zeeAwaitUSD) && s.zeeAwaitUSD.length)
-    ? s.zeeAwaitUSD
-    : structuredClone(d.zeeAwaitUSD);
+  /* Kayıtlı liste ile varsayılan liste id bazında birleşir.
+     Kayıtlı kalem kazanır (ödendi bilgisi korunur); varsayılanda olup
+     kayıtta olmayan yeni kalemler listeye eklenir. Aksi halde koda yeni
+     bir YK# eklendiğinde KV'deki eski liste onu gölgeliyordu. */
+  {
+    const kayitli = Array.isArray(s.zeeAwaitUSD) ? s.zeeAwaitUSD : [];
+    const gorulen = new Set(kayitli.map(function(z){ return String(z && z.id || '').toUpperCase(); }));
+    const eklenecek = structuredClone(d.zeeAwaitUSD).filter(function(z){
+      return !gorulen.has(String(z.id || '').toUpperCase());
+    });
+    out.zeeAwaitUSD = kayitli.length ? kayitli.concat(eklenecek) : structuredClone(d.zeeAwaitUSD);
+  }
   out.demoBank = Object.assign({}, d.demoBank, s.demoBank || {});
   return out;
 }
