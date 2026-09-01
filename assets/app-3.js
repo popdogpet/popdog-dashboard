@@ -2499,21 +2499,27 @@ const defaultLoansState = {
       paid: 5, total: 24,
       instTRY: 143154.67,
       principalTRY: 2000000,
-      monthlyRate: 4.640833
+      monthlyRate: 4.640833,
+      dueDay: 4,                       // Sheet ve banka ekstresinde her ayın 4'ü
+      firstPaymentDate: '2025-05-04'   // bu tutarla ilk taksit
     },
     car: {                    // Taksitli Araç
       remainTRY: 1453127.86,
       paid: 9, total: 24,
       instTRY: 96875.20,
       principalTRY: 1500000,
-      monthlyRate: 3.666666
+      monthlyRate: 3.666666,
+      dueDay: 18,
+      firstPaymentDate: '2025-01-18'
     },
     biz2: {                   // Taksitli Ticari 2
       remainTRY: 1714868.61,
       paid: 0, total: 24,
       instTRY: 71452.86,
       principalTRY: 1714868.61,
-      monthlyRate: 3.72
+      monthlyRate: 3.72,
+      dueDay: 21,
+      firstPaymentDate: '2025-11-21'
     },
     garanti: {                // Garanti Ticari Kredi
       remainTRY: 1274103.37,  // bankanın toplam geri ödeme tutarı
@@ -2537,6 +2543,11 @@ const defaultLoansState = {
     { id:'YK#037.1', usd:  9306.54, paid:false },   // toplamın %30'u
     { id:'YK#037.2', usd: 21715.26, paid:false },   // toplamın %70'i
   ],
+  /* Yıllık ciro hedefi. 2024: 16,3 M · 2025: 17,3 M · 2026 ilk 8 ay: 17,06 M.
+     Düz koşu hızı 25,6 M; 2025'in Eyl–Ara mevsimselliği (yılın %38'i)
+     uygulanınca 27,5 M çıkıyor. Hedef ikisinin arasında, ulaşılabilir ama
+     kendiliğinden gelmeyecek bir yerde. */
+  yillikHedef: 27000000,
   demoBank: {
   goldGram: 169,
   gramTRY: Number(localStorage.getItem('popdog_gold_gram_try')||0) || 0, // kullanıcı girecek

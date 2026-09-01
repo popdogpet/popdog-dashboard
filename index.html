@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.01-1927'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.01-1945'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1927">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1945">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -426,6 +426,7 @@
           <div class="mt-1 text-sm hint">Ödenecek Taksitler Toplamı: <span id="loanBizRemain" class="font-medium">–</span></div>
           <div class="mt-1 text-sm">Taksit Tutarı: <span id="loanBizInst" class="font-semibold">–</span></div>
           <div class="mt-1 text-xs hint">Kredi Tutarı: <span id="loanBizPrincipal">–</span> • Aylık Faiz: <span id="loanBizRate">–</span></div>
+          <div class="mt-1 text-xs hint">Sonraki Ödeme: <span id="loanBizNext" class="font-medium">–</span></div>
           <div class="progress-wrap mt-2"><div id="loanBizBar" class="progress-bar" style="width:0%"></div></div>
         </div>
     
@@ -438,6 +439,7 @@
           <div class="mt-1 text-sm hint">Ödenecek Taksitler Toplamı: <span id="loanCarRemain" class="font-medium">–</span></div>
           <div class="mt-1 text-sm">Taksit Tutarı: <span id="loanCarInst" class="font-semibold">–</span></div>
           <div class="mt-1 text-xs hint">Kredi Tutarı: <span id="loanCarPrincipal">–</span> • Aylık Faiz: <span id="loanCarRate">–</span></div>
+          <div class="mt-1 text-xs hint">Sonraki Ödeme: <span id="loanCarNext" class="font-medium">–</span></div>
           <div class="progress-wrap mt-2"><div id="loanCarBar" class="progress-bar" style="width:0%"></div></div>
         </div>
 
@@ -460,6 +462,7 @@
             <span id="loanBiz2Principal">1714868,61₺</span>
             • Aylık Faiz: <span id="loanBiz2Rate">–</span>
           </div>
+          <div class="mt-1 text-xs hint">Sonraki Ödeme: <span id="loanBiz2Next" class="font-medium">–</span></div>
           <div class="progress-wrap mt-2">
             <div id="loanBiz2Bar" class="progress-bar" style="width:0%"></div>
           </div>
@@ -1236,16 +1239,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.01-1927"></script>
+  <script src="/assets/app-1.js?v=2026.09.01-1945"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.01-1927"></script>
+  <script src="/assets/app-2.js?v=2026.09.01-1945"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.01-1927"></script>
-  <script src="/assets/app-4.js?v=2026.09.01-1927"></script>
+  <script src="/assets/app-3.js?v=2026.09.01-1945"></script>
+  <script src="/assets/app-4.js?v=2026.09.01-1945"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.01-1927"></script>
+  <script src="/assets/app-5.js?v=2026.09.01-1945"></script>
 </body>
 </html>

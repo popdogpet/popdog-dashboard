@@ -257,7 +257,15 @@ function renderFinancialHealth(){
 
 function renderAnnualTarget(ytdRevenue, currentMonth){
   try {
-    const savedTarget = localStorage.getItem(ANNUAL_TARGET_KEY);
+    /* Hedef önce KV'den (cihazlar arası ortak), yoksa localStorage'dan,
+       o da yoksa varsayılandan gelir. Eskiden yalnızca localStorage'daydı ve
+       sürüm sıfırlamasında kayboluyordu. */
+    let savedTarget = null;
+    try {
+      const st = (typeof getLoansState === 'function') ? getLoansState() : null;
+      if (st && Number(st.yillikHedef) > 0) savedTarget = String(st.yillikHedef);
+    } catch(_){}
+    if (!savedTarget) savedTarget = localStorage.getItem(ANNUAL_TARGET_KEY);
     const targetInput = document.getElementById('annualTargetInput');
 
     if (targetInput) {
@@ -268,6 +276,12 @@ function renderAnnualTarget(ytdRevenue, currentMonth){
         const val = parseFloat(this.value.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
         if (val > 0) {
           localStorage.setItem(ANNUAL_TARGET_KEY, val.toString());
+          // KV'ye de yaz ki telefonda da aynı hedef görünsün
+          try {
+            if (typeof getLoansState === 'function' && typeof setLoansState === 'function') {
+              const st = getLoansState(); st.yillikHedef = val; setLoansState(st);
+            }
+          } catch(_){}
           renderAnnualTarget(ytdRevenue, currentMonth);
         }
       });
