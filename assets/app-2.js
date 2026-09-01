@@ -424,49 +424,6 @@
         + '</div>';
     }
 
-    /* ── "Şimdi Ne Paylaşmalı" — instagram_decision ──────── */
-    var DECISION_LABEL = {
-      post_now:  'Şimdi paylaş',
-      wait:      'Bekle',
-      hold:      'Bekle',
-      boost:     'Öne çıkar',
-      skip:      'Bugün atla'
-    };
-    function renderInstaDecision(d){
-      var el = document.getElementById('instaDecision');
-      if (!el) return;
-      if (!d || !d.title){
-        el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Karar verisi henüz gelmedi</div>';
-        return;
-      }
-      var rozet = DECISION_LABEL[d.type] || d.type || '';
-      var meta = [];
-      if (d.recommended_time) meta.push('\u23f0 ' + esc(d.recommended_time));
-      if (typeof d.confidence === 'number') meta.push('güven %' + Math.round(d.confidence * 100));
-      if (d.objective) meta.push('hedef: ' + esc(d.objective));
-
-      var h = '';
-      if (rozet){
-        h += '<div style="display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;'
-           + 'letter-spacing:.08em;padding:2px 7px;border-radius:999px;margin-bottom:6px;'
-           + 'background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)">'
-           + esc(rozet) + '</div>';
-      }
-      h += '<div style="font-size:.875rem;font-weight:600;line-height:1.35;margin-bottom:5px;letter-spacing:-.01em">'
-         + esc(d.title) + '</div>';
-      if (d.reason){
-        h += '<div style="font-size:.775rem;opacity:.58;line-height:1.5;margin-bottom:6px">'
-           + esc(d.reason) + '</div>';
-      }
-      if (meta.length){
-        h += '<div style="font-size:.7rem;opacity:.5;font-variant-numeric:tabular-nums">'
-           + esc(meta.join('  ·  ')) + '</div>';
-      }
-      h += freshLine(d.updated_at);
-      el.innerHTML = h;
-      setHeaderTs(d.updated_at);
-    }
-
     function init(){
       // Reset so header timestamp always reflects the current cycle's freshest file
       _latestTs = null;
@@ -476,10 +433,6 @@
       loadJSON('/api/daily',        function(d, h){ var el=document.getElementById('aiSummary'); if(!hataKutusu(el,h)) renderSummary(el, d); });
       loadJSON('/api/caddebostan_live',  function(d){ renderCaddebostan  (d); });
       loadJSON('/api/instagram_live_summary',    function(d){ renderInstaMain(d); });
-      loadJSON('/api/instagram_decision', function(d, h){
-        var el = document.getElementById('instaDecision');
-        if (!hataKutusu(el, h)) renderInstaDecision(d);
-      });
       loadJSON('/api/instagram_recommendations', function(d){ renderInstaRecs(d); });
     }
 
