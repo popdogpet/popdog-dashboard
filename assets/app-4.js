@@ -447,7 +447,7 @@ function odemeGirisiAc(btn, satir){
 
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'decimal';
-  inp.value = Math.round(Number(satir.tutar) || 0).toLocaleString('tr-TR');
+  inp.value = Math.round(Number(satir.kalan || satir.beklenen) || 0).toLocaleString('tr-TR');
   inp.style.cssText = 'width:92px;font-size:.72rem;font-weight:600;text-align:right;'
     + 'font-variant-numeric:tabular-nums;border:1px solid rgba(96,165,250,.5);border-radius:6px;'
     + 'padding:1px 5px;background:rgba(96,165,250,.08);color:inherit;outline:none';
@@ -488,9 +488,11 @@ let _odemeYaziliyor = false;
 
 async function odemeyiYaz(satir, tutar, iso, btn, kap){
   if (typeof appendExpenseRow !== 'function'){ alert('Yazma fonksiyonu yüklenmemiş.'); return; }
-  if (_odemeYaziliyor || kap.dataset.yazildi === '1') return;   // ikinci tetikleme yok sayılır
+  /* Kilit yalnızca uçuştaki isteği kapsar. Aynı kaleme ay içinde birden çok
+     parça ödeme girilebilmeli, o yüzden "bu satır bir kez yazıldı" diye kalıcı
+     olarak kilitlemiyoruz. */
+  if (_odemeYaziliyor) return;
   _odemeYaziliyor = true;
-  kap.dataset.yazildi = '1';
 
   // Girişleri hemen kilitle ki Enter tekrar tetiklemesin
   kap.querySelectorAll('input').forEach(function(x){ x.disabled = true; x.onkeydown = null; });
@@ -506,7 +508,6 @@ async function odemeyiYaz(satir, tutar, iso, btn, kap){
     // kilit bilerek açılmıyor: sayfa yenilenene kadar başka yazma olmasın
   }catch(e){
     _odemeYaziliyor = false;
-    kap.dataset.yazildi = '';
     kap.querySelectorAll('input').forEach(function(x){ x.disabled = false; });
     btn.textContent = 'gir'; btn.disabled = false;
     btn.onclick = function(){ odemeGirisiAc(btn, satir); };
@@ -584,57 +585,62 @@ function renderUpcomingPayments(){
     } catch(e){ console.warn('aylikOdemePlani:', e && e.message); }
 
     const bugun = new Date().getDate();
-    /* Kredi taksitleri de girilebilsin diye Sheet'teki alt kategori adlarıyla
-       eşleştiriliyor. Tutarları sözleşmeden geldiği için sabit. */
     const KREDI_SHEET_ADI = {
       'Ticari Kredi Taksiti': 'Kredi',
       'Araç Kredisi Taksiti': 'Araç Kredi',
       'Ticari Kredi 2 Taksiti': 'Taksitli Ticari Kredi 2',
       'Garanti Kredi Taksiti': 'Garanti Kredi',
     };
+    /* Bir kalem parça parça ödenebiliyor (ör. kredi kartı borcu ay içinde
+       birkaç seferde kapanıyor). Bu yüzden "bu ay kayıt var" ≠ "bitti":
+       beklenen tutar ile bu ay girilen toplam ayrı tutulur, buton hep açık
+       kalır, toplama sadece KALAN yazılır. */
     const satirlar = payments.filter(function(p){ return p.type !== 'supplier'; }).map(function(p){
-      return { gun: p.gun || 0, ad: p.name, tutar: p.amount, odendi: false,
+      return { gun: p.gun || 0, ad: p.name, beklenen: p.amount, girilen: 0,
                alt: KREDI_SHEET_ADI[p.name] || null, sabit: true };
     }).concat(planKalemleri.map(function(k){
-      return { gun: k.gun, ad: k.alt, tutar: k.odendi ? k.odenenTutar : k.tutar,
-               odendi: k.odendi, alt: k.alt, sabit: k.sabit, medyan: k.medyan };
+      return { gun: k.gun, ad: k.alt, beklenen: k.tutar, girilen: k.odenenTutar || 0,
+               alt: k.alt, sabit: k.sabit };
     })).sort(function(a,b){ return a.gun - b.gun; });
 
-    const bekleyen = satirlar.filter(function(r){ return !r.odendi; });
-    totalUpcoming = bekleyen.reduce(function(a,r){ return a + Number(r.tutar||0); }, 0);
+    satirlar.forEach(function(r){ r.kalan = Math.max(0, Number(r.beklenen||0) - Number(r.girilen||0)); });
+    totalUpcoming = satirlar.reduce(function(a,r){ return a + r.kalan; }, 0);
 
     const elTotal = document.getElementById('upcomingPaymentsTotal');
     if (elTotal) elTotal.textContent = `Kalan: ${numberTL(totalUpcoming)}`;
 
     const elList = document.getElementById('upcomingPaymentsList');
-    if (elList) {
-      if (!satirlar.length) {
-        elList.innerHTML = '<div class="hint text-xs">Bu ay bekleyen ödeme yok.</div>';
-      } else {
-        elList.innerHTML = satirlar.map(function(r, i){
-          const gecti = !r.odendi && r.gun && r.gun < bugun;
-          const renk = r.odendi ? 'opacity:.45' : (gecti ? 'color:#f87171' : '');
-          const isaret = r.odendi ? '✓' : (gecti ? '!' : '');
-          /* Sabit olmayan kalemlerde tutar bir tahmin: "~" ile işaretlenir ve
-             girerken düzenlenebilir gelir. */
-          const yaklasik = (!r.odendi && !r.sabit) ? '~' : '';
-          const buton = (!r.odendi && r.alt)
-            ? `<button class="odeme-gir" data-i="${i}"
-                 style="font-size:.6rem;padding:1px 6px;border-radius:999px;border:1px solid rgba(96,165,250,.4);
-                        background:rgba(96,165,250,.12);color:#60a5fa;cursor:pointer">gir</button>`
-            : '<span style="width:26px;display:inline-block"></span>';
-          return `<div data-satir="${i}" style="display:flex;align-items:baseline;gap:6px;padding:2px 0;${renk}">
-              <span style="font-size:.62rem;opacity:.5;min-width:22px;text-align:right">${r.gun || '–'}.</span>
-              <span style="font-size:.72rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc2(r.ad)}</span>
-              <span class="tutar-alan" style="font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums">${yaklasik}${numberTL(r.tutar)}</span>
-              <span style="font-size:.62rem;width:10px">${isaret}</span>${buton}
-            </div>`;
-        }).join('');
-        elList.querySelectorAll('.odeme-gir').forEach(function(b){
-          b.onclick = function(){ odemeGirisiAc(b, satirlar[Number(b.dataset.i)]); };
-        });
-      }
+    if (!elList) return;
+    if (!satirlar.length) {
+      elList.innerHTML = '<div class="hint text-xs">Bu ay bekleyen ödeme yok.</div>';
+      return;
     }
+    elList.innerHTML = satirlar.map(function(r, i){
+      const bitti = r.girilen > 0 && r.kalan <= 0.5;
+      const gecti = !bitti && r.gun && r.gun < bugun;
+      const renk = bitti ? 'opacity:.5' : (gecti ? 'color:#f87171' : '');
+      const yaklasik = (!r.sabit && !bitti) ? '~' : '';
+      /* Kısmi ödeme varsa ne girildiği görünsün; buton her hâlükârda kalır. */
+      const girildiNot = r.girilen > 0
+        ? `<span style="font-size:.6rem;opacity:.55;white-space:nowrap">${numberTL(r.girilen)} girildi</span>`
+        : '';
+      const gosterilen = r.girilen > 0 ? r.kalan : r.beklenen;
+      const buton = r.alt
+        ? `<button class="odeme-gir" data-i="${i}"
+             style="font-size:.6rem;padding:1px 6px;border-radius:999px;border:1px solid rgba(96,165,250,.4);
+                    background:rgba(96,165,250,.12);color:#60a5fa;cursor:pointer">${bitti ? '+' : 'gir'}</button>`
+        : '<span style="width:26px;display:inline-block"></span>';
+      return `<div data-satir="${i}" style="display:flex;align-items:baseline;gap:6px;padding:2px 0;${renk}">
+          <span style="font-size:.62rem;opacity:.5;min-width:22px;text-align:right">${r.gun || '–'}.</span>
+          <span style="font-size:.72rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc2(r.ad)}</span>
+          ${girildiNot}
+          <span class="tutar-alan" style="font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums">${bitti ? '✓' : yaklasik + numberTL(gosterilen)}</span>
+          ${buton}
+        </div>`;
+    }).join('');
+    elList.querySelectorAll('.odeme-gir').forEach(function(b){
+      b.onclick = function(){ odemeGirisiAc(b, satirlar[Number(b.dataset.i)]); };
+    });
 
   } catch(e) {
     console.warn('renderUpcomingPayments error:', e);

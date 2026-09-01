@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.01-1913'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.01-1927'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1913">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1927">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -261,7 +261,7 @@
         </div>
         <div class="hint mt-2" style="font-size:.65rem">
           Düzenli kalemler son 8 ayın en az 5'inde görülenlerden çıkarıldı; tutar aylık toplamların medyanı.
-          <b>✓</b> bu ay girilmiş · <b style="color:#f87171">!</b> günü geçmiş ·
+          <b>✓</b> beklenen tutar tamamlandı · <b>+</b> üstüne ekle · <b style="color:#f87171">!</b> günü geçmiş ·
           <b>~</b> tutar değişken, tahmin · <b>gir</b> tarih ve tutarı düzenleyip expenses_master'a yazar (tarih varsayılan: bugün).
         </div>
       </div>
@@ -1236,16 +1236,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.01-1913"></script>
+  <script src="/assets/app-1.js?v=2026.09.01-1927"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.01-1913"></script>
+  <script src="/assets/app-2.js?v=2026.09.01-1927"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.01-1913"></script>
-  <script src="/assets/app-4.js?v=2026.09.01-1913"></script>
+  <script src="/assets/app-3.js?v=2026.09.01-1927"></script>
+  <script src="/assets/app-4.js?v=2026.09.01-1927"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.01-1913"></script>
+  <script src="/assets/app-5.js?v=2026.09.01-1927"></script>
 </body>
 </html>
