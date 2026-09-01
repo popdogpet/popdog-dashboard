@@ -37,23 +37,81 @@
     }
 
     // Bullet list from string array
+    /* Bot bazen markdown tablo satırlarını highlights dizisine tek tek koyuyor
+       ("| Kampanya | Harcama |", "|----|----|", "| #Sales | 17.495 |").
+       Bunlar madde madde basılınca ayraç satırı da ekrana düşüyordu.
+       Ardışık tablo satırları toplanıp gerçek tablo olarak basılır. */
+    function tabloSatiriMi(s){ return /^\s*\|.*\|\s*$/.test(String(s||'')); }
+    function ayracSatiriMi(hucreler){
+      return hucreler.length > 0 && hucreler.every(function(c){ return /^:?-{2,}:?$/.test(c); });
+    }
+    function tabloHtml(satirlar){
+      var veri = satirlar.map(function(s){
+        return String(s).trim().replace(/^\||\|$/g,'').split('|').map(function(c){ return c.trim(); });
+      }).filter(function(h){ return !ayracSatiriMi(h); });
+      if(!veri.length) return '';
+      var h = '<div style="overflow-x:auto;margin:4px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">';
+      for(var t=0;t<veri.length;t++){
+        var etiket = (t===0) ? 'th' : 'td';
+        var stil = (t===0)
+          ? 'text-align:left;padding:3px 6px;opacity:.55;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
+          : 'padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12)';
+        h += '<tr>';
+        for(var c=0;c<veri[t].length;c++) h += '<'+etiket+' style="'+stil+'">'+esc(veri[t][c])+'</'+etiket+'>';
+        h += '</tr>';
+      }
+      return h + '</table></div>';
+    }
+
     function bList(arr, accentColor){
       if(!Array.isArray(arr)||!arr.length) return '';
       var wrap = accentColor
         ? '<div style="border-left:2px solid '+accentColor+';padding-left:8px">{inner}</div>'
         : '{inner}';
-      var inner = arr.map(function(s){
-        return '<div style="display:flex;gap:6px;margin-bottom:3px">'
+      var inner = '';
+      for(var i=0;i<arr.length;i++){
+        if(tabloSatiriMi(arr[i])){
+          var blok=[];
+          while(i<arr.length && tabloSatiriMi(arr[i])){ blok.push(arr[i]); i++; }
+          i--;
+          inner += tabloHtml(blok);
+          continue;
+        }
+        inner += '<div style="display:flex;gap:6px;margin-bottom:3px">'
           +'<span style="opacity:.32;flex-shrink:0;margin-top:2px;font-size:.7rem">\u203a</span>'
-          +'<span style="font-size:.78rem;line-height:1.52">'+esc(s)+'</span></div>';
-      }).join('');
+          +'<span style="font-size:.78rem;line-height:1.52">'+esc(arr[i])+'</span></div>';
+      }
       return wrap.replace('{inner}',inner);
     }
 
     // Tiny freshness line
+    /* Kartlar farklı hızlarda güncelleniyor; hepsi aynı soluk zaman damgasıyla
+       görününce aylar önceki veri günceli sanılıyor. 48 saatten eskiyse
+       görünür bir uyarı rozeti basılır. */
+    var BAYAT_SAAT = 48;
+    function veriYasiSaat(ts){
+      if(!ts) return null;
+      var ms = Date.now() - new Date(ts).getTime();
+      if (isNaN(ms) || ms < 0) return null;
+      return ms / 3600000;
+    }
+    function yasEtiketi(saat){
+      if (saat < 48) return Math.round(saat) + ' saat';
+      var gun = Math.round(saat / 24);
+      return gun + ' gün';
+    }
     function freshLine(ts){
       if(!ts) return '';
-      return '<div style="font-size:.585rem;opacity:.3;margin-top:9px;letter-spacing:.01em">'+esc(fmtTimestamp(ts))+'</div>';
+      var damga = '<span style="opacity:.3">'+esc(fmtTimestamp(ts))+'</span>';
+      var saat = veriYasiSaat(ts);
+      if (saat === null || saat <= BAYAT_SAAT){
+        return '<div style="font-size:.585rem;margin-top:9px;letter-spacing:.01em">'+damga+'</div>';
+      }
+      var rozet = '<span style="display:inline-block;font-size:.585rem;font-weight:700;'
+        + 'padding:1px 6px;border-radius:999px;margin-right:6px;'
+        + 'background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.35)">'
+        + '\u26a0 ' + esc(yasEtiketi(saat)) + ' önce</span>';
+      return '<div style="font-size:.585rem;margin-top:9px;letter-spacing:.01em">'+rozet+damga+'</div>';
     }
 
     /* ── Legacy text-blob fallback (backward compat) ─────── */
@@ -75,6 +133,35 @@
       var html='';
       for(var i=0;i<lines.length;i++){
         var line=lines[i].trim(); if(!line) continue;
+
+        /* Markdown tablosu: ardışık "|" satırları. Eskiden başlık ve ayraç
+           satırları ham hâliyle madde gibi basılıyordu. */
+        if(/^\|.*\|$/.test(line)){
+          var tablo=[];
+          while(i<lines.length && /^\|.*\|$/.test(lines[i].trim())){
+            var hucreler=lines[i].trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim();});
+            if(!hucreler.every(function(c){return /^:?-{2,}:?$/.test(c);})) tablo.push(hucreler);
+            i++;
+          }
+          i--;
+          if(tablo.length){
+            html+='<div style="overflow-x:auto;margin:4px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">';
+            for(var t=0;t<tablo.length;t++){
+              var etiket = (t===0) ? 'th' : 'td';
+              var stil = (t===0)
+                ? 'text-align:left;padding:3px 6px;opacity:.55;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
+                : 'padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12)';
+              html+='<tr>';
+              for(var c2=0;c2<tablo[t].length;c2++){
+                html+='<'+etiket+' style="'+stil+'">'+applyBold(tablo[t][c2])+'</'+etiket+'>';
+              }
+              html+='</tr>';
+            }
+            html+='</table></div>';
+          }
+          continue;
+        }
+
         if(/^[-*\u2022]\s+/.test(line)){
           html+='<div style="display:flex;gap:6px;margin-bottom:3px"><span style="opacity:.45;flex-shrink:0">\u203a</span><span>'+applyBold(line.replace(/^[-*\u2022]\s+/,''))+'</span></div>';
         } else {
@@ -343,9 +430,16 @@
       if (!el || !d) return;
 
       if (tsEl && d.updated_at) {
-        var ageMin = Math.round((Date.now() - new Date(d.updated_at).getTime()) / 60000);
-        if (!isNaN(ageMin) && ageMin >= 0)
-          tsEl.textContent = ageMin < 60 ? ageMin + ' dk önce' : Math.round(ageMin / 60) + ' sa önce';
+        var saat = veriYasiSaat(d.updated_at);
+        if (saat !== null) {
+          // Eskiden 104 gün "2494 sa önce" diye yazılıyordu; okunmuyordu.
+          tsEl.textContent = (saat < 1)
+            ? Math.round(saat * 60) + ' dk önce'
+            : yasEtiketi(saat) + ' önce';
+          var bayat = saat > BAYAT_SAAT;
+          tsEl.style.color = bayat ? '#fbbf24' : '';
+          tsEl.style.fontWeight = bayat ? '700' : '';
+        }
       }
 
       var mom = d.momentum_state || d.momentum || null;
@@ -424,6 +518,19 @@
         + '</div>';
     }
 
+    /* Telegram'a giden metin raporları. Payload {text, updated_at} şeklinde;
+       mdToHtml zaten markdown listeleri ve tabloları basıyor. */
+    function renderRapor(el, d){
+      if(!el) return;
+      setOverflow(el);
+      var metin = d && (d.text || d.reply || '');
+      if(!metin){
+        el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Rapor henüz gelmedi</div>';
+        return;
+      }
+      el.innerHTML = mdToHtml(metin) + freshLine(d.updated_at);
+    }
+
     function init(){
       // Reset so header timestamp always reflects the current cycle's freshest file
       _latestTs = null;
@@ -434,6 +541,19 @@
       loadJSON('/api/caddebostan_live',  function(d){ renderCaddebostan  (d); });
       loadJSON('/api/instagram_live_summary',    function(d){ renderInstaMain(d); });
       loadJSON('/api/instagram_recommendations', function(d){ renderInstaRecs(d); });
+
+      var raporlar = [
+        ['/api/report_ceo',        'repCeo'],
+        ['/api/report_caddebostan','repCadde'],
+        ['/api/report_weekly',     'repWeekly'],
+        ['/api/report_instagram',  'repInstagram'],
+      ];
+      raporlar.forEach(function(r){
+        loadJSON(r[0], function(d, h){
+          var el = document.getElementById(r[1]);
+          if(!hataKutusu(el, h)) renderRapor(el, d);
+        });
+      });
     }
 
     /* ── Auto-refresh: only while AI page is visible ─────── */

@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.01-1337'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.01-1750'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1337">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1750">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1214,21 +1214,61 @@
 
     </section>
 
+    <!-- === Telegram raporları — metin olarak dashboard'da === -->
+    <section id="execReports" class="glass card-3d rounded-3xl mt-4" data-page="ai">
+      <div class="ai-hd">
+        <div>
+          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:#94a3b8;margin-bottom:3px">Raporlar</div>
+          <div class="text-slate-800 dark:text-slate-100" style="font-size:.9rem;font-weight:600;letter-spacing:-.01em">📄 Günlük &amp; Haftalık Raporlar</div>
+        </div>
+      </div>
+
+      <div class="ai-card-label" style="margin-top:12px;margin-bottom:8px">
+        <span class="ai-dot" style="background:rgba(96,165,250,.7)"></span>
+        📈 CEO Günlük Raporu
+      </div>
+      <div id="repCeo"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+
+      <details style="margin-top:16px">
+        <summary class="ai-card-label" style="cursor:pointer;margin-bottom:8px">
+          <span class="ai-dot" style="background:rgba(52,211,153,.7)"></span>
+          🏪 Caddebostan Satış Raporu
+        </summary>
+        <div id="repCadde"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+      </details>
+
+      <details style="margin-top:16px">
+        <summary class="ai-card-label" style="cursor:pointer;margin-bottom:8px">
+          <span class="ai-dot" style="background:rgba(168,85,247,.65)"></span>
+          📅 Haftalık Trend Raporu
+        </summary>
+        <div id="repWeekly"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+      </details>
+
+      <details style="margin-top:16px">
+        <summary class="ai-card-label" style="cursor:pointer;margin-bottom:8px">
+          <span class="ai-dot" style="background:rgba(251,191,36,.7)"></span>
+          📸 Instagram Raporu
+        </summary>
+        <div id="repInstagram"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+      </details>
+    </section>
+
   </div><!-- /mainContent -->
 
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.01-1337"></script>
+  <script src="/assets/app-1.js?v=2026.09.01-1750"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.01-1337"></script>
+  <script src="/assets/app-2.js?v=2026.09.01-1750"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.01-1337"></script>
-  <script src="/assets/app-4.js?v=2026.09.01-1337"></script>
+  <script src="/assets/app-3.js?v=2026.09.01-1750"></script>
+  <script src="/assets/app-4.js?v=2026.09.01-1750"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.01-1337"></script>
+  <script src="/assets/app-5.js?v=2026.09.01-1750"></script>
 </body>
 </html>
