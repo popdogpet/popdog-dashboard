@@ -417,33 +417,82 @@ document.addEventListener('DOMContentLoaded', function(){
 function esc2(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
-/* Tek tıkla gider girişi.
-   Kendi fetch'imizi yazmıyoruz: appendExpenseRow() zaten kategori/alt kategori
-   eşleştirmesini, Zee.Dog USD ayrımını ve farklı Apps Script payload biçimlerini
-   deneyen sağlam yolu içeriyor. Manuel form da onu kullanıyor. */
-async function odemeyiGir(btn){
-  const alt = btn.dataset.alt, tutar = Number(btn.dataset.tutar), gun = Number(btn.dataset.gun);
+/* Ödeme girişi.
+ *
+ * Kalemlerin çoğu her ay değişiyor (kredi kartları %55–70, maaş %38 oynuyor),
+ * bu yüzden tek tık yetmiyor: butona basınca tutar satır içinde düzenlenebilir
+ * hale geliyor, son ayın değeri hazır geliyor. Sabit kalemlerde (kredi
+ * taksitleri, sabit faturalar) doğrudan onay yeterli.
+ *
+ * Yazma işini appendExpenseRow() yapıyor — manuel formun da kullandığı,
+ * kategori eşleştirmesi ve Apps Script payload denemelerini içeren yol.
+ */
+function odemeGirisiAc(btn, satir){
+  if (!satir || !satir.alt) return;
+  const kap = btn.closest('[data-satir]');
+  if (!kap || kap.dataset.acik === '1') return;
+  kap.dataset.acik = '1';
+
+  const tutarAlan = kap.querySelector('.tutar-alan');
+  const eskiHTML = tutarAlan.innerHTML, eskiBtn = btn.outerHTML;
+
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.inputMode = 'decimal';
+  inp.value = Math.round(Number(satir.tutar) || 0).toLocaleString('tr-TR');
+  inp.style.cssText = 'width:92px;font-size:.72rem;font-weight:600;text-align:right;'
+    + 'font-variant-numeric:tabular-nums;border:1px solid rgba(96,165,250,.5);border-radius:6px;'
+    + 'padding:1px 5px;background:rgba(96,165,250,.08);color:inherit;outline:none';
+  tutarAlan.innerHTML = ''; tutarAlan.appendChild(inp);
+  inp.focus(); inp.select();
+
+  const iptal = function(){
+    const x = kap.querySelector('.odeme-iptal');
+    if (x) x.remove();                       // iptal butonu satırda kalmasın
+    tutarAlan.innerHTML = eskiHTML;
+    btn.outerHTML = eskiBtn;
+    kap.dataset.acik = '';
+    const yeniBtn = kap.querySelector('.odeme-gir');
+    if (yeniBtn) yeniBtn.onclick = function(){ odemeGirisiAc(yeniBtn, satir); };
+  };
+  const onayla = function(){
+    const ham = inp.value.replace(/\./g,'').replace(',', '.').replace(/[^\d.]/g,'');
+    const tutar = Number(ham);
+    if (!(tutar > 0)) { inp.style.borderColor = '#f87171'; return; }
+    odemeyiYaz(satir, tutar, btn, kap);
+  };
+  inp.onkeydown = function(e){
+    if (e.key === 'Enter') { e.preventDefault(); onayla(); }
+    if (e.key === 'Escape') { e.preventDefault(); iptal(); }
+  };
+  btn.textContent = '✓'; btn.onclick = onayla;
+  btn.insertAdjacentHTML('afterend',
+    '<button class="odeme-iptal" style="font-size:.6rem;padding:1px 5px;border-radius:999px;'
+    + 'border:1px solid rgba(148,163,184,.35);background:transparent;color:#94a3b8;cursor:pointer">×</button>');
+  kap.querySelector('.odeme-iptal').onclick = iptal;
+}
+
+async function odemeyiYaz(satir, tutar, btn, kap){
   const d = new Date();
   const sonGun = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'
-            + String(Math.min(gun || d.getDate(), sonGun)).padStart(2,'0');
-
-  if (!confirm(alt + '\n' + numberTL(tutar) + '\n' + iso + '\n\nexpenses_master\'a eklensin mi?')) return;
+            + String(Math.min(satir.gun || d.getDate(), sonGun)).padStart(2,'0');
   if (typeof appendExpenseRow !== 'function'){ alert('Yazma fonksiyonu yüklenmemiş.'); return; }
 
-  const eski = btn.textContent;
   btn.textContent = '…'; btn.disabled = true;
+  const iptalBtn = kap.querySelector('.odeme-iptal'); if (iptalBtn) iptalBtn.remove();
   try{
-    await appendExpenseRow({ dateISO: iso, subcat: alt, amountTRY: tutar, note: 'plandan girildi' });
+    await appendExpenseRow({ dateISO: iso, subcat: satir.alt, amountTRY: tutar, note: 'plandan girildi' });
+    kap.style.opacity = '.45';
+    kap.querySelector('.tutar-alan').textContent = numberTL(tutar);
     btn.textContent = '✓'; btn.style.color = '#34d399'; btn.style.borderColor = 'rgba(52,211,153,.4)';
     try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
-    setTimeout(function(){ location.reload(); }, 1200);
+    setTimeout(function(){ location.reload(); }, 1400);
   }catch(e){
-    btn.textContent = eski; btn.disabled = false;
+    btn.textContent = 'gir'; btn.disabled = false;
     alert('Yazılamadı: ' + (e && e.message ? e.message : e));
   }
 }
-window.odemeyiGir = odemeyiGir;
+window.odemeGirisiAc = odemeGirisiAc;
 
 function renderUpcomingPayments(){
   try {
@@ -509,20 +558,25 @@ function renderUpcomingPayments(){
     let planKalemleri = [];
     try {
       const plan = (typeof aylikOdemePlani === 'function') ? aylikOdemePlani() : { kalemler: [] };
-      /* Kredi taksitleri yukarıda kredi kayıtlarından zaten geliyor; Sheet'teki
-         aynı alt kategorileri saymazsak çift sayım olmaz. */
       const KREDI_ALT = /^(kredi|araç kredi|taksitli ticari kredi 2|garanti kredi)$/i;
       planKalemleri = (plan.kalemler || []).filter(function(k){ return !KREDI_ALT.test(k.alt); });
     } catch(e){ console.warn('aylikOdemePlani:', e && e.message); }
 
     const bugun = new Date().getDate();
-    /* Zee.Dog açık bakiyesi aylık bir yükümlülük değil, tedarikçi borcu —
-       kendi tablosunda gösteriliyor. Aylık takvimin toplamını şişirmesin. */
+    /* Kredi taksitleri de girilebilsin diye Sheet'teki alt kategori adlarıyla
+       eşleştiriliyor. Tutarları sözleşmeden geldiği için sabit. */
+    const KREDI_SHEET_ADI = {
+      'Ticari Kredi Taksiti': 'Kredi',
+      'Araç Kredisi Taksiti': 'Araç Kredi',
+      'Ticari Kredi 2 Taksiti': 'Taksitli Ticari Kredi 2',
+      'Garanti Kredi Taksiti': 'Garanti Kredi',
+    };
     const satirlar = payments.filter(function(p){ return p.type !== 'supplier'; }).map(function(p){
-      return { gun: p.gun || 0, ad: p.name, tutar: p.amount, tur: p.type, odendi: false, alt: null };
+      return { gun: p.gun || 0, ad: p.name, tutar: p.amount, odendi: false,
+               alt: KREDI_SHEET_ADI[p.name] || null, sabit: true };
     }).concat(planKalemleri.map(function(k){
       return { gun: k.gun, ad: k.alt, tutar: k.odendi ? k.odenenTutar : k.tutar,
-               tur: 'expense', odendi: k.odendi, alt: k.alt, kategori: k.kategori };
+               odendi: k.odendi, alt: k.alt, sabit: k.sabit, medyan: k.medyan };
     })).sort(function(a,b){ return a.gun - b.gun; });
 
     const bekleyen = satirlar.filter(function(r){ return !r.odendi; });
@@ -536,24 +590,27 @@ function renderUpcomingPayments(){
       if (!satirlar.length) {
         elList.innerHTML = '<div class="hint text-xs">Bu ay bekleyen ödeme yok.</div>';
       } else {
-        elList.innerHTML = satirlar.map(function(r){
+        elList.innerHTML = satirlar.map(function(r, i){
           const gecti = !r.odendi && r.gun && r.gun < bugun;
           const renk = r.odendi ? 'opacity:.45' : (gecti ? 'color:#f87171' : '');
           const isaret = r.odendi ? '✓' : (gecti ? '!' : '');
+          /* Sabit olmayan kalemlerde tutar bir tahmin: "~" ile işaretlenir ve
+             girerken düzenlenebilir gelir. */
+          const yaklasik = (!r.odendi && !r.sabit) ? '~' : '';
           const buton = (!r.odendi && r.alt)
-            ? `<button class="odeme-gir" data-alt="${esc2(r.alt)}" data-tutar="${Math.round(r.tutar)}" data-gun="${r.gun}"
+            ? `<button class="odeme-gir" data-i="${i}"
                  style="font-size:.6rem;padding:1px 6px;border-radius:999px;border:1px solid rgba(96,165,250,.4);
                         background:rgba(96,165,250,.12);color:#60a5fa;cursor:pointer">gir</button>`
-            : '';
-          return `<div style="display:flex;align-items:baseline;gap:6px;padding:2px 0;${renk}">
+            : '<span style="width:26px;display:inline-block"></span>';
+          return `<div data-satir="${i}" style="display:flex;align-items:baseline;gap:6px;padding:2px 0;${renk}">
               <span style="font-size:.62rem;opacity:.5;min-width:22px;text-align:right">${r.gun || '–'}.</span>
               <span style="font-size:.72rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc2(r.ad)}</span>
-              <span style="font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums">${numberTL(r.tutar)}</span>
+              <span class="tutar-alan" style="font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums">${yaklasik}${numberTL(r.tutar)}</span>
               <span style="font-size:.62rem;width:10px">${isaret}</span>${buton}
             </div>`;
         }).join('');
         elList.querySelectorAll('.odeme-gir').forEach(function(b){
-          b.onclick = function(){ odemeyiGir(b); };
+          b.onclick = function(){ odemeGirisiAc(b, satirlar[Number(b.dataset.i)]); };
         });
       }
     }

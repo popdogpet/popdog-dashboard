@@ -2642,8 +2642,6 @@ function aylikOdemePlani(){
   if (!rows.length) return { kalemler: [], buAy: null };
 
   const buAy = (function(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
-
-  // son 8 tam ay (bu ay hariç — henüz tamamlanmadı)
   const gecmisAylar = [];
   {
     const d = new Date(); d.setDate(1);
@@ -2652,11 +2650,7 @@ function aylikOdemePlani(){
   }
   const gecmisSet = new Set(gecmisAylar);
 
-  const aylik = {};   // alt kategori → { ay: toplam }
-  const gunler = {};  // alt kategori → [gün]
-  const meta   = {};  // alt kategori → {kategori}
-  const buAyOdenen = {};
-
+  const aylik = {}, gunler = {}, meta = {}, buAyOdenen = {};
   rows.forEach(function(r){
     const iso = String(r.Date || '').slice(0,10);
     if (iso.length < 10) return;
@@ -2665,7 +2659,6 @@ function aylikOdemePlani(){
     if (!alt) return;
     const tl = (typeof readExpenseAmountTRY === 'function') ? readExpenseAmountTRY(r) : Number(r.Amount||0);
     if (!(tl > 0)) return;
-
     if (ay === buAy){ buAyOdenen[alt] = (buAyOdenen[alt]||0) + tl; return; }
     if (!gecmisSet.has(ay)) return;
     (aylik[alt] = aylik[alt] || {})[ay] = (aylik[alt][ay]||0) + tl;
@@ -2678,13 +2671,22 @@ function aylikOdemePlani(){
 
   const kalemler = [];
   Object.keys(aylik).forEach(function(alt){
-    const aylar = Object.keys(aylik[alt]);
-    if (aylar.length < 5) return;                       // düzenli değil
+    const aylar = Object.keys(aylik[alt]).sort();
+    if (aylar.length < 5) return;
+    const degerler = aylar.map(function(a){ return aylik[alt][a]; });
+    const ort = degerler.reduce(function(x,y){return x+y;},0) / degerler.length;
+    const sapma = Math.sqrt(degerler.reduce(function(t,v){ return t + (v-ort)*(v-ort); },0) / degerler.length);
+    const cv = ort ? sapma/ort : 0;
     kalemler.push({
       alt: alt,
       kategori: (meta[alt]||{}).kategori || '',
       gun: Math.round(medyan(gunler[alt])),
-      tutar: medyan(aylar.map(function(a){ return aylik[alt][a]; })),
+      /* Öneri tutarı = SON AY. Medyan zamlanan kalemlerde geride kalıyordu
+         (kira 70.000 gösteriyordu, oysa 95.000 olmuştu). */
+      tutar: degerler[degerler.length-1],
+      medyan: medyan(degerler),
+      sabit: cv < 0.10,          // %10'un altında oynayan = sabit, doğrudan girilebilir
+      oynaklik: cv,
       gorulenAy: aylar.length,
       odendi: !!buAyOdenen[alt],
       odenenTutar: buAyOdenen[alt] || 0,
