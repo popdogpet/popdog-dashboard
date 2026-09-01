@@ -436,13 +436,22 @@ function odemeGirisiAc(btn, satir){
   const tutarAlan = kap.querySelector('.tutar-alan');
   const eskiHTML = tutarAlan.innerHTML, eskiBtn = btn.outerHTML;
 
+  /* Tarih girişi: varsayılan BUGÜN. Eskiden geçmişin medyan ödeme günü
+     yazılıyordu ve ay başında girilen kayıt gelecek tarihli oluyordu. */
+  const bugunISO = (function(){ const x=new Date();
+    return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); })();
+  const dInp = document.createElement('input');
+  dInp.type = 'date'; dInp.value = bugunISO;
+  dInp.style.cssText = 'width:118px;font-size:.66rem;border:1px solid rgba(148,163,184,.35);'
+    + 'border-radius:6px;padding:1px 4px;background:transparent;color:inherit;outline:none;margin-right:4px';
+
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'decimal';
   inp.value = Math.round(Number(satir.tutar) || 0).toLocaleString('tr-TR');
   inp.style.cssText = 'width:92px;font-size:.72rem;font-weight:600;text-align:right;'
     + 'font-variant-numeric:tabular-nums;border:1px solid rgba(96,165,250,.5);border-radius:6px;'
     + 'padding:1px 5px;background:rgba(96,165,250,.08);color:inherit;outline:none';
-  tutarAlan.innerHTML = ''; tutarAlan.appendChild(inp);
+  tutarAlan.innerHTML = ''; tutarAlan.appendChild(dInp); tutarAlan.appendChild(inp);
   inp.focus(); inp.select();
 
   const iptal = function(){
@@ -458,7 +467,8 @@ function odemeGirisiAc(btn, satir){
     const ham = inp.value.replace(/\./g,'').replace(',', '.').replace(/[^\d.]/g,'');
     const tutar = Number(ham);
     if (!(tutar > 0)) { inp.style.borderColor = '#f87171'; return; }
-    odemeyiYaz(satir, tutar, btn, kap);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dInp.value)) { dInp.style.borderColor = '#f87171'; return; }
+    odemeyiYaz(satir, tutar, dInp.value, btn, kap);
   };
   inp.onkeydown = function(e){
     if (e.key === 'Enter') { e.preventDefault(); onayla(); }
@@ -471,14 +481,20 @@ function odemeGirisiAc(btn, satir){
   kap.querySelector('.odeme-iptal').onclick = iptal;
 }
 
-async function odemeyiYaz(satir, tutar, btn, kap){
-  const d = new Date();
-  const sonGun = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
-  const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'
-            + String(Math.min(satir.gun || d.getDate(), sonGun)).padStart(2,'0');
-  if (typeof appendExpenseRow !== 'function'){ alert('Yazma fonksiyonu yüklenmemiş.'); return; }
+/* Çift yazmaya karşı kilit.
+   Sheet'e yazma geri alınamıyor (Apps Script'te silme ucu yok), bu yüzden
+   art arda iki tetikleme (Enter + tık, ya da hızlı çift tık) tek satır yazmalı. */
+let _odemeYaziliyor = false;
 
-  btn.textContent = '…'; btn.disabled = true;
+async function odemeyiYaz(satir, tutar, iso, btn, kap){
+  if (typeof appendExpenseRow !== 'function'){ alert('Yazma fonksiyonu yüklenmemiş.'); return; }
+  if (_odemeYaziliyor || kap.dataset.yazildi === '1') return;   // ikinci tetikleme yok sayılır
+  _odemeYaziliyor = true;
+  kap.dataset.yazildi = '1';
+
+  // Girişleri hemen kilitle ki Enter tekrar tetiklemesin
+  kap.querySelectorAll('input').forEach(function(x){ x.disabled = true; x.onkeydown = null; });
+  btn.textContent = '…'; btn.disabled = true; btn.onclick = null;
   const iptalBtn = kap.querySelector('.odeme-iptal'); if (iptalBtn) iptalBtn.remove();
   try{
     await appendExpenseRow({ dateISO: iso, subcat: satir.alt, amountTRY: tutar, note: 'plandan girildi' });
@@ -487,8 +503,13 @@ async function odemeyiYaz(satir, tutar, btn, kap){
     btn.textContent = '✓'; btn.style.color = '#34d399'; btn.style.borderColor = 'rgba(52,211,153,.4)';
     try{ localStorage.removeItem('popdog_expenses_cache'); }catch(_){}
     setTimeout(function(){ location.reload(); }, 1400);
+    // kilit bilerek açılmıyor: sayfa yenilenene kadar başka yazma olmasın
   }catch(e){
+    _odemeYaziliyor = false;
+    kap.dataset.yazildi = '';
+    kap.querySelectorAll('input').forEach(function(x){ x.disabled = false; });
     btn.textContent = 'gir'; btn.disabled = false;
+    btn.onclick = function(){ odemeGirisiAc(btn, satir); };
     alert('Yazılamadı: ' + (e && e.message ? e.message : e));
   }
 }
