@@ -447,9 +447,16 @@ function renderUpcomingPayments(){
       payments.push({ name: 'Garanti Kredi Taksiti', amount: inst, type: 'loan' });
     }
 
-    // Zee.Dog bekleyen ödemeler
-    const zeeList = Array.isArray(st.zeeAwaitUSD) ? st.zeeAwaitUSD : [];
-    const fxRate = (typeof tryPerUsd === 'function') ? tryPerUsd() : 35;
+    // Zee.Dog bekleyen ödemeler — ana kalem toplama girmez (alt kalemleri sayılır)
+    const zeeHam = Array.isArray(st.zeeAwaitUSD) ? st.zeeAwaitUSD : [];
+    const zeeList = (typeof zeeToplananlar === 'function') ? zeeToplananlar(zeeHam) : zeeHam;
+    /* getTryPerUsd() kullanılıyor: tryPerUsd() yalnızca localStorage'a ve
+       KPI'dan türetmeye bakıyor, ikisi de yoksa 0 dönüyordu ve Zee.Dog satırı
+       "₺0" görünüyordu. getTryPerUsd() ayrıca canlı kuru da tersine çevirir. */
+    let fxRate = 0;
+    if (typeof getTryPerUsd === 'function') fxRate = Number(getTryPerUsd()) || 0;
+    if (!fxRate && typeof tryPerUsd === 'function') fxRate = Number(tryPerUsd()) || 0;
+    if (!fxRate) fxRate = 35;
 
     let zeeTotal = 0;
     zeeList.forEach(z => {

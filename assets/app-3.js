@@ -2638,6 +2638,36 @@ window.defaultLoansState = defaultLoansState;
 window.getLoansState = getLoansState;
 window.setLoansState = setLoansState;
 
+/* Zee.Dog listesinde ana kalem (ör. YK#037) ile alt kalemleri (YK#037.1 = %30,
+   YK#037.2 = %70) birlikte listeleniyor. Alt kalemler ana kalemi böldüğü için
+   ikisini birden toplamak borcu iki kat gösteriyor. Toplamlarda ana kalem
+   atlanır; tabloda başlık satırı gibi durmaya devam eder. */
+function zeeAnaKalemMi(id, liste){
+  const onek = String(id || '').toUpperCase() + '.';
+  return (liste || []).some(function(z){
+    return String(z && z.id || '').toUpperCase().startsWith(onek);
+  });
+}
+function zeeToplananlar(liste){
+  const arr = Array.isArray(liste) ? liste : [];
+  return arr.filter(function(z){ return !zeeAnaKalemMi(z && z.id, arr); });
+}
+window.zeeAnaKalemMi = zeeAnaKalemMi;
+window.zeeToplananlar = zeeToplananlar;
+
+/* Ödenmemişler üstte; her grup kendi içinde özgün sırasını korur. */
+function zeeSirala(liste){
+  const arr = (Array.isArray(liste) ? liste : []).map(function(z, i){ return { z: z, i: i }; });
+  const odenmis = function(z){
+    return z && (z.paid === true || String(z.status || '').toLowerCase() === 'paid');
+  };
+  arr.sort(function(a, b){
+    const fa = odenmis(a.z) ? 1 : 0, fb = odenmis(b.z) ? 1 : 0;
+    return fa !== fb ? fa - fb : a.i - b.i;
+  });
+  return arr.map(function(x){ return x.z; });
+}
+
 /* Yardımcı: yaklaşık eşleşme (taksit sayısı tahmini) */
 function approxInstallments(paidAmount, instAmount){
   if (!instAmount) return 1;
@@ -2749,7 +2779,9 @@ function renderLoansBlock(){
       if (!list.length){
         tbody.innerHTML = '<tr><td class="hint py-2" colspan="5">Kayıt bulunamadı.</td></tr>';
       } else {
-        const rows = list.map(it => {
+        const sirali = zeeSirala(list);
+        const rows = sirali.map(it => {
+          const anaKalem = zeeAnaKalemMi(it.id, list);
           const totalUsd = Number(it.usd || 0);
           const paidUsd = Number(it.paidUsd || 0);
           const remainingUsd = Number(it.remainingUsd ?? totalUsd);
@@ -2765,9 +2797,14 @@ function renderLoansBlock(){
             badgeCls = 'badge-partial';
             badgeText = 'Kısmi Ödendi';
           }
+          if (anaKalem && status !== 'paid') {
+            // Alt kalemlere bölündü; toplama girmiyor.
+            badgeCls = 'badge-wait';
+            badgeText = 'Alt kalemlere bölündü';
+          }
 
           return `
-            <tr>
+            <tr${anaKalem ? ' style="opacity:.62"' : ''}>
               <td class="py-1 pr-3">${it.id || ''}</td>
               <td class="py-1 pr-3 text-right">${totalUsd > 0 ? numberUSD(totalUsd) : '–'}</td>
               <td class="py-1 pr-3 text-right">${paidUsd > 0 ? numberUSD(paidUsd) : '–'}</td>
