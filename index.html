@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.01-1750'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.01-1803'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1750">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.01-1803">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1181,38 +1181,10 @@
     </section>
 
     <!-- === Instagram Intelligence === -->
-    <section id="execInsta" class="glass card-3d rounded-3xl mt-4" data-page="ai">
-
-      <div class="ai-hd">
-        <div>
-          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:#94a3b8;margin-bottom:3px">Organic Growth</div>
-          <div class="text-slate-800 dark:text-slate-100" style="font-size:.9rem;font-weight:600;letter-spacing:-.01em">📸 Instagram</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <span id="instaLastUpdate" style="font-size:.62rem;color:#94a3b8;font-variant-numeric:tabular-nums"></span>
-          <span id="instaMomentumBadge"></span>
-        </div>
-      </div>
-
-      <!-- Decision + Metrics -->
-      <div id="instaMain">
-        <div style="font-size:.75rem;color:#94a3b8">Yükleniyor…</div>
-      </div>
-
-      <!-- NOT: "Şimdi ne paylaşmalı" için ayrı kart eklenmemeli.
-           /api/instagram_live_summary yanıtı `decision` alanını içeriyor ve
-           renderInstaMain onu yukarıda zaten basıyor. -->
-
-      <!-- Recommendations -->
-      <div class="ai-card-label" style="margin-top:16px;margin-bottom:8px">
-        <span class="ai-dot" style="background:rgba(168,85,247,.65)"></span>
-        💡 Önerilen Aksiyonlar
-      </div>
-      <div id="instaRecs">
-        <div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div>
-      </div>
-
-    </section>
+    <!-- Eski Instagram bölümü kaldırıldı: onu besleyen yapılandırılmış
+         veri üretimi (momentum/ER/karar) bot kodundan silinmişti,
+         kart 20 Mayıs verisinde donmuştu. Yerine Raporlar bölümündeki
+         "Instagram Raporu" metin kartı geçti. -->
 
     <!-- === Telegram raporları — metin olarak dashboard'da === -->
     <section id="execReports" class="glass card-3d rounded-3xl mt-4" data-page="ai">
@@ -1259,16 +1231,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.01-1750"></script>
+  <script src="/assets/app-1.js?v=2026.09.01-1803"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.01-1750"></script>
+  <script src="/assets/app-2.js?v=2026.09.01-1803"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.01-1750"></script>
-  <script src="/assets/app-4.js?v=2026.09.01-1750"></script>
+  <script src="/assets/app-3.js?v=2026.09.01-1803"></script>
+  <script src="/assets/app-4.js?v=2026.09.01-1803"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.01-1750"></script>
+  <script src="/assets/app-5.js?v=2026.09.01-1803"></script>
 </body>
 </html>

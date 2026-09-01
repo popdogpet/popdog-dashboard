@@ -423,114 +423,6 @@
       return String(Math.round(v));
     }
 
-    function renderInstaMain(d) {
-      var el    = document.getElementById('instaMain');
-      var tsEl  = document.getElementById('instaLastUpdate');
-      var momEl = document.getElementById('instaMomentumBadge');
-      if (!el || !d) return;
-
-      if (tsEl && d.updated_at) {
-        var saat = veriYasiSaat(d.updated_at);
-        if (saat !== null) {
-          // Eskiden 104 gün "2494 sa önce" diye yazılıyordu; okunmuyordu.
-          tsEl.textContent = (saat < 1)
-            ? Math.round(saat * 60) + ' dk önce'
-            : yasEtiketi(saat) + ' önce';
-          var bayat = saat > BAYAT_SAAT;
-          tsEl.style.color = bayat ? '#fbbf24' : '';
-          tsEl.style.fontWeight = bayat ? '700' : '';
-        }
-      }
-
-      var mom = d.momentum_state || d.momentum || null;
-      if (momEl && mom) {
-        var mMap = {
-          growing:  { cls: 'insta-momentum-up',     icon: '▲', txt: 'Büyüyor' },
-          peaked:   { cls: 'insta-momentum-peaked',  icon: '◆', txt: 'Zirve'   },
-          stable:   { cls: 'insta-momentum-flat',    icon: '●', txt: 'Stabil'  },
-          declining:{ cls: 'insta-momentum-down',    icon: '▼', txt: 'Düşüyor' },
-          fading:   { cls: 'insta-momentum-down',    icon: '▼', txt: 'Düşüyor' },
-        };
-        var m = mMap[mom] || { cls: 'insta-momentum-flat', icon: '●', txt: mom };
-        momEl.innerHTML = '<span class="insta-momentum ' + m.cls + '">' + m.icon + ' ' + esc(m.txt) + '</span>';
-      }
-
-      var html = '';
-
-      var dec = d.decision || ((d.title && d.reason) ? d : null);
-      if (dec && dec.title) {
-        var typeMap = {
-          post_now: 'Şimdi Paylaş', wait: 'Bekle', story_now: 'Story At',
-          carousel_today: 'Carousel', reel_today: 'Reel'
-        };
-        var typeLabel = typeMap[dec.type || dec.decision_type] || dec.type || dec.decision_type || '';
-        html += '<div class="insta-action-card">'
-          + (typeLabel ? '<div class="insta-action-type">' + esc(typeLabel) + '</div>' : '')
-          + '<div class="insta-action-title">' + esc(dec.title) + '</div>'
-          + '<div class="insta-action-reason">' + esc(dec.reason || '') + '</div>'
-          + '<div class="insta-action-meta">'
-          + (dec.recommended_time ? '⏰ ' + esc(dec.recommended_time) + '&ensp;·&ensp;' : '')
-          + (dec.confidence != null ? Math.round(dec.confidence * 100) + '% güven' : '')
-          + '</div>'
-          + '</div>';
-      }
-
-      var metrics = [];
-      if (d.followers != null)         metrics.push({ num: fmtK(d.followers),   lbl: 'Takipçi' });
-      if (d.daily_reach != null)       metrics.push({ num: fmtK(d.daily_reach), lbl: 'Günlük Erişim' });
-      if (d.recent_engagement != null) metrics.push({ num: parseFloat(d.recent_engagement).toFixed(1) + '%', lbl: 'Etkileşim' });
-      if (d.best_format)               metrics.push({ num: esc(d.best_format),  lbl: 'En İyi Format' });
-
-      if (metrics.length) {
-        html += '<div class="insta-stats">'
-          + metrics.map(function(m){
-              return '<div class="insta-stat">'
-                + '<div class="insta-stat-num">' + m.num + '</div>'
-                + '<div class="insta-stat-lbl">' + m.lbl + '</div>'
-                + '</div>';
-            }).join('')
-          + '</div>';
-      }
-
-      el.innerHTML = html || '<div style="font-size:.75rem;color:#94a3b8">Veri henüz gelmedi</div>';
-    }
-
-    function renderInstaRecs(d) {
-      var el = document.getElementById('instaRecs');
-      if (!el) return;
-      if (!d || !d.items || !d.items.length) {
-        el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Öneri verisi henüz gelmedi</div>';
-        return;
-      }
-      var dotMap = { urgent: 'insta-dot-urgent', high: 'insta-dot-high', medium: 'insta-dot-medium', low: 'insta-dot-low' };
-      el.innerHTML = '<div class="insta-rec-list">'
-        + d.items.map(function(r){
-            var dot = dotMap[r.priority] || 'insta-dot-low';
-            return '<div class="insta-rec-item">'
-              + '<div class="insta-rec-dot ' + dot + '"></div>'
-              + '<div class="insta-rec-body">'
-              +   '<div class="insta-rec-title">' + esc(r.title || r.action || '') + '</div>'
-              +   '<div class="insta-rec-reason">' + esc(r.reason || '') + '</div>'
-              +   (r.recommended_time ? '<div class="insta-rec-time">⏰ ' + esc(r.recommended_time) + '</div>' : '')
-              + '</div>'
-              + '</div>';
-          }).join('')
-        + '</div>';
-    }
-
-    /* Telegram'a giden metin raporları. Payload {text, updated_at} şeklinde;
-       mdToHtml zaten markdown listeleri ve tabloları basıyor. */
-    function renderRapor(el, d){
-      if(!el) return;
-      setOverflow(el);
-      var metin = d && (d.text || d.reply || '');
-      if(!metin){
-        el.innerHTML = '<div style="font-size:.75rem;color:#94a3b8">Rapor henüz gelmedi</div>';
-        return;
-      }
-      el.innerHTML = mdToHtml(metin) + freshLine(d.updated_at);
-    }
-
     function init(){
       // Reset so header timestamp always reflects the current cycle's freshest file
       _latestTs = null;
@@ -539,8 +431,6 @@
       loadJSON('/api/alerts',       function(d, h){ var el=document.getElementById('aiAlerts');  if(!hataKutusu(el,h)) renderAlerts(el, d); });
       loadJSON('/api/daily',        function(d, h){ var el=document.getElementById('aiSummary'); if(!hataKutusu(el,h)) renderSummary(el, d); });
       loadJSON('/api/caddebostan_live',  function(d){ renderCaddebostan  (d); });
-      loadJSON('/api/instagram_live_summary',    function(d){ renderInstaMain(d); });
-      loadJSON('/api/instagram_recommendations', function(d){ renderInstaRecs(d); });
 
       var raporlar = [
         ['/api/report_ceo',        'repCeo'],
