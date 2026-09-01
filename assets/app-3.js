@@ -2407,15 +2407,7 @@ async function initExpenseEntryUI(){
     if(!ok && info){
       info.textContent = '⚠️ Sheet bağlantısı yok. Apps Script adresi sunucuda GAS_EXEC_URL secret’ında tanımlı olmalı (wrangler pages secret put GAS_EXEC_URL).';
     }
-    try{
-      const b = document.getElementById('writeSheetBtn');
-      if(!ok && b){ b.onclick = ()=> setupSheetWebAppURL(info); }
-    }catch(_){}
   }catch(_){ /* sessiz */ }
-  try{
-    const w = document.getElementById('writeSheetBtn');
-    if (w) w.addEventListener('contextmenu', (e)=>{ e.preventDefault(); setupWebAppCompat(info); });
-  }catch(_){}
 
   // Alt kategorileri doldur
   try{
@@ -5189,58 +5181,9 @@ const prevSum = (expMonthly||[]).reduce((acc,r)=> (r.year===expYear-1 && monthsT
   }catch(e){}
 }
 
-function renderMainExpenseTable(){
-  try{
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const years = Array.from(new Set((expensesMonthlyCache||[]).map(m=>m.year))).sort((a,b)=>a-b);
-    const expYear = years.includes(curYear) ? curYear : (years.length ? years[years.length-1] : curYear);
-
-    const baseRows = (expensesRowsAdjustedCache && expensesRowsAdjustedCache.length) ? expensesRowsAdjustedCache : expensesRowsCache;
-    const rows = (baseRows || []).filter(r => {
-      const iso = (r && r.Date && /^\d{4}-\d{2}-\d{2}$/.test(r.Date)) ? r.Date : getExpenseISODate(r);
-      if(!iso) return false;
-      const d = new Date(iso + 'T00:00:00Z');
-      return d && !isNaN(+d) && d.getFullYear() === expYear;
-    });
-
-    const sumByMain = {};
-    let total = 0;
-    for(const r of rows){
-      const main = (r.FinalCategory && String(r.FinalCategory).trim()) || (r.FinalSubcategory && String(r.FinalSubcategory).trim()) || r.MainCategory || mapMainExpenseCategory(r.Category || 'Diğer');
-
-      // Detect Zee across all fields
-      const zee = isZeeExpense(r) || main === 'Zee.Dog' || (r.Category === 'Zee.Dog');
-      const mainFixed = zee ? 'Zee.Dog' : main;
-
-      // Amount in TRY with USD→TRY fallback for Zee
-      let a = ('Amount' in r && r.Amount !== null && r.Amount !== '') ? (Number(r.Amount)||0) : 0;
-      if(!a){ a = readExpenseAmountTRY(r); }
-
-      sumByMain[mainFixed] = (sumByMain[mainFixed] || 0) + (a || 0);
-      total += (a || 0);
-    }
-
-    const arr = Object.entries(sumByMain)
-      .map(([k,v]) => ({ k, v, p: total ? (v/total*100) : 0 }))
-      .sort((a,b) => b.v - a.v);
-
-    const tbody = document.getElementById('tblMainExpenses');
-    if(!tbody) return;
-    tbody.innerHTML = arr.length
-      ? arr.map(x => `
-          <tr>
-            <td class="py-1 pr-3">${x.k}</td>
-            <td class="py-1 pr-3 text-right">${numberTL(x.v)}</td>
-            <td class="py-1 pr-0 text-right">${x.p.toFixed(1)}%</td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="3" class="hint py-1">Veri yok.</td></tr>';
-  }catch(e){
-    console.warn('renderMainExpenseTable error', e);
-  }
-}
-// Expenses charts removed (stability + simpler maintenance)
+/* renderMainExpenseTable() kaldırıldı: tblMainExpenses elemanı HTML'de yok,
+   hiçbir yerden de çağrılmıyordu. Canlı olan renderMainExpensesTable()
+   (çoğul) — Detay ve Gruplanmış tablolarını basan o. */
 function drawExpensesCharts(){
   // Charts removed - placeholder function for compatibility
   if (!window.Chart) { return; }
@@ -5592,8 +5535,6 @@ function renderStaged(){
 }
 
 /* ================== CSV I/O (local import/export) ================== */
-const _uploadBtn = document.getElementById('uploadBtn');
-if(_uploadBtn) _uploadBtn.onclick = ()=> document.getElementById('fileInput').click();
 document.getElementById('fileInput').addEventListener('change', e=>{
   const file = e.target.files && e.target.files[0]; if(!file) return;
   Papa.parse(file, { header:true, skipEmptyLines:true, complete:(res)=>{
@@ -5615,7 +5556,7 @@ document.getElementById('fileInput').addEventListener('change', e=>{
     refreshAll();
   }});
 });
-const _downloadBtn = document.getElementById('downloadBtn');
+const _downloadBtn = null;   // HTML'de downloadBtn yok; blok korunuyor ama bağlanmıyor
 if(_downloadBtn) _downloadBtn.onclick = ()=>{
   // loaded + staged → tekilleştir ve tarihe göre sırala
   const mergedRaw = [...loadedRows, ...stagedRows];
@@ -5807,8 +5748,6 @@ try {
     if (el2) el2.textContent = 'yükleniyor…';
     const el3 = document.getElementById('kpiInvPrice');
     if (el3) el3.textContent = 'yükleniyor…';
-    const t = document.getElementById('tblMainExpenses');
-    if (t) t.innerHTML = '<tr><td class="hint py-1" colspan="3">Yükleniyor…</td></tr>';
   }catch(e){}
 
   async function boot(){
@@ -6106,18 +6045,11 @@ try {
   initStockExport();
   refreshAll();
   (function(){
-    const t = document.getElementById('yoyToggle');
+    // yoyToggle/yoyState HTML'den kaldırılmış; Giderler sayfasındaki
+    // expYoyToggle ayrı bir kontrol ve kendi kodu var.
+    const t = null;
     if (!t) return;
-    const syncLabel = () => {
-      const s = document.getElementById('yoyState');
-      if (s) s.textContent = yoyEnabled ? 'Açık' : 'Kapalı';
-    };
-    t.onclick = () => {
-      yoyEnabled = !yoyEnabled;
-      syncLabel();
-      drawCharts(monthlyCache || []);
-    };
-    syncLabel();
+    const syncLabel = () => {};
   })();
 }
 
@@ -6228,10 +6160,9 @@ async function writeStagedToSheet(){
 
 // Bind daily sheet write buttons (single writer)
 (function(){
+  // writeSheetBtn HTML'de yok; yazma butonu pushRowsBtn.
   const a = document.getElementById('pushRowsBtn');
-  const b = document.getElementById('writeSheetBtn');
   if (a) a.onclick = writeStagedToSheet;
-  if (b) b.onclick = writeStagedToSheet;
 })();
 
 
