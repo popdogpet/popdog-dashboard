@@ -3348,6 +3348,14 @@ function zeeUrunTipi(title){
 /* Sayfanın "sadece Zee.Dog" olduğunu ve kaç satırın dışarıda kaldığını
    görünür kılar. Sessiz filtre kötü filtredir: rakam neden değişti
    sorusunun cevabı ekranda dursun. */
+/* Hiç satılmamış ürünler için kodda 9999 gün sentinel'i kullanılıyor.
+   Bu sayı üç tabloda (90+ gün, en uzun kalan, dead stock) YAŞ sütununda
+   olduğu gibi ekrana basılıyordu — "9999" gerçek bir yaş sanılabilir.
+   Sıralama sentinel'le devam ediyor, yalnızca gösterim değişiyor. */
+function yasMetni(gun){
+  return (gun == null || gun >= 9999) ? 'hiç satılmadı' : gun;
+}
+
 function yazZeeRozet(hamRows, zeeRows, zeeF){
   const el = document.getElementById('stockZeeRozet');
   if (!el) return;
@@ -3896,7 +3904,7 @@ function renderStockBlock(){
       <td class="py-2 pr-4 text-right">${x.units}</td>
       <td class="py-2 pr-4 text-right">${numberTL(x.valCost)}</td>
       <td class="py-2 pr-4 text-right">${lastStr}</td>
-      <td class="py-2 pr-4 text-right">${x.age}</td>
+      <td class="py-2 pr-4 text-right">${yasMetni(x.age)}</td>
     `;
     agedTbody.appendChild(tr);
   });
@@ -4015,7 +4023,7 @@ function renderStockBlock(){
     const staleTbody = document.getElementById('tblMostStale');
     if(staleTbody){
       staleTbody.innerHTML = staleArr.map(x=>`
-        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${x.age}</td><td class="py-1 pr-3 text-right">${x.onHand}</td></tr>
+        <tr><td class="py-1 pr-3">${x.sku}</td><td class="py-1 pr-3">${x.title}</td><td class="py-1 pr-3 text-right">${yasMetni(x.age)}</td><td class="py-1 pr-3 text-right">${x.onHand}</td></tr>
       `).join('') || '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
     }
 
@@ -4219,7 +4227,7 @@ function renderStockBlock(){
             <td class="py-2 pr-4 text-right">${x.units}</td>
             <td class="py-2 pr-4 text-right">${numberTL(x.valCost)}</td>
             <td class="py-2 pr-4 text-right">${lastStr}</td>
-            <td class="py-2 pr-4 text-right">${x.age}</td>
+            <td class="py-2 pr-4 text-right">${yasMetni(x.age)}</td>
           </tr>`;
         }).join('') || '<tr><td class="hint py-2" colspan="6">Dead stock yok.</td></tr>';
       }
@@ -4236,23 +4244,42 @@ function renderStockBlock(){
       const bar61_90 = document.getElementById('agingBar61_90');
       const bar90plus = document.getElementById('agingBar90plus');
 
-      if(bar0_30) bar0_30.style.height = ((buckets['0-30']||0)/maxVal*100) + '%';
-      if(bar31_60) bar31_60.style.height = ((buckets['31-60']||0)/maxVal*100) + '%';
-      if(bar61_90) bar61_90.style.height = ((buckets['61-90']||0)/maxVal*100) + '%';
-      if(bar90plus) bar90plus.style.height = ((buckets['90+']||0)/maxVal*100) + '%';
+      /* Yükseklik YÜZDE değil PİKSEL veriliyor. Yüzde yükseklik dayanacak
+         kesin ölçülü bir kutu bulamıyordu ve dört bar da 0px çiziliyordu —
+         grafik aylardır boş görünüyordu. Bar alanının boyu CSS'teki
+         --bar-alani değişkeninden okunuyor; ölçü tek yerde duruyor. */
+      const kapsayici = document.getElementById('agingChartBars');
+      const barAlani = (function(){
+        const ham = kapsayici ? getComputedStyle(kapsayici).getPropertyValue('--bar-alani') : '';
+        const px = parseFloat(ham);
+        return (isFinite(px) && px > 0) ? px : 92;
+      })();
+      const barYuksekligi = function(v){
+        return Math.max(2, Math.round(((v||0)/maxVal) * barAlani)) + 'px';
+      };
+      if(bar0_30) bar0_30.style.height = barYuksekligi(buckets['0-30']);
+      if(bar31_60) bar31_60.style.height = barYuksekligi(buckets['31-60']);
+      if(bar61_90) bar61_90.style.height = barYuksekligi(buckets['61-90']);
+      if(bar90plus) bar90plus.style.height = barYuksekligi(buckets['90+']);
 
       const lbl0_30 = document.getElementById('agingLbl0_30');
       const lbl31_60 = document.getElementById('agingLbl31_60');
       const lbl61_90 = document.getElementById('agingLbl61_90');
       const lbl90plus = document.getElementById('agingLbl90plus');
 
-      if(lbl0_30) lbl0_30.textContent = buckets['0-30']||0;
-      if(lbl31_60) lbl31_60.textContent = buckets['31-60']||0;
-      if(lbl61_90) lbl61_90.textContent = buckets['61-90']||0;
-      if(lbl90plus) lbl90plus.textContent = buckets['90+']||0;
+      /* Sayılar sayfanın geri kalanıyla aynı biçimde (tr-TR binlik ayracı). */
+      const bicim = (v) => (v||0).toLocaleString('tr-TR');
+      if(lbl0_30) lbl0_30.textContent = bicim(buckets['0-30']);
+      if(lbl31_60) lbl31_60.textContent = bicim(buckets['31-60']);
+      if(lbl61_90) lbl61_90.textContent = bicim(buckets['61-90']);
+      if(lbl90plus) lbl90plus.textContent = bicim(buckets['90+']);
 
+      /* Grafik yalnızca stoğu OLAN ürünleri sayıyor (negatif/sıfır stok
+         yaşlandırılamaz), sayfanın "Toplam Ürün Adedi" KPI'ı ise tüm
+         satırları topluyor. İki sayı bu yüzden farklı; etiket hangisini
+         saydığını söylemezse çelişki gibi görünüyor. */
       const chartNote = document.getElementById('agingChartNote');
-      if(chartNote) chartNote.textContent = `Toplam: ${total} adet`;
+      if(chartNote) chartNote.textContent = `Toplam: ${bicim(total)} adet · yalnızca stoğu olan ürünler`;
     } catch(e){}
 
     // 6.k ABC Analizi

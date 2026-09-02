@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.02-1619'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.02-1710'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.02-1619">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.02-1710">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,7 +98,7 @@
     <div style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:1.5rem; padding:2.5rem 2rem; text-align:center; min-width:260px; max-width:320px;">
       <div style="font-size:2rem; margin-bottom:.5rem;">🔒</div>
       <h2 style="color:#e2e8f0; font-size:1.1rem; font-weight:600; margin:0 0 .25rem;">Giderler</h2>
-      <p style="color:#94a3b8; font-size:.85rem; margin:0 0 1.5rem;">Devam etmek için şifreyi girin</p>
+      <p style="color:#c2ccd9; font-size:.85rem; margin:0 0 1.5rem;">Devam etmek için şifreyi girin</p>
       <div style="display:flex; justify-content:center; gap:.5rem; margin-bottom:1rem;" id="expPinInputs">
         <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
         <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
@@ -106,7 +106,7 @@
         <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" style="width:3rem; height:3rem; text-align:center; font-size:1.4rem; border-radius:.75rem; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e2e8f0; outline:none;">
       </div>
       <div id="expPinError" style="color:#f87171; font-size:.8rem; min-height:1.2rem; margin-bottom:.75rem;"></div>
-      <button onclick="document.getElementById('expensesLock').style.display='none';" style="color:#64748b; font-size:.75rem; background:none; border:none; cursor:pointer;">← Geri dön</button>
+      <button onclick="document.getElementById('expensesLock').style.display='none';" style="color:#aebbcc; font-size:.75rem; background:none; border:none; cursor:pointer;">← Geri dön</button>
     </div>
   </div>
 
@@ -866,8 +866,11 @@
         <div id="zeeTipKirilim" class="tip-liste"></div>
       </div>
 
-      <!-- Ek KPI'lar - Kompakt Tablo -->
-      <div class="glass rounded-2xl p-3 mt-4">
+      <!-- Ek KPI'lar - Kompakt Tablo
+           overflow-auto şart: hücrelerde whitespace-nowrap var, dar ekranda
+           tablo 473px'e çıkıyor. Gövdede overflow-x:hidden olduğu için
+           taşan kısım kaydırılamıyor, sessizce kırpılıyordu. -->
+      <div class="glass rounded-2xl p-3 mt-4 overflow-auto">
         <table class="w-full text-sm">
           <tbody>
             <tr class="border-b border-slate-200 dark:border-slate-700">
@@ -1118,11 +1121,11 @@
       <!-- Section header -->
       <div class="ai-hd">
         <div>
-          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:#94a3b8;margin-bottom:3px">Executive Intelligence</div>
+          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--text-3);margin-bottom:3px">Executive Intelligence</div>
           <div class="text-slate-800 dark:text-slate-100" style="font-size:.9rem;font-weight:600;letter-spacing:-.01em">🤖 AI Özeti</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <span id="aiLastUpdate" style="font-size:.62rem;color:#94a3b8;font-variant-numeric:tabular-nums"></span>
+          <span id="aiLastUpdate" style="font-size:.62rem;color:var(--text-3);font-variant-numeric:tabular-nums"></span>
           <button id="aiRefreshBtn" class="glass" style="font-size:.62rem;padding:3px 10px;border-radius:8px;cursor:pointer;line-height:1.7;color:#64748b;min-height:unset;min-width:unset">↻ Yenile</button>
         </div>
       </div>
@@ -1166,7 +1169,7 @@
           🚨 Kritik Uyarılar
         </div>
         <ul id="aiAlerts" class="text-slate-700 dark:text-slate-200" style="margin:0;padding:0;list-style:none">
-          <li style="font-size:.75rem;color:#94a3b8">Veri henüz gelmedi</li>
+          <li style="font-size:.75rem;color:var(--text-3)">Veri henüz gelmedi</li>
         </ul>
       </div>
 
@@ -1191,7 +1194,7 @@
     <section id="execReports" class="glass card-3d rounded-3xl mt-4" data-page="ai">
       <div class="ai-hd">
         <div>
-          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:#94a3b8;margin-bottom:3px">Raporlar</div>
+          <div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--text-3);margin-bottom:3px">Raporlar</div>
           <div class="text-slate-800 dark:text-slate-100" style="font-size:.9rem;font-weight:600;letter-spacing:-.01em">📄 Günlük &amp; Haftalık Raporlar</div>
         </div>
       </div>
@@ -1200,14 +1203,14 @@
         <span class="ai-dot" style="background:rgba(96,165,250,.7)"></span>
         📈 CEO Günlük Raporu
       </div>
-      <div id="repCeo"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+      <div id="repCeo"><div style="font-size:.75rem;color:var(--text-3);opacity:.5">Yükleniyor…</div></div>
 
       <details style="margin-top:16px">
         <summary class="ai-card-label" style="cursor:pointer;margin-bottom:8px">
           <span class="ai-dot" style="background:rgba(52,211,153,.7)"></span>
           🏪 Caddebostan Satış Raporu
         </summary>
-        <div id="repCadde"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+        <div id="repCadde"><div style="font-size:.75rem;color:var(--text-3);opacity:.5">Yükleniyor…</div></div>
       </details>
 
       <details style="margin-top:16px">
@@ -1215,7 +1218,7 @@
           <span class="ai-dot" style="background:rgba(168,85,247,.65)"></span>
           📅 Haftalık Trend Raporu
         </summary>
-        <div id="repWeekly"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+        <div id="repWeekly"><div style="font-size:.75rem;color:var(--text-3);opacity:.5">Yükleniyor…</div></div>
       </details>
 
       <details style="margin-top:16px">
@@ -1223,7 +1226,7 @@
           <span class="ai-dot" style="background:rgba(251,191,36,.7)"></span>
           📸 Instagram Raporu
         </summary>
-        <div id="repInstagram"><div style="font-size:.75rem;color:#94a3b8;opacity:.5">Yükleniyor…</div></div>
+        <div id="repInstagram"><div style="font-size:.75rem;color:var(--text-3);opacity:.5">Yükleniyor…</div></div>
       </details>
     </section>
 
@@ -1232,16 +1235,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.02-1619"></script>
+  <script src="/assets/app-1.js?v=2026.09.02-1710"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.02-1619"></script>
+  <script src="/assets/app-2.js?v=2026.09.02-1710"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.02-1619"></script>
-  <script src="/assets/app-4.js?v=2026.09.02-1619"></script>
+  <script src="/assets/app-3.js?v=2026.09.02-1710"></script>
+  <script src="/assets/app-4.js?v=2026.09.02-1710"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.02-1619"></script>
+  <script src="/assets/app-5.js?v=2026.09.02-1710"></script>
 </body>
 </html>

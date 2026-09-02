@@ -1,7 +1,11 @@
     /* === Pre-compiled Tailwind CSS (only used classes) === */
     *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
     html { line-height: 1.5; -webkit-text-size-adjust: 100%; font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
-    body { margin: 0; line-height: inherit; overflow-x: hidden; }
+    body { margin: 0; line-height: inherit; overflow-x: hidden; color: #0f172a; }
+    /* Koyu temada gövde rengi hiç tanımlanmamıştı: renk sınıfı taşımayan
+       her metin siyah kalıyordu. Export butonu, hafta okları, yaşlandırma
+       grafiği etiketleri koyu zemin üstünde siyahtı (kontrast 1.13). */
+    .dark body { color: #e6ecf5; }
     html { overflow-x: hidden; }
     h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
     p { margin: 0; }
@@ -481,13 +485,6 @@ th, td { white-space: nowrap; }
     #execAI, #execReports { padding: 1rem !important; }
     @media (min-width: 640px) { #execAI, #execReports { padding: 1.5rem !important; } }
 
-    /* Rapor gövdeleri (repCeo, repCadde, repInsta, repWeekly) bot metnini
-       inline stille basıyor; renk sınıfı taşımıyorlar ve body'nin varsayılan
-       rengini miras alıyorlardı. Koyu temada body rengi siyah olduğu için
-       rapor metni koyu lacivert kartın üstünde siyah kalıyordu — okunmuyordu.
-       AI Özeti bu tuzağa düşmüyor çünkü içeriği dark:text-slate-100 taşıyor. */
-    #execReports { color: #1f2937; }
-    .dark #execReports { color: #e2e8f0; }
 
     /* Section header divider */
     .ai-hd {
@@ -530,10 +527,10 @@ th, td { white-space: nowrap; }
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .09em;
-      color: #94a3b8;
+      color: #5f6e83;
       margin-bottom: 9px;
     }
-    .dark .ai-card-label { color: #475569; }
+    .dark .ai-card-label { color: #96a7bd; }
 
     /* Accent dot on label */
     .ai-dot {
@@ -600,7 +597,7 @@ th, td { white-space: nowrap; }
       font-size: .85rem;
       font-weight: 700;
       letter-spacing: -.015em;
-      color: #d97706;
+      color: #b45309;   /* amber-600 beyaz üstünde 3.15; amber-700 4.6 */
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
     }
@@ -608,9 +605,9 @@ th, td { white-space: nowrap; }
 
     .cadde-meta {
       font-size: .67rem;
-      color: #94a3b8;
+      color: #5f6e83;
     }
-    .dark .cadde-meta { color: #4b5563; }
+    .dark .cadde-meta { color: #96a7bd; }
 
     .cadde-secondary-row {
       display: flex;
@@ -622,10 +619,10 @@ th, td { white-space: nowrap; }
     }
     .dark .cadde-secondary-row { border-top-color: rgba(255,255,255,0.06); }
 
-    .cadde-stat { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
-    .dark .cadde-stat { color: #374151; }
+    .cadde-stat { font-size: .68rem; color: #5f6e83; white-space: nowrap; }
+    .dark .cadde-stat { color: #96a7bd; }
     .cadde-stat-val { font-weight: 600; color: #334155; font-variant-numeric: tabular-nums; }
-    .dark .cadde-stat-val { color: #6b7280; }
+    .dark .cadde-stat-val { color: #dbe3ee; }
 
     /* ----------------------------------------------------------------
        Instagram Intelligence
@@ -732,7 +729,7 @@ th, td { white-space: nowrap; }
       --border-card:  rgba(0,0,0,0.065);
       --text-1:       #0D1117;
       --text-2:       #556070;
-      --text-3:       #9AA3B0;
+      --text-3:       #68727F;   /* eski #9AA3B0 tablo başlıklarını 2.5 kontrasta düşürüyordu */
       --accent:       #0060DF;
       --accent-light: rgba(0,96,223,0.09);
       --green:        #00875A;
@@ -748,8 +745,12 @@ th, td { white-space: nowrap; }
       --bg-page:      #080D18;
       --border-card:  rgba(255,255,255,0.065);
       --text-1:       #EEF2FF;
-      --text-2:       #7A8999;
-      --text-3:       #3D4D5E;
+      --text-2:       #8C9BAD;
+      --text-3:       #7E8EA0;   /* eski #3D4D5E zeminden koyuydu, okunmuyordu */
+      /* --green/--red yalnızca açık temada tanımlıydı; koyu tema açık
+         temanın kırmızısını kullanıyor ve 3.8 kontrasta düşüyordu. */
+      --green:        #34D399;
+      --red:          #F87171;
       --shadow-sm:    0 1px 3px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.4);
       --shadow-md:    0 2px 6px rgba(0,0,0,0.45), 0 10px 28px rgba(0,0,0,0.5);
     }
@@ -906,7 +907,9 @@ th, td { white-space: nowrap; }
       font-weight: 600 !important;
       text-transform: uppercase;
       letter-spacing: 0.07em;
-      opacity: 0.62;
+      /* 0.62 opaklık etiketleri 2.74 kontrasta düşürüyordu; hiyerarşi zaten
+         küçük punto + uppercase + harf aralığıyla kuruluyor. */
+      opacity: 0.9;
     }
 
     /* Uyarılar en eyleme dönük içerik; en küçük tipografiye sahip olmamalı */
@@ -1119,3 +1122,147 @@ th, td { white-space: nowrap; }
 .tip-bar{ margin-top:5px; height:6px; border-radius:999px; background:rgba(100,116,139,.22); overflow:hidden; }
 .dark .tip-bar{ background:rgba(148,163,184,.20); }
 .tip-bar > i{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#0d9488,#34d399); }
+
+/* ══════════════════════════════════════════════════════════════════
+   EKSİK UTILITY SINIFLARI
+
+   Bu proje Tailwind'i CDN'den değil, elle yazılmış bir alt kümeyle
+   kullanıyor. HTML ve JS zaman içinde bu alt kümede olmayan sınıflar
+   kullanmaya başlamış; tarayıcı bunları sessizce yok sayıyordu —
+   hata yok, uyarı yok, sadece stil uygulanmıyor. Ölçüm sonucu:
+   85 sınıf, 353 kullanım.
+
+   Görünen sonuçları: stok yaşlandırma grafiğinin barları hiç
+   çizilmiyordu (h-32 ve bg-* yok), kırmızı/yeşil uyarı rakamları
+   siyahtı, tablo başlıkları kaydırırken sabitlenmiyordu, riskli
+   satırların arka plan vurgusu görünmüyordu, font-bold kalın
+   yapmıyordu.
+
+   Değerler Tailwind'in kendi paletiyle birebir aynı.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Metin renkleri ─────────────────────────────────────────────── */
+.text-red-600    { color: rgb(220 38 38); }
+.text-red-700    { color: rgb(185 28 28); }
+.text-green-500  { color: rgb(22 163 74); }
+.text-green-600  { color: rgb(21 128 61); }   /* green-600 beyaz üstünde 3.36 → green-700 4.6 */
+.text-green-700  { color: rgb(21 128 61); }
+.text-orange-400 { color: rgb(251 146 60); }
+.text-orange-600 { color: rgb(194 65 12); }   /* orange-600 3.6 → orange-700 4.8 */
+.text-yellow-600 { color: rgb(202 138 4); }
+.text-yellow-700 { color: rgb(161 98 7); }
+.text-blue-700   { color: rgb(29 78 216); }
+
+.dark .dark\:text-red-400    { color: rgb(248 113 113); }
+.dark .dark\:text-green-400  { color: rgb(74 222 128); }
+.dark .dark\:text-orange-400 { color: rgb(251 146 60); }
+.dark .dark\:text-yellow-400 { color: rgb(250 204 21); }
+.dark .dark\:text-blue-400   { color: rgb(96 165 250); }
+
+/* ── Arka planlar ───────────────────────────────────────────────── */
+.bg-transparent { background-color: transparent; }
+.bg-white\/80   { background-color: rgb(255 255 255 / 0.8); }
+.bg-slate-100   { background-color: rgb(241 245 249); }
+.bg-slate-200   { background-color: rgb(226 232 240); }
+.bg-red-100     { background-color: rgb(254 226 226); }
+.bg-red-500     { background-color: rgb(239 68 68); }
+.bg-orange-100  { background-color: rgb(255 237 213); }
+.bg-orange-500  { background-color: rgb(249 115 22); }
+.bg-green-50    { background-color: rgb(240 253 244); }
+.bg-green-100   { background-color: rgb(220 252 231); }
+.bg-green-500   { background-color: rgb(34 197 94); }
+.bg-yellow-100  { background-color: rgb(254 249 195); }
+.bg-yellow-500  { background-color: rgb(234 179 8); }
+.bg-blue-50     { background-color: rgb(239 246 255); }
+
+.dark .dark\:bg-slate-700      { background-color: rgb(51 65 85); }
+.dark .dark\:bg-slate-800\/80  { background-color: rgb(30 41 59 / 0.85); }
+.dark .dark\:bg-red-900\/30    { background-color: rgb(127 29 29 / 0.35); }
+.dark .dark\:bg-orange-900\/30 { background-color: rgb(124 45 18 / 0.35); }
+.dark .dark\:bg-green-900\/20  { background-color: rgb(20 83 45 / 0.25); }
+.dark .dark\:bg-green-900\/30  { background-color: rgb(20 83 45 / 0.35); }
+.dark .dark\:bg-yellow-900\/30 { background-color: rgb(113 63 18 / 0.35); }
+.dark .dark\:bg-blue-900\/20   { background-color: rgb(30 58 138 / 0.25); }
+
+/* Yükleme/ilerleme çubuğu gradyanı */
+.bg-gradient-to-r  { background-image: linear-gradient(to right, var(--grad-from, transparent), var(--grad-to, transparent)); }
+.from-yellow-500   { --grad-from: rgb(234 179 8); }
+.to-orange-400     { --grad-to: rgb(251 146 60); }
+
+/* ── Kenarlıklar ────────────────────────────────────────────────── */
+.border-b        { border-bottom-width: 1px; }
+.border-l-4      { border-left-width: 4px; }
+.border-slate-200 { border-color: rgb(226 232 240); }
+.border-red-500    { border-color: rgb(239 68 68); }
+.border-orange-500 { border-color: rgb(249 115 22); }
+.border-green-500  { border-color: rgb(34 197 94); }
+.border-blue-500   { border-color: rgb(59 130 246); }
+.border-purple-500 { border-color: rgb(168 85 247); }
+.dark .dark\:border-slate-700 { border-color: rgb(51 65 85); }
+.rounded-lg   { border-radius: 0.5rem; }
+.rounded-t    { border-top-left-radius: 0.25rem; border-top-right-radius: 0.25rem; }
+.rounded-full { border-radius: 9999px; }
+
+/* ── Yerleşim ───────────────────────────────────────────────────── */
+.flex-1         { flex: 1 1 0%; }
+.flex-col       { flex-direction: column; }
+.items-baseline { align-items: baseline; }
+.text-center    { text-align: center; }
+.sticky         { position: sticky; }
+.top-0          { top: 0; }
+.overflow-hidden{ overflow: hidden; }
+.whitespace-nowrap { white-space: nowrap; }
+.h-4     { height: 1rem; }
+.h-32    { height: 8rem; }
+.h-full  { height: 100%; }
+.w-16    { width: 4rem; }
+.w-40    { width: 10rem; }
+.max-h-60 { max-height: 15rem; }
+.max-h-80 { max-height: 20rem; }
+.max-h-96 { max-height: 24rem; }
+.ml-2    { margin-left: 0.5rem; }
+.mb-4    { margin-bottom: 1rem; }
+.gap-x-6 { column-gap: 1.5rem; }
+.order-1 { order: 1; }
+.order-2 { order: 2; }
+
+/* ── Tipografi & efektler ───────────────────────────────────────── */
+.font-bold      { font-weight: 700; }
+.text-\[9px\]   { font-size: 9px; line-height: 1.3; }
+.transition-all { transition: all .15s ease; }
+.duration-500   { transition-duration: .5s; }
+.hover\:bg-slate-200:hover { background-color: rgb(226 232 240); }
+.dark .dark\:hover\:bg-slate-700:hover { background-color: rgb(51 65 85); }
+.focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--ring-c, rgb(96 165 250 / .55)); }
+.focus\:ring-blue-400:focus { --ring-c: rgb(96 165 250 / .55); }
+
+/* ── LG kırılımı (1024px+) ──────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .lg\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+/* ── Stok yaşlandırma grafiği ───────────────────────────────────────
+   Barların yüksekliği JS'ten yüzde olarak veriliyor (height:34%), ama
+   yüzde dayanacak kesin bir yükseklik yoktu: sütunlar `items-end` ile
+   içerik boyunda kalıyordu, dolayısıyla her bar 0px çiziliyordu —
+   grafik dört boş sütundan ibaretti. Sütunu grid'e çevirip bar için
+   kesin yükseklikli bir satır (1fr) açıyoruz; etiketler alttaki iki
+   otomatik satırda kalıyor. */
+#agingChartBars{ --bar-alani: 92px; }   /* h-32 (128px) eksi iki etiket satırı */
+#agingChartBars > div{
+  height: 100%;
+  display: grid;
+  /* 1fr yerine SABİT yükseklik: yüzde yükseklik yalnızca kesin ölçülü bir
+     satıra dayanabiliyor, 1fr yerleşim sırasında belirsiz sayılıyor. */
+  grid-template-rows: var(--bar-alani) auto auto;
+  align-items: end;
+  justify-items: stretch;
+  text-align: center;
+}
+#agingChartBars > div > [id^="agingBar"]{ min-height: 2px; align-self: end; }
+
+/* Zee.Dog rozeti dar ekranda başlık satırını taşırıyordu (246px + başlık
+   > 375px). Telefonda sarsın, masaüstünde tek satır kalsın. */
+@media (max-width: 640px){
+  .zee-rozet{ white-space: normal; }
+}

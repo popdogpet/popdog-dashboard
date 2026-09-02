@@ -48,7 +48,7 @@
 
     // Compact sub-section label
     function sLabel(txt){
-      return '<div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.36;margin:11px 0 4px">'+esc(txt)+'</div>';
+      return '<div style="font-size:.565rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.78;margin:11px 0 4px">'+esc(txt)+'</div>';
     }
 
     // Bullet list from string array
@@ -69,7 +69,7 @@
       for(var t=0;t<veri.length;t++){
         var etiket = (t===0) ? 'th' : 'td';
         var stil = (t===0)
-          ? 'text-align:left;padding:3px 6px;opacity:.55;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
+          ? 'text-align:left;padding:3px 6px;opacity:.78;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
           : 'padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12)';
         h += '<tr>';
         for(var c=0;c<veri[t].length;c++) h += '<'+etiket+' style="'+stil+'">'+kalinMetin(veri[t][c])+'</'+etiket+'>';
@@ -93,7 +93,7 @@
           continue;
         }
         inner += '<div style="display:flex;gap:6px;margin-bottom:3px">'
-          +'<span style="opacity:.32;flex-shrink:0;margin-top:2px;font-size:.7rem">\u203a</span>'
+          +'<span style="opacity:.5;flex-shrink:0;margin-top:2px;font-size:.7rem">\u203a</span>'
           +'<span style="font-size:.78rem;line-height:1.52">'+esc(arr[i])+'</span></div>';
       }
       return wrap.replace('{inner}',inner);
@@ -117,7 +117,9 @@
     }
     function freshLine(ts){
       if(!ts) return '';
-      var damga = '<span style="opacity:.3">'+esc(fmtTimestamp(ts))+'</span>';
+      /* opaklık .3 idi: 9px punto ile birlikte zaman damgası iki temada da
+         okunmuyordu (kontrast ~1.7). Silik kalsın ama okunsun. */
+      var damga = '<span style="opacity:.8">'+esc(fmtTimestamp(ts))+'</span>';
       var saat = veriYasiSaat(ts);
       if (saat === null || saat <= BAYAT_SAAT){
         return '<div style="font-size:.585rem;margin-top:9px;letter-spacing:.01em">'+damga+'</div>';
@@ -157,7 +159,7 @@
             for(var t=0;t<tablo.length;t++){
               var etiket = (t===0) ? 'th' : 'td';
               var stil = (t===0)
-                ? 'text-align:left;padding:3px 6px;opacity:.55;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
+                ? 'text-align:left;padding:3px 6px;opacity:.78;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
                 : 'padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12)';
               html+='<tr>';
               for(var c2=0;c2<tablo[t].length;c2++){
@@ -207,16 +209,16 @@
 
     /* ── Action card ─────────────────────────────────────── */
     var URGENCY_STYLE={
-      'y\u00fcksek':'background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)',
+      'y\u00fcksek':'background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)',
       'orta':'background:rgba(251,191,36,.13);color:#fbbf24;border:1px solid rgba(251,191,36,.28)',
-      'd\u00fc\u015f\u00fck':'background:rgba(52,211,153,.13);color:#34d399;border:1px solid rgba(52,211,153,.28)',
-      'high':'background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)',
+      'd\u00fc\u015f\u00fck':'background:rgba(52,211,153,.13);color:var(--green);border:1px solid rgba(52,211,153,.28)',
+      'high':'background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)',
       'medium':'background:rgba(251,191,36,.13);color:#fbbf24;border:1px solid rgba(251,191,36,.28)',
-      'low':'background:rgba(52,211,153,.13);color:#34d399;border:1px solid rgba(52,211,153,.28)'
+      'low':'background:rgba(52,211,153,.13);color:var(--green);border:1px solid rgba(52,211,153,.28)'
     };
     function urgencyBadge(u){
       if(!u) return '';
-      var style=URGENCY_STYLE[(u||'').toLowerCase()]||'background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.25)';
+      var style=URGENCY_STYLE[(u||'').toLowerCase()]||'background:rgba(148,163,184,.12);color:var(--text-3);border:1px solid rgba(148,163,184,.25)';
       return '<span style="display:inline-block;font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;'+style+'">'+esc(u)+'</span>';
     }
     function renderAction(el, d){
@@ -273,7 +275,7 @@
             +'<span style="font-size:.6rem;flex-shrink:0;line-height:1">'+icon+'</span>'
             +'<span style="font-size:.78rem;font-weight:600;line-height:1.35">'+esc(item.title||'')+'</span>'
             +'</div>'
-            +(item.detail?'<div style="font-size:.71rem;opacity:.52;margin-top:2px;line-height:1.48;padding-left:18px">'+esc(item.detail)+'</div>':'')
+            +(item.detail?'<div style="font-size:.71rem;opacity:.85;margin-top:2px;line-height:1.48;padding-left:18px">'+esc(item.detail)+'</div>':'')
             +'</li>';
         }).join('');
       }
@@ -352,7 +354,7 @@
       var mesaj = durum.kaynak === 'network'
         ? 'Sunucuya ulaşılamadı'
         : 'Sunucu verisi okunamadı (' + durum.kaynak + ')';
-      el.innerHTML = '<span style="color:#f87171;font-size:.775rem">\u26a0 ' + esc(mesaj) + '</span>';
+      el.innerHTML = '<span style="color:var(--red);font-size:.775rem">\u26a0 ' + esc(mesaj) + '</span>';
       return true;
     }
 
@@ -405,13 +407,13 @@
 
       var deltaChip = function(pct) {
         if (gunIci) {
-          return '<span style="font-size:.62rem;color:#94a3b8;font-weight:600;margin-left:4px;'
+          return '<span style="font-size:.62rem;color:var(--text-3);font-weight:600;margin-left:4px;'
             + 'padding:0 5px;border-radius:999px;background:rgba(148,163,184,.14)">gün içi</span>';
         }
         if (pct == null) return '';
         var n = parseFloat(pct);
         if (isNaN(n)) return '';
-        var col = n > 0 ? '#34d399' : n < 0 ? '#f87171' : '#94a3b8';
+        var col = n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : 'var(--text-3)';
         var arrow = n > 0 ? '\u25b2' : n < 0 ? '\u25bc' : '\u25cf';
         return '<span style="font-size:.62rem;color:'+col+';font-weight:700;margin-left:4px">'+arrow+fmtPct(pct)+'</span>';
       };
@@ -526,7 +528,7 @@
 
         if(/^[-*•]\s+/.test(t)){
           h += '<div style="display:flex;gap:6px;margin-bottom:3px">'
-            + '<span style="opacity:.32;flex-shrink:0;margin-top:2px;font-size:.7rem">›</span>'
+            + '<span style="opacity:.5;flex-shrink:0;margin-top:2px;font-size:.7rem">›</span>'
             + '<span style="font-size:.75rem;line-height:1.5">'+kalinMetin(t.replace(/^[-*\u2022]\s+/,''))+'</span></div>';
           continue;
         }
