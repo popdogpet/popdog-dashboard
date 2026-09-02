@@ -17,6 +17,21 @@
 
     function setOverflow(el){ el.style.wordBreak='break-word'; el.style.overflowWrap='anywhere'; }
 
+    /* Kalın metin: CEO raporu markdown (**kalın**), Instagram raporu Telegram
+       biçimi (*kalın*) kullanıyor. İkisi de aynı ayraca indirgenip tek geçişte
+       basılır; yoksa yıldızlar ham hâliyle ekrana düşüyor. */
+    function kalinMetin(s){
+      var hazir = String(s == null ? '' : s)
+        .replace(/\*\*(.+?)\*\*/g, '\u0001$1\u0001')
+        .replace(/\*(.+?)\*/g,      '\u0001$1\u0001');
+      var parcalar = hazir.split('\u0001'), r='';
+      for(var k=0;k<parcalar.length;k++){
+        var c = esc(parcalar[k]);
+        r += (k%2===1) ? '<strong>'+c+'</strong>' : c;
+      }
+      return r;
+    }
+
     // Header timestamp: keep the most recent across all four files
     var _latestTs = null;
     function setHeaderTs(raw){
@@ -57,7 +72,7 @@
           ? 'text-align:left;padding:3px 6px;opacity:.55;font-weight:600;border-bottom:1px solid rgba(148,163,184,.25)'
           : 'padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12)';
         h += '<tr>';
-        for(var c=0;c<veri[t].length;c++) h += '<'+etiket+' style="'+stil+'">'+esc(veri[t][c])+'</'+etiket+'>';
+        for(var c=0;c<veri[t].length;c++) h += '<'+etiket+' style="'+stil+'">'+kalinMetin(veri[t][c])+'</'+etiket+'>';
         h += '</tr>';
       }
       return h + '</table></div>';
@@ -117,14 +132,7 @@
     /* ── Legacy text-blob fallback (backward compat) ─────── */
     function mdToHtml(raw){
       if(!raw) return '<span class="hint">'+esc(FALLBACK)+'</span>';
-      function applyBold(s){
-        var parts = s.split(/\*\*(.+?)\*\*/g), r='';
-        for(var k=0;k<parts.length;k++){
-          var c=parts[k].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          r += (k%2===1)?'<strong>'+c+'</strong>':c;
-        }
-        return r;
-      }
+      var applyBold = kalinMetin;
       var lines = raw
         .replace(/\r\n/g,'\n').replace(/\r/g,'\n')
         .replace(/^[-*_]{3,}\s*$/gm,'').replace(/^\|+\s*$/gm,'')
@@ -176,7 +184,13 @@
       if(!el) return;
       setOverflow(el);
       // Legacy fallback
-      if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
+      /* Metin yedeği de kendi zaman damgasını basmalı: yoksa kart en taze
+         kardeşinin başlık damgasıyla güncel sanılıyor. */
+      if(!d||(!d.title&&d.text)){
+        el.innerHTML = mdToHtml(d&&d.text?d.text:null) + freshLine(d&&d.updated_at);
+        if(d&&d.updated_at) setHeaderTs(d.updated_at);
+        return;
+      }
       if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
       var h='';
       h+='<div style="font-size:.875rem;font-weight:600;line-height:1.35;margin-bottom:6px;letter-spacing:-.01em">'+esc(d.title)+'</div>';
@@ -208,7 +222,13 @@
     function renderAction(el, d){
       if(!el) return;
       setOverflow(el);
-      if(!d||(!d.title&&d.text)){ el.innerHTML=mdToHtml(d&&d.text?d.text:null); return; }
+      /* Metin yedeği de kendi zaman damgasını basmalı: yoksa kart en taze
+         kardeşinin başlık damgasıyla güncel sanılıyor. */
+      if(!d||(!d.title&&d.text)){
+        el.innerHTML = mdToHtml(d&&d.text?d.text:null) + freshLine(d&&d.updated_at);
+        if(d&&d.updated_at) setHeaderTs(d.updated_at);
+        return;
+      }
       if(!d.title){ el.innerHTML='<span class="hint">'+esc(FALLBACK)+'</span>'; return; }
       var h='';
       h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">';
@@ -266,7 +286,7 @@
       setOverflow(el);
       // Legacy fallback
       if(!d||(!d.highlights&&!d.risks&&!d.opportunities&&d.text)){
-        el.innerHTML=mdToHtml(d&&d.text?d.text:null);
+        el.innerHTML=mdToHtml(d&&d.text?d.text:null) + freshLine(d&&d.updated_at);
         if(d&&d.updated_at) setHeaderTs(d.updated_at);
         return;
       }
@@ -300,19 +320,30 @@
          parse_error  → KV kaydı bozuk         (sistem sorunu)
        Son ikisini normal boşluktan ayırmazsak bozuk sistem "veri gelmedi"
        gibi görünüyor ve fark edilmiyor. */
+    /* cb içindeki bir hata .catch'e düşüp "Sunucuya ulaşılamadı" olarak
+       görünmesin: çizim hatası ağ hatası gibi raporlanınca yanlış yerde
+       aranıyor. cb ayrı try/catch içinde çağrılır, hatası konsola yazılır. */
+    function guvenliCb(path, cb, d, durum){
+      try { cb(d, durum); }
+      catch(err){ console.error('[AI] ' + path + ' — çizim hatası:', err); }
+    }
+
     function loadJSON(path, cb){
       fetch(path+'?_='+Date.now(), {cache:'no-store'})
-        .then(function(r){ if(!r.ok) throw new Error('missing'); return r.json(); })
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
         .then(function(d){
           var src = d && d._meta && d._meta.source;
           if (src === 'config_error' || src === 'parse_error'){
             console.warn('[AI] ' + path + ' — sunucu sorunu: ' + src);
-            cb(null, { hata: true, kaynak: src });
+            guvenliCb(path, cb, null, { hata: true, kaynak: src });
             return;
           }
-          cb(d);
+          guvenliCb(path, cb, d);
         })
-        .catch(function(){ cb(null, { hata: true, kaynak: 'network' }); });
+        .catch(function(err){
+          console.warn('[AI] ' + path + ' — ulaşılamadı:', err && err.message);
+          guvenliCb(path, cb, null, { hata: true, kaynak: 'network' });
+        });
     }
 
     /* Sistem sorunu olan kartlar sessiz kalmasın. */
@@ -352,14 +383,31 @@
       if (dateEl)  dateEl.textContent = [d.date, freshLabel].filter(Boolean).join('  ·  ');
       if (staleEl) staleEl.classList.toggle('hidden', !isStale);
 
-      var fmt = function(v){ return v != null ? String(v) : '—'; };
+      var fmt = function(v){
+        if (v == null) return '—';
+        var n = parseFloat(v);
+        if (isNaN(n)) return String(v);
+        return n.toLocaleString('tr-TR', { maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
+      };
       var fmtPct = function(p) {
         if (p == null) return '';
         var n = parseFloat(p);
         if (isNaN(n)) return '';
         return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
       };
+      /* Gün ortasındaki kısmi ciroyu dünün kapanmış toplamıyla kıyaslamak
+         her sabah "-%93" gibi sahte bir çöküş gösteriyordu. Gün sürerken
+         yüzde basılmaz; onun yerine nötr bir "gün içi" rozeti çıkar.
+         Mağaza kapandıktan sonra (saat 21+) kıyas dürüst hale geldiği için
+         gerçek yüzde geri gelir. */
+      var gunKapandi = new Date().getHours() >= 21;
+      var gunIci = (d.is_today === true) && !gunKapandi;
+
       var deltaChip = function(pct) {
+        if (gunIci) {
+          return '<span style="font-size:.62rem;color:#94a3b8;font-weight:600;margin-left:4px;'
+            + 'padding:0 5px;border-radius:999px;background:rgba(148,163,184,.14)">gün içi</span>';
+        }
         if (pct == null) return '';
         var n = parseFloat(pct);
         if (isNaN(n)) return '';
@@ -376,16 +424,20 @@
         + '<div style="display:flex;align-items:baseline;gap:3px">'
         + '<span class="cadde-num-primary">' + fmt(d.grand_total) + '</span>'
         + deltaChip(d.delta_total_pct)
-        + (d.previous_total != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün ' + fmt(d.previous_total) + '</span>' : '')
+        + (d.previous_total != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün tamamı ' + fmt(d.previous_total) + '</span>' : '')
         + '</div></div>';
 
-      if (d.zee_dog_units != null) {
+      /* Bot alanı `zeedog_units` diye yazıyor; kart `zee_dog_units` arıyordu,
+         bu yüzden Zee.Dog adedi hiç basılmıyordu. İkisi de kabul edilir. */
+      var zeeAdet = d.zeedog_units != null ? d.zeedog_units : d.zee_dog_units;
+      var zeeDunAdet = d.previous_zeedog_units != null ? d.previous_zeedog_units : d.previous_zee_dog_units;
+      if (zeeAdet != null) {
         primary += '<div style="display:flex;flex-direction:column;gap:1px">'
           + '<span class="cadde-meta" style="font-size:.565rem;text-transform:uppercase;letter-spacing:.08em">Zee.Dog</span>'
           + '<div style="display:flex;align-items:baseline;gap:3px">'
-          + '<span class="cadde-num-secondary">' + fmt(d.zee_dog_units) + ' adet</span>'
+          + '<span class="cadde-num-secondary">' + fmt(zeeAdet) + ' adet</span>'
           + deltaChip(d.delta_units_pct)
-          + (d.previous_zeedog_units != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün ' + fmt(d.previous_zeedog_units) + '</span>' : '')
+          + (zeeDunAdet != null ? '<span class="cadde-meta" style="font-size:.62rem">&thinsp;dün tamamı ' + fmt(zeeDunAdet) + '</span>' : '')
           + '</div></div>';
       }
       primary += '</div>';
@@ -411,6 +463,78 @@
       secondary += '</div>';
 
       bodyEl.innerHTML = primary + secondary;
+    }
+
+    /* ── Telegram raporları (düz metin) ──────────────────── */
+    /* Bot raporları markdown olarak yazıyor: başlık (#), tablo (|…|),
+       kalın (**…**) ve Instagram raporunda hizalı sütunlar için ``` blokları.
+       mdToHtml kod bloklarını bozduğu için raporlar ayrı basılıyor. */
+    function raporBaslik(txt, seviye){
+      var boy = seviye <= 1 ? '.82rem' : '.72rem';
+      var op  = seviye <= 1 ? '.9' : '.62';
+      return '<div style="font-size:'+boy+';font-weight:700;opacity:'+op
+        +';margin:12px 0 5px;letter-spacing:-.01em">'+esc(txt)+'</div>';
+    }
+
+    function renderRapor(el, d){
+      if(!el) return;
+      setOverflow(el);
+
+      var ham = d && typeof d.text === 'string' ? d.text.trim() : '';
+      if(!ham){
+        el.innerHTML = '<span class="hint" style="font-size:.75rem">'
+          + esc('Bu rapor henüz üretilmedi') + '</span>' + freshLine(d && d.updated_at);
+        return;
+      }
+
+      var satirlar = ham.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+      var h = '';
+
+      for(var i=0;i<satirlar.length;i++){
+        var s = satirlar[i];
+        var t = s.trim();
+
+        /* ``` blokları: Instagram raporunun hizalı tabloları burada.
+           İçerik olduğu gibi, tek aralıklı fontla basılır. */
+        if(/^```/.test(t)){
+          var blok = [];
+          i++;
+          while(i<satirlar.length && !/^```/.test(satirlar[i].trim())){ blok.push(satirlar[i]); i++; }
+          if(blok.length){
+            h += '<pre style="overflow-x:auto;margin:6px 0;padding:8px 10px;border-radius:8px;'
+              + 'background:rgba(148,163,184,.08);font-size:.66rem;line-height:1.45;'
+              + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace">'
+              + esc(blok.join('\n')) + '</pre>';
+          }
+          continue;
+        }
+
+        if(!t) continue;
+        if(/^[-*_]{3,}$/.test(t)) continue;              // yatay çizgi
+        if(/^\|+$/.test(t)) continue;                     // boş tablo satırı
+
+        if(/^\|.*\|$/.test(t)){                           // markdown tablosu
+          var blok2 = [];
+          while(i<satirlar.length && /^\|.*\|$/.test(satirlar[i].trim())){ blok2.push(satirlar[i]); i++; }
+          i--;
+          h += tabloHtml(blok2);
+          continue;
+        }
+
+        var basl = t.match(/^(#{1,4})\s*(.+)$/);
+        if(basl){ h += raporBaslik(basl[2], basl[1].length); continue; }
+
+        if(/^[-*•]\s+/.test(t)){
+          h += '<div style="display:flex;gap:6px;margin-bottom:3px">'
+            + '<span style="opacity:.32;flex-shrink:0;margin-top:2px;font-size:.7rem">›</span>'
+            + '<span style="font-size:.75rem;line-height:1.5">'+kalinMetin(t.replace(/^[-*\u2022]\s+/,''))+'</span></div>';
+          continue;
+        }
+
+        h += '<div style="font-size:.75rem;line-height:1.5;margin-bottom:3px">'+kalinMetin(t)+'</div>';
+      }
+
+      el.innerHTML = h + freshLine(d && d.updated_at);
     }
 
     /* ── Instagram Intelligence ─────────────────────────────── */
