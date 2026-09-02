@@ -3279,6 +3279,90 @@ function loadSkuVendors(){
     .finally(() => { _vendorYukleniyor = false; });
 }
 
+/* ============================================================
+   ZEE.DOG ODAĞI
+
+   Stok sayfası yalnızca Zee.Dog ürünlerini gösterir. Diğer markalar
+   (POPDOG 147 satır, Paw Max 9, Unleash 2, Cansei De Ser Gato 1)
+   toplam 29 adet ve ₺21 bin — ama dead stock / en az satan gibi
+   listeleri doldurup gerçek Zee.Dog sinyalini bastırıyorlardı.
+
+   Marka kararı:
+     1) SKU marka haritasında varsa (bot günlük yazıyor) harita karar verir.
+     2) Haritada yoksa (Shopify'dan silinmiş eski ürün) başlığa bakılır.
+   Sadece başlığa bakmak yetmiyor: 86 gerçek Zee.Dog satırının başlığında
+   "zee" geçmiyor ("Bali | Papyon", "Area 51 | Kedi Tasması"...).
+   Harita henüz gelmediyse başlık tahminine düşer, harita gelince
+   loadSkuVendors bloğu yeniden çizer.
+   ============================================================ */
+
+function zeeFiltresiKur(hamInvRows){
+  const harita = (window.__skuVendors && window.__skuVendors.vendors) || null;
+  const basliklar = new Map();
+  (hamInvRows || []).forEach(r => {
+    const sku = String(r['SKU'] || '').trim();
+    if (sku && !basliklar.has(sku)) basliklar.set(sku, r['Title'] || '');
+  });
+
+  const zeeMi = (sku, title) => {
+    const s = String(sku || '').trim();
+    const marka = (harita && s) ? harita[s] : null;
+    if (marka) return String(marka).toLowerCase().includes('zee');
+    return String(title || '').toLowerCase().includes('zee');
+  };
+
+  return {
+    haritaVar: !!harita,
+    satirZee: (r) => zeeMi(r && r['SKU'], r && r['Title']),
+    // Siparişte başlık yok; stok kaydından bakılır. Hiç eşleşmeyen SKU
+    // (ör. boş SKU'lu kargo/kuaför satırları) Zee.Dog sayılmaz.
+    skuZee:   (sku) => { const s = String(sku || '').trim(); return s ? zeeMi(s, basliklar.get(s) || '') : false; },
+  };
+}
+
+/* Zee.Dog ürün tipi — başlıktan çıkarılır. İlk eşleşen kural kazanır,
+   sıra önemli ("Kedi Tasması" tasma değil kedi ürünü sayılsın diye
+   kedi kuralı tasma kurallarından sonra değil, önce gelmemeli). */
+const ZEE_URUN_TIPLERI = [
+  ['Göğüs Tasması',    ['göğüs tasma','gogus tasma','flyharness','harness','h tipi','softer walk']],
+  ['Gezdirme Tasması', ['gezdirme','ruff','leash','uzatmal','zee.run','zee run']],
+  ['Boyun Tasması',    ['boyun tasma','klasik köpek tasma','ayarlanabilir köpek tasma','şok emici köpek tasma','eller serbest']],
+  ['Kedi Ürünleri',    ['kedi','zee.cat','zee cat','cansei','cdsg','gato']],
+  ['Oyuncak',          ['oyunca','super veggiez','super fruitz','super ','çiğneme','diş kaşıma','ödül','frisbee']],
+  ['Yatak & Mat',      ['yatak','bed','air.mat','air mat','battaniye','havlu']],
+  ['Hijyen',           ['dışkı','torba','kum ','çiş','pad']],
+  ['Kıyafet',          ['mont','kıyafet','tişört','sweat','yağmurluk','coat','şapka']],
+  ['Mama & Su Kabı',   ['mama','su kab','su kase','kase','matara','bowl']],
+  ['Papyon & Bandana', ['papyon','bandana']],
+  ['Aksesuar',         ['pinz','anahtarlık','çanta','taşıma','sırt','bag','kılıf','cüzdan','rozet']],
+];
+
+function zeeUrunTipi(title){
+  const t = String(title || '').toLowerCase();
+  for (const [ad, kelimeler] of ZEE_URUN_TIPLERI){
+    for (const k of kelimeler){ if (t.includes(k)) return ad; }
+  }
+  return 'Diğer';
+}
+
+/* Sayfanın "sadece Zee.Dog" olduğunu ve kaç satırın dışarıda kaldığını
+   görünür kılar. Sessiz filtre kötü filtredir: rakam neden değişti
+   sorusunun cevabı ekranda dursun. */
+function yazZeeRozet(hamRows, zeeRows, zeeF){
+  const el = document.getElementById('stockZeeRozet');
+  if (!el) return;
+  const disarida = (hamRows || []).length - (zeeRows || []).length;
+  let metin = 'Sadece Zee.Dog';
+  if (disarida > 0) metin += ' · ' + disarida + ' diğer marka satırı hariç';
+  if (!zeeF.haritaVar) metin += ' · marka haritası bekleniyor';
+  el.textContent = metin;
+  el.title = zeeF.haritaVar
+    ? "Marka bilgisi Shopify'den geliyor (bot her gün 04:00'te günceller).\n"
+      + 'Bu sayfadaki tüm KPI, tablo, grafik ve CSV export yalnızca Zee.Dog ürünlerini kapsar.'
+    : 'Marka haritası henüz yüklenmedi; geçici olarak ürün başlığına göre ayıklanıyor. '
+      + 'Harita gelince sayfa kendini yeniler.';
+}
+
 /* inventory_value toplam özet */
 function summarizeInventoryValue(rows){
   // başlık varyasyonlarını tolere et
@@ -3634,8 +3718,17 @@ function daysOfInventory(inventoryRows, orderRows, days=60){
 function renderStockBlock(){
   loadSkuVendors();
   // cache’lerden oku
-  const invRows   = JSON.parse(localStorage.getItem('popdog_inv_cache')   || '[]');
-  const ordersMap = getOrdersCache();
+  const invHam    = JSON.parse(localStorage.getItem('popdog_inv_cache')   || '[]');
+  const ordersHam = getOrdersCache();
+
+  /* Bu sayfadaki her şey — KPI'lar, 9 tablo, yaşlandırma, devir hızı,
+     ABC, dead stock, export — aşağıdaki iki filtrelenmiş diziden besleniyor.
+     Filtre tek yerde: yeni bir liste eklendiğinde ayrıca marka kontrolü
+     yazmak gerekmiyor. */
+  const zeeF      = zeeFiltresiKur(invHam);
+  const invRows   = invHam.filter(r => zeeF.satirZee(r));
+  const ordersMap = ordersHam.filter(o => zeeF.skuZee(o.sku));
+  yazZeeRozet(invHam, invRows, zeeF);
 
   // 1) Stok değeri KPI'ları
   const inv = summarizeInventoryValue(invRows);
@@ -3857,17 +3950,15 @@ function renderStockBlock(){
       if(title && !titleMap.has(sku)) titleMap.set(sku, title);
     });
 
-    // Helper: Zee filter
-    const isZee = (sku)=>{
-      const t = (titleMap.get(sku) || '').toLowerCase();
-      return t.includes('zee');
-    };
-    // Helper (already defined above for other lists) kept here for clarity:
+    /* Not: eskiden burada başlıkta "zee" arayan bir isZee() vardı.
+       Artık marka ayıklaması renderStockBlock'un başında, Shopify marka
+       haritasıyla yapılıyor; buraya gelen invRows/ordersMap zaten
+       yalnızca Zee.Dog. Başlık tahmini 86 gerçek Zee.Dog satırını
+       kaçırıyordu (papyonlar, kedi tasmaları). */
 
-    // 6.a En çok satan 5 (satış miktarına göre, sadece Zee)
+    // 6.a En çok satan 5 (satış miktarına göre)
     const topSellers = Array.from(soldMap.entries())
       .map(([sku,qty])=>({sku, qty, title:titleMap.get(sku)||''}))
-      .filter(x => isZee(x.sku))
       .sort((a,b)=> b.qty - a.qty)
       .slice(0,5);
 
@@ -3878,10 +3969,10 @@ function renderStockBlock(){
       `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
     }
 
-    // 6.b En az satan 5 (pencerede satış yapanlar arasından en az qty, sadece Zee ve stok>0)
+    // 6.b En az satan 5 (pencerede satış yapanlar arasından en az qty, stok>0)
     const leastSellers = Array.from(soldMap.entries())
       .map(([sku,qty])=>({sku, qty, title:titleMap.get(sku)||'', on:onHandMap.get(sku)||0}))
-      .filter(x => x.on>0 && isZee(x.sku))
+      .filter(x => x.on>0)
       .sort((a,b)=> a.qty - b.qty)
       .slice(0,5);
 
@@ -3892,7 +3983,7 @@ function renderStockBlock(){
       `).join('') || '<tr><td class="hint py-1" colspan="3">Veri yok.</td></tr>';
     }
 
-    // 6.c Stoğu en hızlı giden 5 (satış hızı: adet/gün, sadece Zee)
+    // 6.c Stoğu en hızlı giden 5 (satış hızı: adet/gün)
     const winDays = salesWindowDays || 1;
     const speedArr = Array.from(new Set([...Array.from(soldMap.keys()), ...Array.from(onHandMap.keys())]))
       .map(sku=>{
@@ -3901,7 +3992,7 @@ function renderStockBlock(){
         const spd  = sold / winDays; // adet/gün
         return { sku, title:titleMap.get(sku)||'', speed: spd, onHand:on };
       })
-      .filter(x=> x.speed>0 && isZee(x.sku))
+      .filter(x=> x.speed>0)
       .sort((a,b)=> b.speed - a.speed)
       .slice(0,5);
 
@@ -3912,12 +4003,12 @@ function renderStockBlock(){
       `).join('') || '<tr><td class="hint py-1" colspan="4">Veri yok.</td></tr>';
     }
 
-    // 6.d Stokta en uzun süredir kalan 5 (en yaşlı, on-hand > 0, sadece Zee)
+    // 6.d Stokta en uzun süredir kalan 5 (en yaşlı, on-hand > 0)
     const staleArr = Array.from(onHandMap.entries()).map(([sku,on])=>{
       const last = lastMap.get(sku);
       const age = last ? Math.floor((Date.now()-last.getTime())/(1000*60*60*24)) : 9999;
       return { sku, title:titleMap.get(sku)||'', age, onHand:on };
-    }).filter(x=> x.onHand>0 && isZee(x.sku))
+    }).filter(x=> x.onHand>0)
       .sort((a,b)=> b.age - a.age)
       .slice(0,5);
 
@@ -3947,12 +4038,10 @@ function renderStockBlock(){
           soldMapWin.set(o.sku, (soldMapWin.get(o.sku)||0) + (o.qty||0));
         }
       });
-      // on-hand and titles already computed above: onHandMap, titleMap
-      // Only include SKUs where title includes "zee" (case-insensitive)
+      // on-hand ve başlıklar yukarıda hesaplandı: onHandMap, titleMap
       const riskArr = [];
       onHandMap.forEach((on, sku)=>{
         const title = titleMap.get(sku) || '';
-        if (!title.toLowerCase().includes('zee')) return;
         if (on <= 0) return;
         const sold = soldMapWin.get(sku)||0;
         const daily = sold / (days||1);
@@ -4019,55 +4108,56 @@ function renderStockBlock(){
       console.warn('Largest stock render error', e);
     }
 
-    /* 6.g Kategori bazlı özet (Zee Dog / Pop Dog / Diğer)
+    /* 6.g Zee.Dog ürün tipi kırılımı
 
-       Eskiden marka, ürün BAŞLIĞINDAN tahmin ediliyordu: başlıkta "pop dog"
-       geçenler Pop Dog sayılıyordu. Shopify'da POPDOG markalı 123 ürün var
-       ama hiçbirinin başlığında bu ifade geçmiyor ("Affogato", "Cup of Pop |
-       Beige", "Area 51 | Kedi Tasması"...). Sonuç: kart hep "0 adet"
-       gösteriyor, o ürünler "Diğer"e düşüyordu.
-
-       Gerçek marka bilgisi yalnızca Shopify'da. Bot bunu günlük olarak
-       KV'ye yazıyor (ai:sku_vendors), buradan SKU ile eşleştiriyoruz.
-       Harita gelmezse eski başlık tahminine düşülür — kart boş kalmaz. */
+       Burada eskiden marka kırılımı (Zee Dog / Pop Dog / Diğer) vardı.
+       Sayfa artık zaten yalnızca Zee.Dog gösterdiği için o kart
+       "%99,8 Zee.Dog, gerisi sıfır" demekten ibaretti. Yerine stoğun
+       hangi ürün tipinde durduğunu gösteren kırılım geldi — gezdirme
+       tasması mı, göğüs tasması mı, kedi ürünü mü. Tip, ürün başlığından
+       zeeUrunTipi() ile çıkarılır (adetlerin ~%99,6'sı sınıflanıyor). */
     try {
-      let zeeQty=0, zeeVal=0, popQty=0, popVal=0, otherQty=0, otherVal=0;
-      const vendorMap = (window.__skuVendors && window.__skuVendors.vendors) || null;
+      /* Kırılım sayfa toplamıyla BİREBİR tutmalı. Bu yüzden negatif ve sıfır
+         stoklu satırlar da toplama giriyor (stokta -1 görünen ürünler var).
+         Sadece "kaç SKU" sayarken stoğu olanlar sayılıyor. */
+      const tipler = new Map();   // tip -> { adet, deger, satir }
       (invRows||[]).forEach(r=>{
-        const title = (r['Title']||'').toLowerCase();
-        const sku   = String(r['SKU']||'').trim();
-        const units = parseTL(r['TotalUnits']||0);
-        const val = parseTL(r['Value@Cost']||r['Value @Cost']||0);
-
-        const marka = (vendorMap && sku && vendorMap[sku]) ? String(vendorMap[sku]).toLowerCase() : null;
-        let grup;
-        if (marka){
-          if (marka.includes('zee'))                              grup = 'zee';
-          else if (marka.replace(/[\s.]/g,'').includes('popdog')) grup = 'pop';
-          else                                                    grup = 'other';
-        } else {
-          if (title.includes('zee'))                                        grup = 'zee';
-          else if (title.includes('pop dog') || title.includes('popdog'))   grup = 'pop';
-          else                                                              grup = 'other';
-        }
-
-        if(grup === 'zee'){ zeeQty += units; zeeVal += val; }
-        else if(grup === 'pop'){ popQty += units; popVal += val; }
-        else { otherQty += units; otherVal += val; }
+        const adet  = parseTL(r['TotalUnits']||0);
+        const deger = parseTL(r['Value@Price']||r['Value @Price']||0);
+        const tip = zeeUrunTipi(r['Title']);
+        const k = tipler.get(tip) || { adet:0, deger:0, satir:0 };
+        k.adet += adet; k.deger += deger;
+        if (adet > 0) k.satir += 1;
+        tipler.set(tip, k);
       });
-      const catZeeEl = document.getElementById('kpiCatZee');
-      const catZeeValEl = document.getElementById('kpiCatZeeVal');
-      const catPopEl = document.getElementById('kpiCatPop');
-      const catPopValEl = document.getElementById('kpiCatPopVal');
-      const catOtherEl = document.getElementById('kpiCatOther');
-      const catOtherValEl = document.getElementById('kpiCatOtherVal');
-      if(catZeeEl) catZeeEl.textContent = `${zeeQty} adet`;
-      if(catZeeValEl) catZeeValEl.textContent = numberTL(zeeVal);
-      if(catPopEl) catPopEl.textContent = `${popQty} adet`;
-      if(catPopValEl) catPopValEl.textContent = numberTL(popVal);
-      if(catOtherEl) catOtherEl.textContent = `${otherQty} adet`;
-      if(catOtherValEl) catOtherValEl.textContent = numberTL(otherVal);
-    } catch(e){}
+
+      const sirali = [...tipler.entries()].sort((a,b)=> b[1].adet - a[1].adet);
+      const toplamAdet  = sirali.reduce((a,[,k])=> a + k.adet, 0);
+      const toplamDeger = sirali.reduce((a,[,k])=> a + k.deger, 0);
+      const enBuyuk     = sirali.reduce((a,[,k])=> Math.max(a, k.adet), 0);
+
+      const ozetEl = document.getElementById('zeeTipToplam');
+      if (ozetEl){
+        ozetEl.textContent = toplamAdet
+          ? `${toplamAdet.toLocaleString('tr-TR')} adet · ${numberTL(toplamDeger)} (satış fiyatıyla)`
+          : '–';
+      }
+
+      const kutu = document.getElementById('zeeTipKirilim');
+      if (kutu){
+        kutu.innerHTML = sirali.length ? sirali.map(([tip,k])=>{
+          const pay = toplamAdet ? (100 * k.adet / toplamAdet) : 0;
+          const bar = (enBuyuk > 0 && k.adet > 0) ? Math.max(2, 100 * k.adet / enBuyuk) : 0;
+          return `<div title="${k.satir} SKU · ${numberTL(k.deger)} satış değeri">
+            <div class="tip-satir-ust">
+              <span class="tip-ad">${tip}</span>
+              <span class="tip-sayi">${k.adet.toLocaleString('tr-TR')} adet · %${pay.toFixed(1)}</span>
+            </div>
+            <div class="tip-bar"><i style="width:${bar.toFixed(1)}%"></i></div>
+          </div>`;
+        }).join('') : '<div class="hint text-xs">Kırılım için stok verisi yok.</div>';
+      }
+    } catch(e){ console.warn('Ürün tipi kırılımı hatası', e); }
 
     // 6.h Stok Devir Hızı (Turnover) = Yıllık satış / ortalama stok değeri
     try {
@@ -4260,7 +4350,11 @@ function initStockExport(){
   if(!btn) return;
 
   btn.addEventListener('click', function(){
-    const invRows = JSON.parse(localStorage.getItem('popdog_inv_cache') || '[]');
+    // Export ekrandakiyle aynı kümeyi vermeli: sayfa Zee.Dog gösteriyorsa
+    // CSV de Zee.Dog vermeli, yoksa dosya ile ekran tutmaz.
+    const invHam  = JSON.parse(localStorage.getItem('popdog_inv_cache') || '[]');
+    const zeeF    = zeeFiltresiKur(invHam);
+    const invRows = invHam.filter(r => zeeF.satirZee(r));
     if(!invRows.length){
       alert('Export edilecek veri yok.');
       return;
@@ -4282,7 +4376,7 @@ function initStockExport(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `stok_export_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `zeedog_stok_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   });

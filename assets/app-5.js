@@ -35,6 +35,7 @@
     sec_rev_groomer:  ['Grooming Aylık Toplam',               'Grooming Monthly Total'],
     sec_cat_detail:   ['Ana Kategoriler (YTD) — Detay',       'Main Categories (YTD) — Detail'],
     sec_cat_grouped:  ['Ana Kategoriler (YTD) — Gruplanmış',  'Main Categories (YTD) — Grouped'],
+    sec_zee_tip:      ['Ürün Tipi Kırılımı',                  'Product Type Breakdown'],
   };
 
   /* ── TR → EN exact-match map (auto-scanned elements) ─────── */

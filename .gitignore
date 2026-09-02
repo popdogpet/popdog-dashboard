@@ -3,3 +3,4 @@
 .dev.vars
 *.tmp
 node_modules/
+.codex/

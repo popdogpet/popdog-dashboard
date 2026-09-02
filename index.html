@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.02-1452'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.02-1525'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.02-1452">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.02-1525">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -823,6 +823,7 @@
         <div class="flex items-center gap-3">
           <div class="text-slate-700 dark:text-slate-200 text-lg font-medium">Stok Özeti</div>
           <div class="hint text-xs" id="stockLastUpdate">Son güncelleme: –</div>
+          <div id="stockZeeRozet" class="zee-rozet">Sadece Zee.Dog</div>
         </div>
         <div class="flex items-center gap-2">
           <input type="text" id="stockSearchInput" placeholder="SKU veya ürün ara..." class="glass rounded-xl px-3 py-1 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -854,23 +855,15 @@
         </div>
       </div>
 
-      <!-- Kategori Bazlı Özet -->
-      <div class="grid md:grid-cols-3 gap-4 mt-4">
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">🐕 Zee Dog</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatZee">– adet</div>
-          <div class="hint text-xs" id="kpiCatZeeVal">₺–</div>
+      <!-- Zee.Dog Ürün Tipi Kırılımı (eski marka kartının yerine geçti:
+           sayfa zaten yalnızca Zee.Dog gösterdiği için marka kırılımı
+           anlamsızdı — %99,8'i tek kutuya düşüyordu) -->
+      <div class="glass rounded-2xl p-4 mt-4">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap mb-3">
+          <div class="text-slate-700 dark:text-slate-200 text-sm font-medium" data-i18n="sec_zee_tip">Ürün Tipi Kırılımı</div>
+          <div class="hint text-xs" id="zeeTipToplam">–</div>
         </div>
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">🐶 Pop Dog</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatPop">– adet</div>
-          <div class="hint text-xs" id="kpiCatPopVal">₺–</div>
-        </div>
-        <div class="glass rounded-2xl p-3">
-          <div class="hint text-xs">📦 Diğer</div>
-          <div class="text-slate-800 dark:text-slate-100 font-semibold" id="kpiCatOther">– adet</div>
-          <div class="hint text-xs" id="kpiCatOtherVal">₺–</div>
-        </div>
+        <div id="zeeTipKirilim" class="tip-liste"></div>
       </div>
 
       <!-- Ek KPI'lar - Kompakt Tablo -->
@@ -1239,16 +1232,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.02-1452"></script>
+  <script src="/assets/app-1.js?v=2026.09.02-1525"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.02-1452"></script>
+  <script src="/assets/app-2.js?v=2026.09.02-1525"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.02-1452"></script>
-  <script src="/assets/app-4.js?v=2026.09.02-1452"></script>
+  <script src="/assets/app-3.js?v=2026.09.02-1525"></script>
+  <script src="/assets/app-4.js?v=2026.09.02-1525"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.02-1452"></script>
+  <script src="/assets/app-5.js?v=2026.09.02-1525"></script>
 </body>
 </html>
