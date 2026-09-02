@@ -474,8 +474,20 @@ th, td { white-space: nowrap; }
     /* ----------------------------------------------------------------
        AI Section — Premium padding (beats mobile !important rule)
        ---------------------------------------------------------------- */
-    #execAI { padding: 1rem !important; }
-    @media (min-width: 640px) { #execAI { padding: 1.5rem !important; } }
+    /* Raporlar bölümü (#execReports) AI Özeti ile aynı sınıfları taşıyor ama
+       padding buradan geliyordu ve o eklenirken listeye alınmamıştı: metin
+       kartın kenarına 1px kala yapışıyor, beyaz zemin ince bir şerit gibi
+       kalıyordu. İki bölüm aynı iç boşluğu paylaşsın. */
+    #execAI, #execReports { padding: 1rem !important; }
+    @media (min-width: 640px) { #execAI, #execReports { padding: 1.5rem !important; } }
+
+    /* Rapor gövdeleri (repCeo, repCadde, repInsta, repWeekly) bot metnini
+       inline stille basıyor; renk sınıfı taşımıyorlar ve body'nin varsayılan
+       rengini miras alıyorlardı. Koyu temada body rengi siyah olduğu için
+       rapor metni koyu lacivert kartın üstünde siyah kalıyordu — okunmuyordu.
+       AI Özeti bu tuzağa düşmüyor çünkü içeriği dark:text-slate-100 taşıyor. */
+    #execReports { color: #1f2937; }
+    .dark #execReports { color: #e2e8f0; }
 
     /* Section header divider */
     .ai-hd {
