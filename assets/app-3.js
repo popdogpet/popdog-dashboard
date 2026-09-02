@@ -3253,6 +3253,32 @@ function initSalesWindowSelector(){
     renderStockBlock();
   };
 }
+/* SKU -> marka haritası (bot günlük olarak KV'ye yazıyor).
+   Stok sayfasındaki kategori kartı bunu kullanıyor. Bir kez çekilir,
+   geldiğinde stok bloğu zaten çizilmişse yeniden çizilir; gelmezse kart
+   eski başlık tahminiyle çalışmaya devam eder. */
+window.__skuVendors = null;
+let _vendorYukleniyor = false;
+function loadSkuVendors(){
+  if (window.__skuVendors || _vendorYukleniyor) return;
+  _vendorYukleniyor = true;
+  fetch('/api/sku_vendors?_=' + Date.now(), { cache:'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (!d || !d.vendors || !Object.keys(d.vendors).length) {
+        console.warn('[stok] marka haritası boş — kategori kartı başlık tahminine düşüyor');
+        return;
+      }
+      window.__skuVendors = d;
+      const blok = document.getElementById('stockBlock');
+      if (blok && blok.textContent.trim().length > 200) {
+        try { renderStockBlock(); } catch(e){ console.warn('[stok] yeniden çizim hatası', e); }
+      }
+    })
+    .catch(e => console.warn('[stok] marka haritası alınamadı', e && e.message))
+    .finally(() => { _vendorYukleniyor = false; });
+}
+
 /* inventory_value toplam özet */
 function summarizeInventoryValue(rows){
   // başlık varyasyonlarını tolere et
@@ -3606,6 +3632,7 @@ function daysOfInventory(inventoryRows, orderRows, days=60){
 
 /* Stok tablolarını ve KPI’ları render et */
 function renderStockBlock(){
+  loadSkuVendors();
   // cache’lerden oku
   const invRows   = JSON.parse(localStorage.getItem('popdog_inv_cache')   || '[]');
   const ordersMap = getOrdersCache();
@@ -3681,28 +3708,53 @@ function renderStockBlock(){
     // toplam on-hand (SKU bazında TotalUnits)
     const totalUnitsAll = (invRows || []).reduce((acc, r) => acc + parseTL(r['TotalUnits'] || 0), 0);
 
-    // location sütunlarını tahmin et: Title ile TotalUnits arasındaki başlıklar
-    let thronesUnits = 0, caddeUnits = 0;
+    /* Konum sütunları Sheet'e Shopify location ID'si olarak geliyor
+       (ör. "69595889734"), isim olarak değil. Eski kod sütun adının içinde
+       "thrones"/"caddebostan" arıyordu; sayısal ID'de bu hiç eşleşmediği için
+       dağılım her zaman "Thrones: 0 • Caddebostan: 0" görünüyordu.
+       ID'ler Shopify locations.json'dan doğrulandı. Tanımadığı bir ID gelirse
+       ham ID basılır — sessizce sıfır göstermez. */
+    const KONUM_ADLARI = {
+      '69595889734': 'Thrones Depo',
+      '62772936774': 'Caddebostan Mağaza',
+      '60925804614': 'Kanyon Mağaza',
+      '43120661':    'Moda Mağaza',
+      '34531737670': 'OPLOG Darıca',
+      '31144575046': 'TomTom Toptan',
+    };
+    const konumAdi = (baslik) => {
+      const ham = String(baslik || '').trim();
+      if (KONUM_ADLARI[ham]) return KONUM_ADLARI[ham];
+      const k = ham.toLowerCase();
+      if (k.includes('thrones')) return 'Thrones Depo';
+      if (k.includes('caddebostan') || k.includes('ckm') || k.includes('cadde')) return 'Caddebostan Mağaza';
+      return ham;
+    };
+
+    const konumAdet = new Map();
     if (Array.isArray(invRows) && invRows.length) {
       const hdrs = Object.keys(invRows[0] || {});
       const iTitle = hdrs.indexOf('Title');
       const iTotal = hdrs.indexOf('TotalUnits');
       const locCols = (iTitle >= 0 && iTotal > iTitle) ? hdrs.slice(iTitle + 1, iTotal) : [];
 
-      invRows.forEach(row => {
-        locCols.forEach(col => {
-          const v = parseTL(row[col] || 0);
-          const key = (col || '').toLowerCase();
-          if (key.includes('thrones')) thronesUnits += v;
-          if (key.includes('caddebostan') || key.includes('ckm') || key.includes('cadde')) caddeUnits += v;
-        });
+      locCols.forEach(col => {
+        const ad = konumAdi(col);
+        const toplam = invRows.reduce((a, row) => a + parseTL(row[col] || 0), 0);
+        konumAdet.set(ad, (konumAdet.get(ad) || 0) + toplam);
       });
     }
 
     const totalEl = document.getElementById('kpiTotalUnits');
     const noteEl  = document.getElementById('kpiTotalUnitsNote');
     if (totalEl) totalEl.textContent = `${totalUnitsAll} adet`;
-    if (noteEl)  noteEl.textContent  = `Thrones: ${thronesUnits} • Caddebostan: ${caddeUnits}`;
+    if (noteEl) {
+      const parcalar = [...konumAdet.entries()]
+        .filter(([, adet]) => adet > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([ad, adet]) => `${ad}: ${adet.toLocaleString('tr-TR')}`);
+      noteEl.textContent = parcalar.length ? parcalar.join(' • ') : 'Konum dağılımı yok';
+    }
   } catch (e) {
     console.warn('Total units KPI calc error', e);
   }
@@ -3967,20 +4019,41 @@ function renderStockBlock(){
       console.warn('Largest stock render error', e);
     }
 
-    // 6.g Kategori bazlı özet (Zee Dog / Pop Dog / Diğer)
+    /* 6.g Kategori bazlı özet (Zee Dog / Pop Dog / Diğer)
+
+       Eskiden marka, ürün BAŞLIĞINDAN tahmin ediliyordu: başlıkta "pop dog"
+       geçenler Pop Dog sayılıyordu. Shopify'da POPDOG markalı 123 ürün var
+       ama hiçbirinin başlığında bu ifade geçmiyor ("Affogato", "Cup of Pop |
+       Beige", "Area 51 | Kedi Tasması"...). Sonuç: kart hep "0 adet"
+       gösteriyor, o ürünler "Diğer"e düşüyordu.
+
+       Gerçek marka bilgisi yalnızca Shopify'da. Bot bunu günlük olarak
+       KV'ye yazıyor (ai:sku_vendors), buradan SKU ile eşleştiriyoruz.
+       Harita gelmezse eski başlık tahminine düşülür — kart boş kalmaz. */
     try {
       let zeeQty=0, zeeVal=0, popQty=0, popVal=0, otherQty=0, otherVal=0;
+      const vendorMap = (window.__skuVendors && window.__skuVendors.vendors) || null;
       (invRows||[]).forEach(r=>{
         const title = (r['Title']||'').toLowerCase();
+        const sku   = String(r['SKU']||'').trim();
         const units = parseTL(r['TotalUnits']||0);
         const val = parseTL(r['Value@Cost']||r['Value @Cost']||0);
-        if(title.includes('zee')){
-          zeeQty += units; zeeVal += val;
-        } else if(title.includes('pop dog') || title.includes('popdog')){
-          popQty += units; popVal += val;
+
+        const marka = (vendorMap && sku && vendorMap[sku]) ? String(vendorMap[sku]).toLowerCase() : null;
+        let grup;
+        if (marka){
+          if (marka.includes('zee'))                              grup = 'zee';
+          else if (marka.replace(/[\s.]/g,'').includes('popdog')) grup = 'pop';
+          else                                                    grup = 'other';
         } else {
-          otherQty += units; otherVal += val;
+          if (title.includes('zee'))                                        grup = 'zee';
+          else if (title.includes('pop dog') || title.includes('popdog'))   grup = 'pop';
+          else                                                              grup = 'other';
         }
+
+        if(grup === 'zee'){ zeeQty += units; zeeVal += val; }
+        else if(grup === 'pop'){ popQty += units; popVal += val; }
+        else { otherQty += units; otherVal += val; }
       });
       const catZeeEl = document.getElementById('kpiCatZee');
       const catZeeValEl = document.getElementById('kpiCatZeeVal');
@@ -3998,6 +4071,11 @@ function renderStockBlock(){
 
     // 6.h Stok Devir Hızı (Turnover) = Yıllık satış / ortalama stok değeri
     try {
+      /* Devir hızı iki tarafı da AYNI bazda ölçmeli. Eski kod yıllık satışı
+         satış fiyatıyla, stoğu maliyetle alıp bölüyordu; sonuç kâr marjı
+         katsayısı kadar (burada 6,88x) şişiyordu — 9,05x görünüyordu, oysa
+         gerçek 1,32x. Ekrandaki DIO 310 gün derken devir 9x demek kendi
+         içinde çelişkiydi. Artık iki taraf da satış fiyatı bazında. */
       const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000);
       let yearSalesVal = 0;
       (ordersMap||[]).forEach(o=>{
@@ -4005,10 +4083,20 @@ function renderStockBlock(){
           yearSalesVal += (o.qty||0) * (o.price||0);
         }
       });
-      const avgStockVal = inv.valCost || 1;
-      const turnover = yearSalesVal / avgStockVal;
+      const stokSatisBazi = inv.valPrice || 0;
+      const turnover = stokSatisBazi > 0 ? (yearSalesVal / stokSatisBazi) : 0;
       const turnoverEl = document.getElementById('kpiTurnover');
-      if(turnoverEl) turnoverEl.textContent = turnover > 0 ? turnover.toFixed(2) + 'x' : '–';
+      if(turnoverEl){
+        if(turnover > 0){
+          const gun = Math.round(365 / turnover);
+          turnoverEl.textContent = turnover.toFixed(2) + 'x';
+          turnoverEl.title = `Yıllık satış ₺${Math.round(yearSalesVal).toLocaleString('tr-TR')} `
+            + `/ stok (satış fiyatıyla) ₺${Math.round(stokSatisBazi).toLocaleString('tr-TR')}\n`
+            + `Stok yılda ${turnover.toFixed(2)} kez dönüyor ≈ ${gun} günde bir`;
+        } else {
+          turnoverEl.textContent = '–';
+        }
+      }
     } catch(e){}
 
     // 6.i Dead Stock (180+ gün)
