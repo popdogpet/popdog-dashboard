@@ -19,25 +19,26 @@ cd "$(dirname "$0")/.."
 PROJE="popdog-dashboard"
 COMMIT="${1:-$(git rev-parse --short HEAD)}"
 COMMIT="${COMMIT:0:8}"
-BEKLEME_SN=420        # en fazla 7 dakika
+BEKLEME_SN=900        # en fazla 15 dakika (build kuyrukta bekleyebiliyor)
 ARALIK_SN=15
 
 command -v wrangler >/dev/null 2>&1 || { echo "HATA: wrangler bulunamadı."; exit 2; }
 
 echo "Deploy bekleniyor: ${COMMIT}  (proje: ${PROJE}, en fazla $((BEKLEME_SN/60)) dk)"
 
+# Gecen sure duvar saatinden olculur. Sayaci "her tur ARALIK_SN kadar
+# bekledik" varsayimiyla artirmak yanlisti: sleep calismadigi ortamlarda
+# dongu aninda tukeniyor ve build daha bitmeden zaman asimi veriyordu.
+BASLANGIC=$(date +%s)
 GECEN=0
 while [ "$GECEN" -lt "$BEKLEME_SN" ]; do
   CIKTI="$(wrangler pages deployment list --project-name "$PROJE" 2>/dev/null)"
   SATIR="$(printf '%s\n' "$CIKTI" | grep -i "$COMMIT" | head -1)"
 
   if [ -n "$SATIR" ]; then
-    if printf '%s' "$SATIR" | grep -qi 'success'; then
-      echo
-      echo "YAYINDA  ${COMMIT}"
-      printf '%s\n' "$SATIR"
-      exit 0
-    fi
+    # Wrangler basarili deploy'da Status sutununa "Success" YAZMAZ, deploy
+    # zamanini yazar ("13 minutes ago"). Sadece basarisiz/suren durumlarin
+    # kendi kelimeleri var. Bu yuzden once onlari eleyip kalanı basari sayiyoruz.
     if printf '%s' "$SATIR" | grep -qiE 'failure|failed|canceled|cancelled'; then
       echo
       echo "BUILD PATLADI  ${COMMIT}  -- canlı site HÂLÂ ESKİ SÜRÜMDE."
@@ -47,11 +48,17 @@ while [ "$GECEN" -lt "$BEKLEME_SN" ]; do
       echo "  git commit --allow-empty -m 'Deploy yeniden tetikleniyor' && git push"
       exit 1
     fi
+    if ! printf '%s' "$SATIR" | grep -qiE 'queued|building|initializ|in progress|deploying|pending'; then
+      echo
+      echo "YAYINDA  ${COMMIT}"
+      printf '%s\n' "$SATIR"
+      exit 0
+    fi
   fi
 
   printf '.'
-  sleep "$ARALIK_SN"
-  GECEN=$((GECEN + ARALIK_SN))
+  sleep "$ARALIK_SN" 2>/dev/null || :
+  GECEN=$(( $(date +%s) - BASLANGIC ))
 done
 
 echo
