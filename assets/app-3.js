@@ -4491,11 +4491,66 @@ function buildMonthly(rows){
     // bu fallback sadece Total=0 olan çok eski satırlar için devreye girer
     const sheetTotal = +r.Total || 0;
     const usedTotal = sheetTotal > 0 ? sheetTotal : (tpt + onl + ckm + trn + hb);
-    const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    const prev = map.get(key) || { month:key, year:d.getFullYear(), Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0, sonGun:0, _gunluk:new Map() };
     prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.CKM_Nakit+=ckmN; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=usedTotal;
+    /* Ay içi karşılaştırma için gün kırılımını da tut (bkz. ayKiyasi). */
+    const gun = d.getDate();
+    if (gun > prev.sonGun) prev.sonGun = gun;
+    const g = prev._gunluk.get(gun) || { Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    g.Toptan+=tpt; g.Online+=onl; g.CKM+=ckm; g.CKM_Nakit+=ckmN; g.Trendyol+=trn; g.Hepsiburada+=hb; g.Kuaför+=kua; g.Total+=usedTotal;
+    prev._gunluk.set(gun, g);
     map.set(key, prev);
   });
   return Array.from(map.values()).filter(m=>m.Total>0).sort((a,b)=>a.month.localeCompare(b.month));
+}
+
+/* ================== Ay içi (kısmi ay) karşılaştırması ==================
+   Ayın 2'sinde 2 günlük cironun 31 günlük önceki ayla kıyaslanması her ay
+   başında sahte "-%97 düşüş" alarmı üretiyordu. Aşağıdaki yardımcılar kısmi
+   ayı, önceki ayın AYNI gün aralığıyla eşleştirir. */
+
+const AY_KANALLARI = ['Toptan','Online','CKM','CKM_Nakit','Trendyol','Hepsiburada','Kuaför','Total'];
+
+/* Bir ayın yalnızca ilk n gününün kanal toplamları. */
+function ayIlkNGun(m, n){
+  const t = {}; AY_KANALLARI.forEach(k => t[k] = 0);
+  if (!m || !m._gunluk) return m || t;
+  m._gunluk.forEach((v, d) => {
+    if (d > n) return;
+    AY_KANALLARI.forEach(k => { t[k] += (v[k] || 0); });
+  });
+  return t;
+}
+
+/* Son iki ayı, kıyaslanabilir gün aralığıyla döndürür.
+   { son, onceki, oncekiKapsam, kismi, ardisik, gun, ayGun } | null */
+function ayKiyasi(monthly){
+  const dizi = (monthly || []).slice().sort((a,b)=> a.month.localeCompare(b.month));
+  const son = dizi.at(-1), onceki = dizi.at(-2);
+  if (!son || !onceki) return null;
+
+  const [yil, ay] = son.month.split('-').map(Number);
+  if (!yil || !ay) return null;
+  const ayGun = new Date(yil, ay, 0).getDate();   // o ayın gün sayısı
+
+  /* Veri kapsamı: son veri günü. Sheet ileri tarihleri sıfırla doldurmuşsa
+     içinde bulunduğumuz ayda bugünü aşmasın. */
+  let gun = son.sonGun || ayGun;
+  const bugun = new Date();
+  if (yil === bugun.getFullYear() && ay === bugun.getMonth() + 1){
+    gun = Math.min(gun, bugun.getDate());
+  }
+  gun = Math.max(1, Math.min(gun, ayGun));
+  const kismi = gun < ayGun;
+
+  /* Eşleştirme yalnızca gerçekten ardışık iki ay için anlamlı. */
+  const beklenen = (ay === 1)
+    ? `${yil - 1}-12`
+    : `${yil}-${String(ay - 1).padStart(2, '0')}`;
+  const ardisik = onceki.month === beklenen;
+
+  const oncekiKapsam = (kismi && ardisik) ? ayIlkNGun(onceki, gun) : onceki;
+  return { son, onceki, oncekiKapsam, kismi, ardisik, gun, ayGun };
 }
 
 function buildWeekly(rows){
@@ -4608,28 +4663,32 @@ function setKPIs(monthly){
       .join('');
   }
 
-  // === MoM (bu yıl içindeki son iki ay) ===
-  const rowsSorted = rowsThisYear.slice().sort((a, b) => a.month.localeCompare(b.month));
-  let last = null, prev = null;
-  if (rowsSorted.length >= 2) {
-    last = rowsSorted.at(-1).Total;
-    prev = rowsSorted.at(-2).Total;
-  } else if (rowsSorted.length === 1) {
-    last = rowsSorted[0].Total;
-    prev = 0;
-  }
-
-  const mom = prev ? (last - prev) / prev : 0;
+  // === MoM (son iki ay; ay içindeysek önceki ayın aynı gün aralığı) ===
+  const kiyas = ayKiyasi(monthly);
+  const prevTotal = kiyas ? (kiyas.oncekiKapsam.Total || 0) : 0;
+  const mom = (kiyas && prevTotal) ? (kiyas.son.Total - prevTotal) / prevTotal : 0;
   const elMoM = document.getElementById('kpiMoM');
   if (elMoM) {
-    elMoM.textContent = `${(mom * 100).toFixed(1)}%`;
+    elMoM.textContent = kiyas ? `${(mom * 100).toFixed(1)}%` : '–';
     elMoM.classList.remove('kpi-up', 'kpi-down');
-    elMoM.classList.add(mom >= 0 ? 'kpi-up' : 'kpi-down');
+    if (kiyas) elMoM.classList.add(mom >= 0 ? 'kpi-up' : 'kpi-down');
   }
 
-  const mLabels = rowsSorted.map(m => m.month);
   const momNote = document.getElementById('momNote');
-  if (momNote) momNote.textContent = mLabels.length >= 2 ? `(${mLabels.at(-2)} → ${mLabels.at(-1)})` : '';
+  if (momNote) {
+    if (!kiyas) momNote.textContent = '';
+    else if (kiyas.kismi && kiyas.ardisik) momNote.textContent = `(${kiyas.onceki.month} → ${kiyas.son.month} · ilk ${kiyas.gun} gün)`;
+    else momNote.textContent = `(${kiyas.onceki.month} → ${kiyas.son.month})`;
+  }
+  const momRozet = document.getElementById('momKismiRozet');
+  if (momRozet) {
+    const goster = !!(kiyas && kiyas.kismi && kiyas.ardisik);
+    momRozet.hidden = !goster;
+    if (goster) {
+      momRozet.textContent = `ay içi · ${kiyas.gun}/${kiyas.ayGun} gün`;
+      momRozet.title = `${kiyas.son.month} ayının ilk ${kiyas.gun} günü, ${kiyas.onceki.month} ayının ilk ${kiyas.gun} günüyle karşılaştırılıyor.`;
+    }
+  }
   // Ensure expenses table re-renders after KPIs (FX may now be derived)
   try { renderMainExpensesTable(); } catch (e) { /* silent */ }
 }
@@ -4641,18 +4700,23 @@ function buildAlerts(monthly){
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  // 1) MoM Ciro Düşüşü
-  if(monthly.length>=2){
-    const mLast = monthly.at(-1), mPrev = monthly.at(-2);
+  // 1) MoM Ciro Düşüşü — kısmi ayda önceki ayın aynı gün aralığıyla kıyaslanır.
+  const kiyas = ayKiyasi(monthly);
+  /* Ayın ilk birkaç gününde tek bir toptan sipariş oranı uçurduğu için
+     anlamlı bir sinyal yok; en az bir haftalık veri birikmeden alarm üretme. */
+  const yeterliVeri = !!kiyas && (!kiyas.kismi || kiyas.gun >= 7);
+  if (kiyas && yeterliVeri) {
+    const mLast = kiyas.son, mPrev = kiyas.oncekiKapsam;
+    const ek = (kiyas.kismi && kiyas.ardisik) ? ` (ilk ${kiyas.gun} gün)` : '';
     const mom = mPrev.Total ? (mLast.Total - mPrev.Total) / mPrev.Total : 0;
     if(mom < -0.15){
-      alerts.push({type:'risk', text:`MoM toplam ciro düşüşü ${(mom*100).toFixed(1)}%`, priority: 1});
+      alerts.push({type:'risk', text:`MoM toplam ciro düşüşü ${(mom*100).toFixed(1)}%${ek}`, priority: 1});
     }
     // Kanal bazlı düşüşler
     ["Toptan","Online","CKM","Trendyol","Hepsiburada"].forEach(k=>{
       const r = mPrev[k] ? (mLast[k]-mPrev[k]) / mPrev[k] : 0;
       if(r < -0.20){
-        alerts.push({type:'warn', text:`${k} aylık -${(Math.abs(r)*100).toFixed(0)}%`, priority: 2});
+        alerts.push({type:'warn', text:`${k} aylık -${(Math.abs(r)*100).toFixed(0)}%${ek}`, priority: 2});
       }
     });
   }

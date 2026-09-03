@@ -1266,3 +1266,15 @@ th, td { white-space: nowrap; }
 @media (max-width: 640px){
   .zee-rozet{ white-space: normal; }
 }
+
+/* Ay içi (kısmi ay) karşılaştırma rozeti.
+   Ayın 2'sinde 2 günlük ciro, önceki ayın 31 gününe değil yine ilk 2 gününe
+   kıyaslanıyor; rozet bunun ay içi bir okuma olduğunu görünür kılar. */
+.ay-ici-rozet{
+  display:inline-block; font-size:.66rem; font-weight:600; letter-spacing:-.01em;
+  padding:2px 8px; border-radius:999px; white-space:nowrap;
+  background:rgba(245,158,11,.14); color:#8a4b00;
+  border:1px solid rgba(245,158,11,.42);
+}
+.dark .ay-ici-rozet{ background:rgba(245,158,11,.16); color:#fbbf24; border-color:rgba(245,158,11,.40); }
+.ay-ici-rozet[hidden]{ display:none; }
