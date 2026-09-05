@@ -570,6 +570,13 @@ function appendDaily_(rows){
     var idx = {};
     header.forEach(function(h, i){
       var k = keyNorm_(h);
+      /* Ciro sayfasinda A1 hucresi bosaldiginda tarih sutunu isimsiz kaliyor.
+         Isimsiz basliklar idx'e girmedigi icin asagidaki
+         "Date field is required for all rows" hatasi firliyor ve botun
+         her gunluk satiri sessizce dusuyordu (03.09'dan itibaren). Ayni bos
+         baslik dashboard tarafinda da tum ciroyu bosaltmisti. Ilk sutunun
+         basligi bossa tarih sutunu olarak kabul et. */
+      if (!k && i === 0) k = 'date';
       if (k && idx[k] == null) idx[k] = i;
     });
 
