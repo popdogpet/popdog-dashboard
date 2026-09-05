@@ -3,8 +3,16 @@
 Cloudflare Pages üzerinde çalışan tek sayfalık CFO panosu.
 Ciro, gider, stok ve AI özet kartlarını tek ekranda toplar.
 
-- **Canlı:** https://popdog-dashboard.pages.dev
+- **Canlı (masaüstü):** https://popdog-dashboard.pages.dev
+- **Canlı (telefon):** https://popdog-dashboard.broken-unit-ab7c.workers.dev
 - **Repo:** https://github.com/popdogpet/popdog-dashboard
+
+> İki adres var çünkü mobil ağda `*.pages.dev` adına giden TLS bağlantısı
+> sıfırlanıyor (hesaptaki bağımsız `popnew.pages.dev` de aynı telefonda
+> açılmıyor; Cloudflare tarafında hata yok). `worker-vekil/` bu yüzden var:
+> isteği olduğu gibi Pages dağıtımına iletir. Kalıcı çözüm kendi alan adı —
+> `popdog.pet` zone'u bu Cloudflare hesabında olmadığı için ayrı bir alan
+> adı gerekiyor. O bağlandığında vekil katmanı kaldırılabilir.
 
 ## Mimari
 
