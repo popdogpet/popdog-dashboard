@@ -397,23 +397,39 @@ function csvMetniGetir(url, timeoutMs = 30000){
   const ucusta = _csvUcusta.get(ham);
   if (ucusta) return ucusta;
 
+  /* Tek denemede pes etmiyoruz. Google'ın yayınlanmış CSV ucu ara sıra
+     429/5xx dönüyor ve mobil bağlantı kopabiliyor; eskiden bu doğrudan
+     boş sayfa demekti ve kullanıcı sayfayı tekrar tekrar yeniliyordu.
+     Üç deneme, artan bekleme. */
+  const BEKLEMELER = [0, 700, 1800];
+
   const istek = (async () => {
-    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    const sayac = setTimeout(function(){ try { ctrl && ctrl.abort(); } catch(e){} }, timeoutMs);
+    let sonHata = null;
     try {
-      const resp = await fetch(withCacheBust(ham), {
-        cache: 'no-store',
-        signal: ctrl ? ctrl.signal : undefined,
-      });
-      if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
-      const metin = await resp.text();
-      _csvMetin.set(ham, { t: Date.now(), metin });
-      return metin;
-    } catch (e) {
-      if (e && e.name === 'AbortError') throw new Error('CSV_LOAD_TIMEOUT');
-      throw e;
+      for (let deneme = 0; deneme < BEKLEMELER.length; deneme++){
+        if (BEKLEMELER[deneme]) await new Promise(r => setTimeout(r, BEKLEMELER[deneme]));
+        const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        const sayac = setTimeout(function(){ try { ctrl && ctrl.abort(); } catch(e){} }, timeoutMs);
+        try {
+          const resp = await fetch(withCacheBust(ham), {
+            cache: 'no-store',
+            signal: ctrl ? ctrl.signal : undefined,
+          });
+          if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
+          const metin = await resp.text();
+          _csvMetin.set(ham, { t: Date.now(), metin });
+          return metin;
+        } catch (e) {
+          sonHata = (e && e.name === 'AbortError') ? new Error('CSV_LOAD_TIMEOUT') : e;
+          if (deneme < BEKLEMELER.length - 1){
+            console.warn(`[csv] ${ham} denemesi başarısız (${sonHata.message}), yeniden denenecek`);
+          }
+        } finally {
+          clearTimeout(sayac);
+        }
+      }
+      throw sonHata || new Error('CSV alınamadı');
     } finally {
-      clearTimeout(sayac);
       _csvUcusta.delete(ham);
     }
   })();
