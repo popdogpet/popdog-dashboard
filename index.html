@@ -11,7 +11,7 @@
        Bump APP_VERSION to force clearing old caches/localStorage and one-time reload -->
   <script>
   (function(){
-    var APP_VERSION = '2026.09.05-1049'; // ⬅️ bump this to invalidate client caches
+    var APP_VERSION = '2026.09.05-1055'; // ⬅️ bump this to invalidate client caches
     var VERSION_KEY = 'popdog_app_version';
     var RELOAD_FLAG = 'popdog_version_reloaded';
     // Keep these keys across resets (user prefs / endpoints)
@@ -85,7 +85,7 @@
   </script>
   <!-- Tailwind CDN removed - using pre-compiled CSS for faster loading -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="/assets/app.css?v=2026.09.05-1049">
+  <link rel="stylesheet" href="/assets/app.css?v=2026.09.05-1055">
 
   <!-- Executive Design System — Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -356,6 +356,7 @@
         <div class="text-slate-700 dark:text-slate-200 text-base sm:text-lg font-medium flex items-center gap-2 sm:gap-3" data-i18n="sec_weekly">
           Haftalık Görünüm
           <span id="weekLabel" class="badge text-xs"></span>
+          <span id="weekKismiRozet" class="ay-ici-rozet" hidden></span>
         </div>
         <div class="flex items-center gap-2">
           <button id="weekPrev" class="glass card-3d px-3 py-2 rounded-xl text-sm">◀︎</button>
@@ -364,6 +365,7 @@
       </div>
       <div id="weekCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-3"></div>
       <div id="weekWoW" class="hint text-xs mt-2"></div>
+      <div id="veriTazeligi" class="veri-tazeligi mt-2" hidden></div>
       <details class="mt-3 sm:mt-4">
         <summary class="cursor-pointer text-slate-700 dark:text-slate-200 text-sm font-medium">Son 7 Gün Özeti</summary>
         <div id="last7Wrap" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-2"></div>
@@ -1238,16 +1240,16 @@
   <!-- PIN kontrolü sunucuya taşındı: functions/_middleware.js + functions/api/login.js.
        Oturumu olmayan istek index.html'i hiç almıyor, PIN istemciye inmiyor. -->
 
-  <script src="/assets/app-1.js?v=2026.09.05-1049"></script>
+  <script src="/assets/app-1.js?v=2026.09.05-1055"></script>
 
   <!-- === Executive AI JSON loader === -->
-  <script src="/assets/app-2.js?v=2026.09.05-1049"></script>
+  <script src="/assets/app-2.js?v=2026.09.05-1055"></script>
 
   </div>
 
-  <script src="/assets/app-3.js?v=2026.09.05-1049"></script>
-  <script src="/assets/app-4.js?v=2026.09.05-1049"></script>
+  <script src="/assets/app-3.js?v=2026.09.05-1055"></script>
+  <script src="/assets/app-4.js?v=2026.09.05-1055"></script>
 
-  <script src="/assets/app-5.js?v=2026.09.05-1049"></script>
+  <script src="/assets/app-5.js?v=2026.09.05-1055"></script>
 </body>
 </html>

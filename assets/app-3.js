@@ -4728,11 +4728,33 @@ function buildWeekly(rows){
     const tpt=+r.Toptan||0, onl=+r.Online||0, ckm=+r.CKM||0, trn=+r.Trendyol||0, hb=+r.Hepsiburada||0, kua=+r.Kuaför||0;
     const sheetTotal = +r.Total || 0;
     const total = sheetTotal > 0 ? sheetTotal : (tpt + onl + ckm + trn + hb);
-    const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    const prev = map.get(key) || { monday:key, Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0, _gunluk:new Map() };
     prev.Toptan+=tpt; prev.Online+=onl; prev.CKM+=ckm; prev.Trendyol+=trn; prev.Hepsiburada+=hb; prev.Kuaför+=kua; prev.Total+=total;
+    /* Hafta içi karşılaştırma için gün dilimini de tut (Pzt=0 ... Paz=6). */
+    const dilim = (d.getUTCDay() + 6) % 7;
+    const g = prev._gunluk.get(dilim) || { Toptan:0, Online:0, CKM:0, CKM_Nakit:0, Trendyol:0, Hepsiburada:0, Kuaför:0, Total:0 };
+    g.Toptan+=tpt; g.Online+=onl; g.CKM+=ckm; g.Trendyol+=trn; g.Hepsiburada+=hb; g.Kuaför+=kua; g.Total+=total;
+    prev._gunluk.set(dilim, g);
+    prev.sonTarih = (!prev.sonTarih || r.Date > prev.sonTarih) ? r.Date : prev.sonTarih;
     map.set(key, prev);
   });
   return Array.from(map.values()).sort((a,b)=>a.monday.localeCompare(b.monday));
+}
+
+/* Bir haftanın YALNIZCA verilen gün dilimlerindeki toplamları.
+   Hafta içindeyken (ya da son günler henüz sheet'e girilmemişken) 3 günlük
+   haftayı önceki 7 günlük haftayla kıyaslamak sahte düşüş üretiyordu --
+   MoM'daki hatanın haftalık eşi. Önceki haftadan da aynı günler alınır:
+   Pzt-Çar bu hafta, Pzt-Çar geçen hafta. */
+function haftaGunAlt(hafta, dilimler){
+  const t = {};
+  AY_KANALLARI.forEach(k => t[k] = 0);
+  if (!hafta || !hafta._gunluk || !dilimler) return hafta || t;
+  hafta._gunluk.forEach(function(v, dilim){
+    if (!dilimler.has(dilim)) return;
+    AY_KANALLARI.forEach(k => { t[k] += (v[k] || 0); });
+  });
+  return t;
 }
 
 /* ================== KPIs (Revenue) ================== */
@@ -5757,6 +5779,33 @@ const EXPENSES_CSV_URL =
 
 
 
+/* Ciro sheet'i bugüne göre geride kaldığında bunu söyle.
+   05.09'da sheet 02.09'da bitiyordu ve haftalık kart 3 günü 7 güne
+   kıyasladığı için -%56 gösteriyordu; bu, dashboard veriyi çekemiyormuş
+   gibi okunuyor. Eksik günleri açıkça yazmak ikisini ayırıyor. */
+function yazVeriTazeligi(){
+  const el = document.getElementById('veriTazeligi');
+  if (!el) return;
+  const satirlar = (typeof mergedRowsCache !== 'undefined' && mergedRowsCache && mergedRowsCache.length)
+    ? mergedRowsCache
+    : ((typeof loadedRows !== 'undefined' && loadedRows) ? loadedRows : []);
+  const son = satirlar.length ? satirlar[satirlar.length - 1].Date : '';
+  if (!son){ el.hidden = true; return; }
+
+  const b = new Date(); b.setHours(0,0,0,0);
+  const p = son.split('-');
+  const sonG = new Date(+p[0], +p[1]-1, +p[2]);
+  const fark = Math.round((b - sonG) / 86400000);
+
+  /* Bir günlük gecikme normal: dünün cirosu ertesi gün giriliyor. */
+  if (!(fark > 1)){ el.hidden = true; return; }
+
+  const gg = String(sonG.getDate()).padStart(2,'0') + '.' + String(sonG.getMonth()+1).padStart(2,'0');
+  el.hidden = false;
+  el.textContent = `Ciro sheet'inde son giriş ${gg}. Bugüne kadar ${fark - 1} gün girilmemiş — `
+                 + 'eksik olan dashboard değil, veri.';
+}
+
 /* ================== Weekly UI ================== */
 let weeklyAgg = [];
 let selectedMondayISO = null;
@@ -5774,12 +5823,30 @@ function renderWeek(){
 
   document.getElementById('weekLabel').textContent = weekRangeLabel(new Date(cur.monday + "T00:00:00"));
 
+  /* Kısmi hafta: bu haftada verisi olan gün dilimleri 7'den azsa, önceki
+     haftadan da yalnızca aynı dilimler alınır. Aksi halde Cumartesi günü
+     3 günlük hafta 7 günlük haftayla kıyaslanıp sahte düşüş çıkıyordu. */
+  const dilimler = cur._gunluk ? new Set(cur._gunluk.keys()) : null;
+  const gunSayisi = dilimler ? dilimler.size : 7;
+  const kismiHafta = gunSayisi > 0 && gunSayisi < 7;
+  const prevKapsam = (prev && kismiHafta) ? haftaGunAlt(prev, dilimler) : prev;
+
+  const rozet = document.getElementById('weekKismiRozet');
+  if (rozet){
+    rozet.hidden = !kismiHafta;
+    if (kismiHafta){
+      rozet.textContent = `hafta içi · ${gunSayisi}/7 gün`;
+      rozet.title = `Bu haftadan ${gunSayisi} günün verisi var (son: ${cur.sonTarih || '–'}). `
+                  + 'Karşılaştırma önceki haftanın aynı günleriyle yapılıyor.';
+    }
+  }
+
   const keys = ['Total','Toptan','Online','CKM','Trendyol','Hepsiburada','Kuaför'];
   const labels = {Total:'Toplam', Toptan:'B2B', Online:'Online', CKM:'Shop', Trendyol:'Trendyol', Hepsiburada:'Hepsiburada', Kuaför:'Grooming'};
   const wrap = document.getElementById('weekCards'); wrap.innerHTML='';
   keys.forEach(k=>{
     const v = cur[k]||0;
-    const p = prev ? prev[k]||0 : 0;
+    const p = prevKapsam ? prevKapsam[k]||0 : 0;
     const wow = p ? (v-p)/p : 0;
     const card = document.createElement('div');
     card.className='glass card-3d rounded-2xl p-3';
@@ -5791,8 +5858,12 @@ function renderWeek(){
     wrap.appendChild(card);
   });
 
-  const wowTotal = prev ? (cur.Total - prev.Total) / prev.Total : 0;
-  document.getElementById('weekWoW').textContent = `WoW (Toplam): ${(wowTotal*100).toFixed(1)}%`;
+  yazVeriTazeligi();
+
+  const prevTotal = prevKapsam ? (prevKapsam.Total || 0) : 0;
+  const wowTotal = prevTotal ? (cur.Total - prevTotal) / prevTotal : 0;
+  const ek = kismiHafta ? ` · ilk ${gunSayisi} gün karşılaştırıldı` : '';
+  document.getElementById('weekWoW').textContent = `WoW (Toplam): ${(wowTotal*100).toFixed(1)}%${ek}`;
 }
 document.getElementById('weekPrev').onclick = ()=>{
   if(!weeklyAgg.length || !selectedMondayISO) return;

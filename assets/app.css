@@ -1278,3 +1278,15 @@ th, td { white-space: nowrap; }
 }
 .dark .ay-ici-rozet{ background:rgba(245,158,11,.16); color:#fbbf24; border-color:rgba(245,158,11,.40); }
 .ay-ici-rozet[hidden]{ display:none; }
+
+/* Ciro sheet'i bugüne göre geride kaldığında gösterilen uyarı.
+   Kullanıcı "dashboard veriyi çekmiyor" diye düşünüyordu; oysa o günler
+   sheet'e hiç girilmemişti. Eksikliği görünür kılmak ikisini ayırıyor. */
+.veri-tazeligi{
+  display:block; font-size:.72rem; font-weight:600; line-height:1.45;
+  padding:7px 10px; border-radius:10px;
+  background:rgba(245,158,11,.12); color:#7a4300;
+  border:1px solid rgba(245,158,11,.36);
+}
+.dark .veri-tazeligi{ background:rgba(245,158,11,.14); color:#fcd34d; border-color:rgba(245,158,11,.38); }
+.veri-tazeligi[hidden]{ display:none; }
