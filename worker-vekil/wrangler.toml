@@ -1,0 +1,14 @@
+# Telefon erisimi icin vekil (proxy) Worker.
+#
+# Sorun: mobil aginda *.pages.dev adina giden TLS baglantisi sifirlaniyor.
+# Kanit: popdog-dashboard.pages.dev de, hesaptaki popnew.pages.dev de ayni
+# telefonda acilmiyor; Cloudflare tarafinda iki gunde tek sunucu hatasi yok.
+# Ayni telefonda *.workers.dev sorunsuz aciliyor.
+#
+# Bu Worker sadece adres degistirir: istegi oldugu gibi Pages dagitimina
+# iletir, cevabi oldugu gibi geri verir. Dashboard kodu, secret'lar, KV ve
+# bot tarafi hic degismez. Pages adresi de calismaya devam eder.
+name = "popdog-dashboard"
+main = "src/index.js"
+compatibility_date = "2026-04-22"
+workers_dev = true
