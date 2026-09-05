@@ -370,10 +370,62 @@ function csvMetniBasligiDuzelt(metin){
   return 'Date' + govde.slice(ilk.length) + cr + t.slice(nl);
 }
 
-function loadCsv(url, timeoutMs = 30000){
-  return new Promise((resolve, reject)=>{
-    if (!window.Papa){ reject(new Error('PAPA_MISSING')); return; }
+/* ===== CSV indirme katmanı: aynı URL sayfa başına bir kez inisin =====
+   Ölçüldü: tek bir sayfa yüklemesi aynı dosyaları 18 kez indiriyordu
+   (giderler 10, ciro 4, stok 2, siparişler 2). Sebep üç ayrı boot yolu
+   ve her render'ın kendi yükleyicisi olması; hiçbiri diğerinden haberdar
+   değil. ~1,2MB benzersiz veri için ~5MB indiriliyor, her istek de
+   Cloudflare üzerinden Google'a gidiyordu. Mobil bağlantıda bu, sayfanın
+   ancak birkaç denemede açılmasının sebebiydi.
 
+   Aşağıdaki katman: uçuşta olan isteği paylaştırır (aynı anda gelen 10
+   çağrı tek fetch olur) ve sonucu kısa süre önbellekler. Hata sonucu
+   önbelleğe YAZILMAZ, bir sonraki çağrı yeniden dener. */
+const CSV_ONBELLEK_MS = 90000;
+const _csvMetin  = new Map();   // url -> { t, metin }
+const _csvUcusta = new Map();   // url -> Promise<string>
+
+function csvOnbellegiTemizle(){ _csvMetin.clear(); _csvUcusta.clear(); }
+
+function csvMetniGetir(url, timeoutMs = 30000){
+  const ham = String(url || '');
+  if (!ham) return Promise.reject(new Error('CSV url yok'));
+
+  const kayit = _csvMetin.get(ham);
+  if (kayit && (Date.now() - kayit.t) < CSV_ONBELLEK_MS) return Promise.resolve(kayit.metin);
+
+  const ucusta = _csvUcusta.get(ham);
+  if (ucusta) return ucusta;
+
+  const istek = (async () => {
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const sayac = setTimeout(function(){ try { ctrl && ctrl.abort(); } catch(e){} }, timeoutMs);
+    try {
+      const resp = await fetch(withCacheBust(ham), {
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+      if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
+      const metin = await resp.text();
+      _csvMetin.set(ham, { t: Date.now(), metin });
+      return metin;
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error('CSV_LOAD_TIMEOUT');
+      throw e;
+    } finally {
+      clearTimeout(sayac);
+      _csvUcusta.delete(ham);
+    }
+  })();
+
+  _csvUcusta.set(ham, istek);
+  return istek;
+}
+
+async function loadCsv(url, timeoutMs = 30000){
+  if (!window.Papa) throw new Error('PAPA_MISSING');
+  const metin = await csvMetniGetir(url, timeoutMs);
+  return new Promise((resolve, reject)=>{
     let completed = false;
     const timer = setTimeout(() => {
       if (!completed) {
@@ -382,8 +434,7 @@ function loadCsv(url, timeoutMs = 30000){
       }
     }, timeoutMs);
 
-    Papa.parse(url, {
-      download: true,
+    Papa.parse(metin, {
       header: true,
       transformHeader: csvBasligiDuzelt,
       skipEmptyLines: true,
@@ -900,6 +951,9 @@ document.getElementById('themeBtn').onclick = ()=> setTheme(root.classList.conta
   if (!rb) return;
   rb.onclick = async () => {
     try{
+      /* CSV katmanı 90 sn önbellek tutuyor; "Yenile" gerçekten yeniden
+         indirmezse düğme yalan söylemiş olur. */
+      if (typeof csvOnbellegiTemizle === 'function') csvOnbellegiTemizle();
       if (typeof refreshAll === 'function') await refreshAll();
       else if (typeof refreshAllData === 'function') await refreshAllData();
       else if (typeof loadAll === 'function') await loadAll();
@@ -2099,9 +2153,7 @@ let mergedRowsCache = [];
 
 /* ================== CSV LOADERS ================== */
 async function loadFromSheet(url){
-  const resp = await fetch(assetURL(url), { cache: 'no-store' });
-  if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
-  const csvText = await resp.text();
+  const csvText = await csvMetniGetir(url);
   return new Promise((resolve,reject)=>{
     Papa.parse(csvMetniBasligiDuzelt(csvText), {
       header:true, skipEmptyLines:true,
@@ -2143,10 +2195,7 @@ async function loadFromSheet(url){
 
 async function loadCSV(url){
   if(!url) return [];
-  const busted = withCacheBust(url);
-  const resp = await fetch(busted, { cache: 'no-store' });
-  if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
-  const text = await resp.text();
+  const text = await csvMetniGetir(url);
   return new Promise((resolve, reject) => {
     Papa.parse(text, {
       header:true, skipEmptyLines:true,
@@ -2173,9 +2222,7 @@ function parseExpenseRow(r){
 async function loadExpensesCsv(url){
   if (!url) return [];
   try{
-    const resp = await fetch(withCacheBust(url), { cache: 'no-store' });
-    if (!resp.ok) return [];
-    const text = await resp.text();
+    const text = await csvMetniGetir(url);
 
     return await new Promise((resolve) => {
       Papa.parse(text, {
@@ -3452,9 +3499,70 @@ function parseShopifyDate(s){
   return isNaN(+d) ? null : d;
 }
 
+/* ===== Sipariş önbelleği: kompakt biçim =====
+   iOS Safari her siteye ~5MB localStorage veriyor; bu önbellek tek başına
+   2,34MB tutuyordu ve her siparişle büyüyor. Sebep, 13.500 satırın her
+   birinde alan adlarının ve tam ISO zaman damgasının tekrar etmesi:
+     {"sku":"760237","qty":1,"price":1050,
+      "date":"2026-09-05T07:22:11.000Z","channel":"Online"}
+   Saat bilgisini kod hiçbir yerde kullanmıyor (getHours/getMinutes yok),
+   her şey gün kırılımında çalışıyor. Bu yüzden satırları dizi olarak ve
+   tarihi YEREL gün olarak saklıyoruz: 2,34MB -> 0,85MB (%64 az), veri
+   kaybı yok. Geçmişi kırpmıyoruz — Kuaför aylık tablosu tüm geçmişi
+   okuyor, 12 ayla sınırlamak onu bozardı. */
+const SIPARIS_ONBELLEK_SURUM = 2;
+
+function _yerelGun(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+/* date alanı Date de olabilir ISO metin de — üç ayrı çağıran var. */
+function siparisOnbelleginiYaz(satirlar){
+  try{
+    const kanallar = [];
+    const r = [];
+    (satirlar || []).forEach(function(o){
+      if (!o) return;
+      const d = (o.date instanceof Date) ? o.date : new Date(o.date);
+      if (!d || isNaN(+d)) return;
+      const kanal = o.channel || 'Online';
+      let ki = kanallar.indexOf(kanal);
+      if (ki < 0){ ki = kanallar.length; kanallar.push(kanal); }
+      r.push([ (o.sku||'').trim(), Number(o.qty)||0, parseTL(o.price||0), _yerelGun(d), ki ]);
+    });
+    localStorage.setItem('popdog_orders_cache', JSON.stringify({ v: SIPARIS_ONBELLEK_SURUM, k: kanallar, r: r }));
+    return true;
+  }catch(e){
+    /* Kota dolduysa sessizce vazgeç — eski davranış da böyleydi. */
+    console.warn('sipariş önbelleği yazılamadı', e && e.message);
+    return false;
+  }
+}
+
 // localStorage→orders okurken tarihleri Date'e yeniden çevir
 function getOrdersCache(){
-  const raw = JSON.parse(localStorage.getItem('popdog_orders_cache') || '[]');
+  let ham;
+  try { ham = JSON.parse(localStorage.getItem('popdog_orders_cache') || '[]'); }
+  catch(e){ return []; }
+
+  /* Kompakt biçim (v2). Eski dizi biçimi de okunmaya devam ediyor ki
+     güncellemeden sonraki ilk açılışta stok sayfası boş kalmasın. */
+  if (ham && !Array.isArray(ham) && ham.v === SIPARIS_ONBELLEK_SURUM){
+    const kanallar = ham.k || [];
+    return (ham.r || []).map(function(a){
+      const g = String(a[3] || '').split('-');
+      const d = (g.length === 3) ? new Date(+g[0], +g[1]-1, +g[2]) : null;
+      return {
+        sku: (a[0]||'').trim(),
+        qty: Number(a[1])||0,
+        price: parseTL(a[2]||0),
+        date: d,
+        channel: kanallar[a[4]] || 'Online',
+      };
+    }).filter(o => (o.sku || o.channel === 'Kuaför') && o.qty>0 && o.date && !isNaN(+o.date));
+  }
+
+  const raw = Array.isArray(ham) ? ham : [];
   return raw.map(o => ({
     sku: (o.sku||'').trim(),
     qty: Number(o.qty)||0,
@@ -5135,7 +5243,7 @@ function renderMainExpensesTable(){
       if (ordersUrl){
         const ordersRaw = await loadCSV(ordersUrl);
         const mapped = (ordersRaw||[]).map(mapOrderRow).filter(o=>o && (o.sku || o.channel==='Kuaför') && o.qty>0 && o.date);
-        try { localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped)); } catch(e){}
+        siparisOnbelleginiYaz(mapped);
       }
     }catch(err){ console.warn('Orders load error', err); }
 
@@ -6193,8 +6301,7 @@ try {
           if(!ordUrl) return;
           const ordRaw = await loadCSV(ordUrl);
           const mapped = (ordRaw || []).map(mapOrderRow).filter(o=>o && (o.sku || o.channel==='Kuaför') && o.qty>0 && o.date);
-          const persist = mapped.map(o=>({ sku:o.sku, qty:o.qty, price:o.price, date:o.date.toISOString(), channel:o.channel }));
-          try { localStorage.setItem('popdog_orders_cache', JSON.stringify(persist)); } catch(e){}
+          siparisOnbelleginiYaz(mapped);
           renderStockBlock();
         } catch(e){ console.warn('Orders load/render error', e); }
       })();
@@ -6426,7 +6533,7 @@ try {
       const rawRows = await loadCSV(ordersUrl);
       const mapped = rawRows.map(mapOrderRow)
                             .filter(o => (o.sku || o.channel === 'Kuaför') && o.qty > 0 && o.date && !isNaN(+o.date));
-      localStorage.setItem('popdog_orders_cache', JSON.stringify(mapped));
+      siparisOnbelleginiYaz(mapped);
     }
   } catch (e) { console.warn('ORDERS CSV error', e); }
 
