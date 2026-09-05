@@ -331,6 +331,45 @@ function safeText(s){
     .replace(/'/g,'&#39;');
 }
 
+/* Yayınlanmış Google CSV'sinde ilk sütunun başlığı boş gelebiliyor: ciro
+   sayfasında A1 hücresi boş olduğu için başlık satırı " ,Toptan,Online,..."
+   şeklinde iniyor. Papa o alanı "Date" diye değil boş isimle veriyordu;
+   loadFromSheet da Date'i olmayan her satırı eleyip 979 satırı 0'a düşürüyordu.
+   Sonuç: localStorage'ında eski önbellek olmayan her cihazda (yeni telefon,
+   iPad, gizli sekme) ciro, MoM, grafikler ve uyarılar bomboş geliyordu.
+   Yalnızca İLK sütun ve yalnızca başlık gerçekten boşsa devreye girer. */
+function csvBasligiDuzelt(header, index){
+  const h = String(header == null ? '' : header).trim();
+  if (index === 0 && !h){
+    if (!csvBasligiDuzelt._uyarildi){
+      csvBasligiDuzelt._uyarildi = true;
+      console.warn('[csv] ilk sütunun başlığı boş geldi, "Date" olarak okunuyor. Sheet\'te A1 hücresine "Date" yazmak kalıcı çözüm.');
+    }
+    return 'Date';
+  }
+  return header;
+}
+
+/* Aynı düzeltmenin metin üstünde çalışan sürümü. loadFromSheet
+   Papa'yı worker:true ile çağırıyor; transformHeader bir fonksiyon olduğu
+   için postMessage onu klonlayamıyor (DataCloneError) ve parse tümden
+   çöküyor. Bu yüzden orada başlık satırı parse'tan önce düzeltiliyor. */
+function csvMetniBasligiDuzelt(metin){
+  const t = String(metin == null ? '' : metin);
+  const nl = t.indexOf('\n');
+  if (nl < 0) return t;
+  const basliksatiri = t.slice(0, nl);
+  const cr = basliksatiri.endsWith('\r') ? '\r' : '';
+  const govde = cr ? basliksatiri.slice(0, -1) : basliksatiri;
+  const ilk = govde.split(',')[0];
+  if (String(ilk).trim() !== '') return t;
+  if (!csvBasligiDuzelt._uyarildi){
+    csvBasligiDuzelt._uyarildi = true;
+    console.warn('[csv] ilk sütunun başlığı boş geldi, "Date" olarak okunuyor. Sheet\'te A1 hücresine "Date" yazmak kalıcı çözüm.');
+  }
+  return 'Date' + govde.slice(ilk.length) + cr + t.slice(nl);
+}
+
 function loadCsv(url, timeoutMs = 30000){
   return new Promise((resolve, reject)=>{
     if (!window.Papa){ reject(new Error('PAPA_MISSING')); return; }
@@ -346,6 +385,7 @@ function loadCsv(url, timeoutMs = 30000){
     Papa.parse(url, {
       download: true,
       header: true,
+      transformHeader: csvBasligiDuzelt,
       skipEmptyLines: true,
       complete: (res)=> {
         if (!completed) {
@@ -2063,7 +2103,7 @@ async function loadFromSheet(url){
   if(!resp.ok) throw new Error(`CSV fetch failed: ${resp.status}`);
   const csvText = await resp.text();
   return new Promise((resolve,reject)=>{
-    Papa.parse(csvText, {
+    Papa.parse(csvMetniBasligiDuzelt(csvText), {
       header:true, skipEmptyLines:true,
       worker:true, fastMode:true,
       complete: (res)=>{
@@ -5903,7 +5943,7 @@ document.getElementById('fileInput').addEventListener('change', e=>{
       row.Total = rawSheetTotal > 0 ? rawSheetTotal : (row.Toptan + row.Online + row.CKM + row.Kuaför + row.Trendyol + row.Hepsiburada);
       return row;
     }).filter(r=>r.Date);
-    loadedRows = data; localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
+    loadedRows = data; // NOT: popdog_loaded_rows yaziliyordu, hic okunmuyordu — iOS'ta localStorage dar, kaldirildi.
     refreshAll();
   }});
 });
@@ -6334,7 +6374,6 @@ try {
       const data = await loadFromSheet(sheetUrl);
       if (!data.length) throw new Error('Sheet boş döndü');
       loadedRows = data;
-      localStorage.setItem('popdog_loaded_rows', JSON.stringify(loadedRows));
       const first = loadedRows[0]?.Date || '—';
       const last  = loadedRows.at(-1)?.Date || '—';
     } catch (e) {
